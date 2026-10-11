@@ -1,7 +1,7 @@
 # Template: task card
 
 One per task, in `parts/31-<WU>-<task>.md`. The **In plain English** rules are
-in the skill's `SKILL.md` ("The plain-English summary").
+in `tt-common/breakdown-rules.md` ("The plain-English summary").
 
 ```markdown
 ### <ID> — <imperative title>

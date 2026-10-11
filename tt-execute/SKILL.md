@@ -1,16 +1,54 @@
-# Continue mode
+---
+name: tt-execute
+description: >
+  Work through a Task Breakdown (from tt-task-breakdown) one work unit at a
+  time, from its Task Status document: reconcile the status with the repo,
+  report progress, run each Agent task in its own tt-coder subagent and each
+  Engineer task as a checklist, then validate the unit (the agent checks by
+  script, the engineer's inline in chat). It is the only writer of the Task
+  Status while it runs, and amends the breakdown only through logged
+  amendments. Never writes production code itself and never commits. Use when
+  asked to continue, resume, execute or report progress on an existing
+  breakdown.
+metadata:
+  version: "1.0"
+---
+
+# tt-execute
+
+## Usage
+
+```
+/tt-execute <task status doc>          # report, then work the current unit
+/tt-execute status <task status doc>   # report only (steps 1–3)
+```
+
+If the argument is missing, or isn't a Task Status document, ask and stop. Do
+not guess from the working tree. If you're handed a Comprehensive Tech Plan,
+that's `/tt-task-breakdown`.
+
+## How to run this skill
 
 The Task Status document is the resume point. Assume the session starting now
-knows nothing else. `<skill>` is this skill's folder, `<common>` is
-`<skill>/../tt-common`, `<scripts>` is `<common>/scripts`, and `<run>` is
-`<doc folder>/.tt/<Prefix> - Task Status/` (result files and validation
-logs).
+knows nothing else. `<skill>` is this skill's folder (`${CLAUDE_SKILL_DIR}`),
+`<common>` is `<skill>/../tt-common`, `<scripts>` is `<common>/scripts`, and
+`<run>` is `<doc folder>/.tt/<Prefix> - Task Status/` (snapshots, result files
+and validation logs).
 
-The main agent is the orchestrator and the **only writer of the Task Status**.
-It keeps its context small: it never loads cards it isn't about to hand over,
-never implements a task itself, never reads whole documents when a section
-will do, and **never re-types into the Task Status what a script can write**.
-Every routine update is one script call:
+1. Read `<common>/orchestration.md`: the output budget, stall recovery,
+   subagents and scripts.
+2. Read only these sections of `<common>/breakdown-rules.md`:
+   `md-section.sh get <common>/breakdown-rules.md "## Authority order" "## The two documents" "## Executors" "## Amending the breakdown" "## Critical Decisions" "## Shared guardrails"`.
+   Read `"## Tasks and work units"` and `"## The plain-English summary"` too
+   only when you write a fix task.
+3. Then follow the steps below. Briefs are in `<skill>/briefs/` and templates
+   in `<skill>/templates/` and `<common>/templates/`.
+
+You are the orchestrator and the **only writer of the Task Status**. Keep your
+context small: never load cards you aren't about to hand over, never implement
+a task yourself, never read whole documents when a section will do, and
+**never type into a document or a prompt what a script can write**. Every
+routine update is one script call:
 
 | Update | Script |
 |---|---|
@@ -25,12 +63,10 @@ script failed.
 
 ## 1. Load
 
-- Read the status doc's `# Status` header, `# Resume Here` and the two boards
-  (`md-section.sh get <status> "# Status" "# Resume Here" "# Work Unit Board" "# Task Board"`).
-- Read the breakdown's header, Work Units and Task Map, and the current unit's
-  block up to its first card (`md-section.sh get <breakdown> "## WU3 —"`, read
-  to the end of How to validate). Read the plan sections the cards cite only
-  when a step needs them.
+- `bash "<scripts>/execute-load.sh" "<status>" "<breakdown>"`. It prints the
+  status header, Resume Here and both boards, the breakdown's header and Work
+  Units table, and the current unit's block up to its first card. Read the plan
+  sections the cards cite only when a step needs them.
 - `git fetch` once and pin `BASE_SHA`.
 - Invoke `tt-task-status` only when you need an operation no script covers
   (a reconcile correction that needs judgement, a hand-made update after a
@@ -58,22 +94,24 @@ its two summary lines.
 - `plan: … (drift)`: only now spawn the plan-drift subagent (`model: sonnet`,
   `<skill>/briefs/plan-drift.md`), given the plan, the "Plan read" revision,
   the current unit and the later units' IDs. A plan change that affects a card
-  or a unit's checks goes through the amendment rules in `SKILL.md`.
+  or a unit's checks goes through the amendment rules.
 - `needs_model: no` and no rows: nothing to reconcile; say so in one line.
 
 If the script exits `2`, fall back to the reconcile subagent (`model: sonnet`,
-`<skill>/../tt-task-status/briefs/reconcile.md`) and, if the plan's revision
+`<common>/../tt-task-status/briefs/reconcile.md`) and, if the plan's revision
 can't be read, the plan-drift one.
 
 ## 3. Report
 
-Give the engineer the `tt-task-status summary` (from the header, Resume Here
-and the boards already read), plus:
+Give the engineer the `tt-task-status summary` (from what `execute-load.sh`
+printed), plus:
 
 - for a unit that is `Ready to Validate`: go straight to step 6 and give the
   inline validation checklist;
 - the next action: the next task in the current unit, or the next unit (ID,
   outcome, plain-English summary, who validates it).
+
+With `status`, stop here.
 
 ## 4. Choose the next work
 
@@ -91,26 +129,31 @@ and the boards already read), plus:
    `md-section.sh get <breakdown> "### T07 —" | verify-refs.sh --worktree --only-problems -`.
    If something moved, correct the card and log it. If it changed materially,
    escalate.
-2. **Start.** `status-set.sh <status> T07 "In Progress"` (the unit follows).
-   This is saved **before** the subagent starts.
+2. **Start.** `task-files.sh snapshot <breakdown> <run> T07`, then
+   `status-set.sh <status> T07 "In Progress"` (the unit follows). Both happen
+   **before** the subagent starts.
 3. **Execute.**
-   - **Agent task:** spawn one implementation subagent on the default model
-     (general-purpose, foreground), with the handoff in
-     `<skill>/templates/handoff.md` filled in. Don't paste the card: the
-     subagent reads it from the breakdown, and writes its result to
-     `<run>/results/T07.md`.
-   - **Engineer task:** show the card's Steps as a checklist, wait, then write
-     what the engineer reports as a result file in the same format
-     (`<skill>/../tt-implementation-agent/templates/result.md`) and apply it
-     as in step 5.
-4. **Record.** `status-log.sh <status> <run>/results/T07.md`. It writes the
+   - **Agent task:** `handoff.sh <breakdown> <status> T07 --run <run> --base-sha <BASE_SHA>`
+     prints the whole prompt. Spawn one coder subagent on the default model
+     (general-purpose, foreground) with that output, unchanged. It reads the
+     card from the breakdown and writes its result to `<run>/results/T07.md`.
+     If the script fails, fill in `<skill>/templates/handoff.md` by hand.
+   - **Engineer task:** show the card's Steps as a checklist and wait. Then
+     `result-scaffold.sh <breakdown> T07 --run <run> > <run>/results/T07.md`,
+     fill in its markers with what the engineer reports, and record it as in
+     step 4.
+4. **Scope check.** `task-files.sh diff <breakdown> <run> T07`. Exit `1` means
+   the task changed a file that isn't on its card: name it to the engineer,
+   who decides whether to keep it (log a card correction) or revert it. A card
+   file left `untouched` with the task `implemented` is worth one question.
+5. **Record.** `status-log.sh <status> <run>/results/T07.md`. It writes the
    Step Log entry, adds each risk and improvement, and sets the task
    `Implemented` (`Blocked` or `In Progress` if it stopped early). Don't read
    the result file back unless the script reports a critical decision or
    fails.
-5. **Escalation.** If `status-log.sh` reports `critical decision: yes`: read
+6. **Escalation.** If `status-log.sh` reports `critical decision: yes`: read
    only that section of the result file, check its evidence, and present it
-   with `<skill>/templates/critical-decision.md`. Record the choice with
+   with `<common>/templates/critical-decision.md`. Record the choice with
    `status-record.sh <status> decision …` (it prints the decision's ID), and
    name it on the task: `status-set.sh <status> T07 Blocked --note "<D-ID>: <one line>"`
    while waiting, then `"In Progress" --note ""` once decided. Continue the
@@ -118,15 +161,16 @@ and the boards already read), plus:
    file when it finishes. If it can't be continued, spawn a new one with the
    handoff, the decision, and "inspect `git diff` on the card's Files to see
    the work so far".
-6. **Next.** Continue with the unit's next task, or go to step 6 if this was
-   the last.
+7. **Next.** Continue with the unit's next task, or go to step 6 of this
+   procedure ("Validate the work unit") if this was the last.
 
 **Two at once (optional).** Two Agent tasks may run side by side only when all
 of these hold: they're in the same unit, the breakdown marks them as parallel,
 their Files lists don't overlap, and neither depends on the other. Never more
-than two. Set both `In Progress` first; apply each result file as it returns.
-If either escalates, start nothing new until it's resolved. Otherwise, one at a
-time.
+than two. Snapshot and set both `In Progress` first; apply each result file as
+it returns. Their scope checks can't tell the two apart, so check each against
+the union of both cards. If either escalates, start nothing new until it's
+resolved. Otherwise, one at a time.
 
 ## 6. Validate the work unit
 
@@ -173,11 +217,24 @@ When every task in the unit is `Implemented`:
 6. **Outcome Done:** `status-set.sh <status> WU3 Done`, which marks each of its
    tasks `Done`.
 7. **Any check fails:** `status-set.sh <status> WU3 Failed --note "check <n>"`.
-   Trace the failure to the task that caused it, and propose a fix task (the
-   next unused ID, added to this unit) through the amendment rules. Once it's
-   approved and implemented, re-run the **whole** unit's validation as a new
+   Trace the failure to the task that caused it, and propose a fix task:
+   `fix-card.sh <breakdown> WU3 --after <cause> --check <n>` prints its ID,
+   the rows for the Task Map, the Work Units table and both status boards, and
+   the card with every known field filled in. Fill in the rest of the card
+   (the card-writing rules in `tt-task-breakdown/templates/task-card.md`
+   apply), and once the engineer approves, add it through the amendment rules.
+   Once it's implemented, re-run the **whole** unit's validation as a new
    attempt.
 8. Stop and report: the unit's check results, what changed, and the next unit.
 
-Never offer to commit. When a unit is `Done`, say so; the engineer decides what
-to commit and when.
+## Guardrails
+
+The shared guardrails in `<common>/breakdown-rules.md` apply. In addition:
+
+- One unit at a time. Within it, tasks run one at a time unless the two-at-once
+  rules allow two. Never mark a unit `Done` while a check still needs the
+  engineer.
+- Never write production code, even for a one-line fix: that's a task for a
+  coder subagent, or a fix task.
+- Never offer to commit. When a unit is `Done`, say so; the engineer decides
+  what to commit and when.

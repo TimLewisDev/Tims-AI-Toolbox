@@ -1,13 +1,14 @@
-# Template: implementation handoff
+# Template: coder handoff
 
-The prompt for one implementation subagent (default model, general-purpose,
-foreground). Fill in the `<…>` and send it as is. Don't paste the card: the
-subagent extracts it.
+The prompt for one coder subagent (default model, general-purpose,
+foreground). `handoff.sh` fills in the `<…>` (all but `<your changed files>`);
+send its output as is. Fill it in by hand only if the script fails. Don't
+paste the card: the subagent extracts it.
 
 ```
 Implement exactly one task: <ID> — <title>. Do not start any other task.
 
-Invoke the tt-implementation-agent skill and follow it in DELEGATED MODE.
+Invoke the tt-coder skill and follow it in DELEGATED MODE.
 Read <common>/subagent-rules.md first; it applies to you.
 
 Your card: run
@@ -36,10 +37,13 @@ Steps are done.
 
 When you stop, for any reason, write your result in one Write to
   <run>/results/<ID>.md
-in exactly the format of <common>/../tt-implementation-agent/templates/result.md
-(Validation: Deferred to <WU ID>). The orchestrator applies that file with a
-script, so keep its headings and bullet lines. If you are continued later,
-rewrite the whole file.
+in exactly the format of <common>/../tt-coder/templates/result.md
+(Validation: Deferred to <WU ID>). Start from the output of
+  bash "<common>/scripts/result-scaffold.sh" "<breakdown path>" <ID> --run "<run>"
+and replace every <!-- fill: --> marker. The orchestrator applies that file
+with a script, so keep its headings and bullet lines. If you are continued
+later, rewrite the whole file. Only change files on your card's Files list;
+the orchestrator checks.
 
 Then end with the RESULT block from subagent-rules.md, kept short:
   status, wrote (the result file and nothing else), a 1–3 line summary,

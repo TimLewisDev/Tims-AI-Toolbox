@@ -21,8 +21,8 @@ of the plan steps the unit's tasks come from.
 Read first, in this order:
 
 1. `<common>/subagent-rules.md` (applies to you).
-2. Only these sections of `<skill>/SKILL.md`:
-   `bash "<common>/scripts/md-section.sh" get "<skill>/SKILL.md" "## Tasks and work units" "## Executors" "## The plain-English summary"`.
+2. Only these sections of `<common>/breakdown-rules.md`:
+   `bash "<common>/scripts/md-section.sh" get "<common>/breakdown-rules.md" "## Tasks and work units" "## Executors" "## The plain-English summary"`.
 3. `<skill>/templates/work-unit.md` and `<skill>/templates/task-card.md` (the
    notes under each, on what each field holds).
 4. Your unit's scaffolded parts, and `<draft>/context.md`.

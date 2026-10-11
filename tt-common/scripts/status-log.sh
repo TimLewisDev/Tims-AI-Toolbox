@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# status-log.sh: apply an implementation subagent's result file to a Task
+# status-log.sh: apply a coder subagent's result file to a Task
 # Status document: the task's Step Log entry, its risks and its identified
 # improvements, then the task's status (through status-set.sh). The
 # orchestrator never re-types the result.
@@ -9,7 +9,7 @@ usage() {
 	cat >&2 <<'EOF'
 usage: status-log.sh <task status.md> <result.md> [--no-set]
 
-<result.md> is a delegated result file (tt-implementation-agent's
+<result.md> is a delegated result file (tt-coder's
 templates/result.md): "# Result: <ID> — <title>", a "- Task status:" line,
 and the sections Files Modified, Summary, To validate, Follow-up Concerns,
 Risks, Improvements and Critical Decision.
@@ -44,6 +44,7 @@ noset=0
 while [ $# -gt 0 ]; do case "$1" in --no-set) noset=1; shift ;; *) usage ;; esac; done
 [ -f "$doc" ] || die "no such file: $doc"
 [ -f "$res" ] || die "no such result file: $res"
+grep -q "<!-- fill:" "$res" && die "unfilled <!-- fill: --> markers in $res"
 here=$(cd "$(dirname "$0")" && pwd)
 
 crlf=0

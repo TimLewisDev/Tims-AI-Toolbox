@@ -98,7 +98,7 @@ each step's line range, the repo path and `BASE_SHA`. It writes
 
 Read `<skill>/templates/skeleton.md` once. Then, for each plan step in order,
 read that step (`md-section.sh get <plan> "§N."`) and append its tasks to
-`<draft>/skeleton.md`, applying the atomic rules in `SKILL.md`:
+`<draft>/skeleton.md`, applying the atomic rules in `<common>/breakdown-rules.md`:
 
 - prerequisites (ticket, branch, setup) become `T00`, `T00a`…; point to the
   repo skill that performs one where it exists;
@@ -226,4 +226,4 @@ following `<skill>/../tt-task-status/briefs/init.md`.
 ## 13. Finish
 
 Delete `<draft>` and say so. Report the two paths and the unit count, and offer
-to start the first ready unit in continue mode. Never offer to commit.
+to start the first ready unit with `/tt-execute <task status doc>`. Never offer to commit.

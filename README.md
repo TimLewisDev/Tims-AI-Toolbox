@@ -25,9 +25,10 @@ They are instructions and document templates, plus small bash scripts in
 | [`tt-tech-proposals`](tt-tech-proposals/SKILL.md) | Lays out each decision's options side by side for review, and records what was chosen. |
 | [`tt-tech-plan`](tt-tech-plan/SKILL.md) | Writes a short, five-minute summary of the plan for reviewers. |
 | [`tt-tech-plan-review`](tt-tech-plan-review/SKILL.md) | Talks a written plan through with you, answers questions, and makes the changes you confirm. |
-| [`tt-task-breakdown`](tt-task-breakdown/SKILL.md) | Splits the plan into small tasks grouped into work units, then works through them one unit at a time. |
+| [`tt-task-breakdown`](tt-task-breakdown/SKILL.md) | Splits the plan into small tasks grouped into work units. |
+| [`tt-execute`](tt-execute/SKILL.md) | Works through the breakdown one unit at a time: hands each task to a coder, then validates the unit with you. |
 | [`tt-task-status`](tt-task-status/SKILL.md) | Keeps the progress record that lets any new session pick up where the last one stopped. |
-| [`tt-implementation-agent`](tt-implementation-agent/SKILL.md) | Writes the code for one task (or a small plan), strictly within scope. |
+| [`tt-coder`](tt-coder/SKILL.md) | Writes the code for one task (or a small plan), strictly within scope. |
 | [`tt-mr-review`](tt-mr-review/SKILL.md) | Reviews a GitLab merge request and posts only the comments you approve. |
 | [`tt-common`](tt-common/SKILL.md) | Not run directly: the shared rules for long runs and for planning, shared templates, and the helper scripts the other skills call. |
 
@@ -58,13 +59,13 @@ You review the Tech Plan and Proposals
   └─ tt-tech-plan-review: questions and changes, at any time
   │
   ▼
-tt-task-breakdown  (breakdown mode)
+tt-task-breakdown
   ├─► Task Breakdown            (task cards, grouped into work units)
   └─► tt-task-status ────────► Task Status (progress and resume point)
   │
   ▼
-tt-task-breakdown  (continue mode), one work unit at a time:
-  ├─ Agent tasks    ──► tt-implementation-agent
+tt-execute, one work unit at a time:
+  ├─ Agent tasks    ──► tt-coder
   ├─ Engineer tasks ──► a checklist for you
   └─ validate the unit, then stop and report
 
@@ -106,9 +107,9 @@ In order:
 | work on one planning stage in its own session | `/tt-requirements`, `/tt-scope`, `/tt-approach`, `/tt-technical-design` or `/tt-plan-signoff` `<draft plan>` |
 | review, question or change a written plan | `/tt-tech-plan-review [tech plan] [comprehensive tech plan]` |
 | break a signed-off plan into tasks | `/tt-task-breakdown <comprehensive tech plan>` |
-| carry on building | `/tt-task-breakdown continue <task status doc>` |
+| carry on building | `/tt-execute <task status doc>` |
 | see where things stand | `/tt-task-status <task status doc>` |
-| implement a small plan or ticket without a breakdown | `/tt-implementation-agent <plan, spec or ticket>` |
+| implement a small plan or ticket without a breakdown | `/tt-coder <plan, spec or ticket>` |
 | rebuild the brief Tech Plan | `/tt-tech-plan <comprehensive tech plan>` |
 | tidy a proposals doc, or create one for an existing plan | `/tt-tech-proposals <proposals doc or comprehensive tech plan>` |
 | review a GitLab MR | `/tt-mr-review [MR number or branch]` |
@@ -200,14 +201,18 @@ sections of a `SKILL.md` their brief needs):
   `verify-refs.sh` (every path and `path:line` a doc cites, at a commit),
   `check-planning-ids.sh`, `assemble.sh`, `md-section.sh`, `ids.sh`,
   `status-boards.sh` and `status-counts.sh`.
-- **Scripts write the Task Status, not the model.** In continue mode every
+- **Scripts write the Task Status, not the model.** In `tt-execute` every
   routine update is one call: `status-set.sh` (a status change, with the unit,
   header and Resume Here following), `status-log.sh` (applies the result file
-  an implementation subagent writes, so its report is never re-typed) and
+  a coder subagent writes, so its report is never re-typed) and
   `status-record.sh` (decisions, risks, validation attempts, each check's
   answer). `continue-preflight.sh` does the reconcile and the plan-drift check
   without a subagent, `run-checks.sh` runs a unit's `checks` block, and
-  `validation-checklist.sh` drafts the engineer's checklist. Subagents are
+  `validation-checklist.sh` drafts the engineer's checklist. `execute-load.sh`
+  prints everything a session starts from in one call, `handoff.sh` writes
+  each coder's prompt, `task-files.sh` checks the files a task changed against
+  its card, `result-scaffold.sh` pre-writes result files, and `fix-card.sh`
+  drafts a fix task after a failed check. Subagents are
   spawned only when a script reports something that needs judgement, or
   can't parse an older document.
 - **Scripts write the copied parts of a breakdown.** `donewhen.sh` numbers the
@@ -365,31 +370,44 @@ A conversational review partner, and the only way a written plan changes.
 - **Won't:** edit the Task Breakdown or Task Status. Changes show up as drift
   the next time `tt-task-breakdown` continues.
 
-### [`tt-task-breakdown`](tt-task-breakdown/SKILL.md): slice and deliver
+### [`tt-task-breakdown`](tt-task-breakdown/SKILL.md): slice the plan
 
-Turns the plan into tasks and work units, then drives the build one unit at a
-time. It slices the design but never changes it.
+Turns the plan into tasks and work units. It slices the design but never
+changes it.
 
-- **Run it:** `/tt-task-breakdown <comprehensive tech plan>` (breakdown
-  mode), or `/tt-task-breakdown continue <task status doc>` (continue mode;
-  `resume` and `status` also work).
-- **Breakdown mode:** verifies every path and symbol the plan cites on its base
+- **Run it:** `/tt-task-breakdown <comprehensive tech plan>`.
+- **What it does:** verifies every path and symbol the plan cites on its base
   branch (a script, then batched subagents); drafts a skeleton (units, tasks,
   files, where each "Done when" check lands and who checks it), checks it with
   a script, and gives it to you to approve; scaffolds every unit block and
   card from it, then has subagents fill in what needs judgement, one unit
   each; runs the coverage audit as a script; assembles the documents and
   creates the Task Status.
-- **Continue mode:** runs a pre-flight script that reconciles the Task Status
-  with the repo and flags plan changes since the breakdown (a subagent only if
-  the plan changed); confirms the next unit with you once; runs each task in
-  its own implementation subagent, back to back, applying each one's result
-  file with a script; then validates the unit: the agent checks from its
-  `checks` block, then your checklist inline in chat.
-- **Calls:** `tt-task-status` for every status change;
-  `tt-implementation-agent` for each Agent task.
-- **Won't:** redesign the feature, edit the plan (it sends you to
-  `tt-tech-plan-review`), or offer to commit.
+- **Calls:** `tt-task-status` to create the Task Status.
+- **Shares** its rules for tasks, work units, amendments and Critical
+  Decisions with `tt-execute` (`tt-common/breakdown-rules.md`).
+- **Won't:** start any work, redesign the feature, edit the plan (it sends you
+  to `tt-tech-plan-review`), or offer to commit.
+
+### [`tt-execute`](tt-execute/SKILL.md): work through the breakdown
+
+Drives the build one work unit at a time, from the Task Status.
+
+- **Run it:** `/tt-execute <task status doc>`, or `/tt-execute status <task
+  status doc>` for the report only.
+- **What it does:** loads everything it needs in one script call; runs a
+  pre-flight script that reconciles the Task Status with the repo and flags
+  plan changes since the breakdown (a subagent only if the plan changed);
+  confirms the next unit with you once; runs each task in its own coder
+  subagent, back to back, with a prompt a script writes, checks the files each
+  one changed against its card, and applies its result file with a script;
+  then validates the unit: the agent checks from its `checks` block, then your
+  checklist inline in chat. A failed check becomes a fix task, drafted by a
+  script, which you approve.
+- **Calls:** `tt-coder` for each Agent task; `tt-task-status` (mostly through
+  its scripts) for every status change.
+- **Won't:** write code itself, redesign the feature, edit the plan, or offer
+  to commit.
 
 ### [`tt-task-status`](tt-task-status/SKILL.md): keep the resume point
 
@@ -407,25 +425,26 @@ can trust.
 - **Key rules:** saves at every state change, including `In Progress` before
   any code changes; boards, header and *Resume Here* always agree; corrections
   found by reconcile are applied only after you confirm; nothing is deleted.
-- **Standalone mode:** when `tt-implementation-agent` works from a plan with
-  no breakdown, the doc has no work units and a task is `Done` once its
-  compile check passes.
-- **Won't:** check for plan drift (that's the breakdown's job), or stage,
+- **Standalone mode:** when `tt-coder` works from a plan with no breakdown,
+  the doc has no work units and a task is `Done` once its compile check
+  passes.
+- **Won't:** check for plan drift (that's `tt-execute`'s job), or stage,
   commit, push or branch.
 
-### [`tt-implementation-agent`](tt-implementation-agent/SKILL.md): write the code
+### [`tt-coder`](tt-coder/SKILL.md): write the code
 
 Implements exactly what it's given and escalates everything else.
 
-- **Run it:** called by `tt-task-breakdown` with one task card, or directly
-  with a plan, spec or ticket (standalone).
+- **Run it:** called by `tt-execute` with one task card, or directly with a
+  plan, spec or ticket (standalone).
 - **Via a breakdown:** one task only; no validation. It writes a result file
   (files changed, summary, *To validate* notes for the unit's checks, risks,
-  improvements, any Critical Decision) that the coordinator applies to the
-  Task Status with a script.
+  improvements, any Critical Decision), starting from a scaffold a script
+  prints, that the coordinator applies to the Task Status with a script.
 - **Standalone:** works the plan's steps in order, keeps a minimal Task Status,
   runs a compile check using the repo's method, and gives you inline
-  validation steps.
+  validation steps. Those rules are in `standalone.md`, so a delegated coder
+  never loads them.
 - **Key rules:** the codebase is the source of truth, ahead of your
   instructions, the task card and the plan; it makes only small local
   decisions itself; anything bigger is a *Critical Decision* that marks the
@@ -499,12 +518,13 @@ up new skills.
 
 `tt-common` must be linked too: the other skills find their scripts at
 `../tt-common/` from their own folder. When a new skill folder appears after
-a pull, link it the same way.
+a pull, link it the same way. When one is renamed (`tt-implementation-agent`
+became `tt-coder`), remove the old link, which now points at nothing.
 
 ### Testing the scripts
 
-[`tools/test-scripts.sh`](tools/test-scripts.sh) runs the breakdown-mode,
-continue-mode and status scripts against the fixtures in `tools/fixtures/`
+[`tools/test-scripts.sh`](tools/test-scripts.sh) runs the breakdown,
+execute and status scripts against the fixtures in `tools/fixtures/`
 (`demo/`: a plan, a breakdown and a Task Status; `demo-draft/`: a skeleton) in
 a throwaway git repo, including a CRLF copy:
 

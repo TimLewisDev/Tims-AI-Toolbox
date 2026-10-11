@@ -114,7 +114,7 @@ Three to five lines, no more:
 - whether the Tech Plan is in sync;
 - how many proposals are open, with their IDs;
 - if a breakdown exists: its progress, and one line saying that changes will
-  show as plan drift when `tt-task-breakdown` next runs, and may need
+  show as plan drift when `tt-execute` next runs, and may need
   breakdown amendments there.
 
 **If the Tech Plan is out of sync**, say so and deal with it first: offer to
@@ -204,7 +204,7 @@ look at), summarise:
 - the session's revision, if anything changed, and each change with its IDs;
 - proposals decided;
 - the documents that changed;
-- if a Task Breakdown exists: run `/tt-task-breakdown continue <task status
+- if a Task Breakdown exists: run `/tt-execute <task status
   doc>` next, which will flag the Change Log rows that affect the current unit.
   (If it has no Task Status doc, say so: the breakdown hasn't been started, and
   its cards should be checked against this revision before it is.)

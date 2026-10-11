@@ -148,6 +148,75 @@ sed -i 's/| T04 | Check the greeting in the tool | Engineer |/| T04 | Check the 
 expect "preflight finds an executor mismatch" 1 bash "$S/continue-preflight.sh" "$ST" "$BD"
 has "board finding" "$T/out" "board	T04	executor Agent	executor Engineer	fact"
 
+echo "# execute-load.sh"
+cp "$F/Demo - Task Status.md" "$T/load-status.md"
+sed "s#REPO#$T/repo#g" "$F/Demo - Task Breakdown.md" >"$T/load-bd.md"
+expect "load a fresh status" 0 bash "$S/execute-load.sh" "$T/load-status.md" "$T/load-bd.md"
+has "status header" "$T/out" "- Next: Start WU1 — Save settings"
+has "breakdown header" "$T/out" "- **Build check:** \`bash build.sh\`"
+has "work units table" "$T/out" "| WU2 | See a greeting | T03, T04 | Agent + Engineer | WU1 |"
+has "unit from Next" "$T/out" "==== unit: WU1"
+has "unit checks block" "$T/out" "3 | ok | test -f src/store.sh"
+hasnt "no cards" "$T/out" "### T01"
+expect "load another unit" 0 bash "$S/execute-load.sh" "$T/load-status.md" "$T/load-bd.md" --unit WU2
+has "WU2 engineer steps" "$T/out" "Open the tool and run Greet"
+expect "unknown unit" 2 bash "$S/execute-load.sh" "$T/load-status.md" "$T/load-bd.md" --unit WU9
+
+echo "# handoff.sh"
+expect "handoff for T02" 0 bash "$S/handoff.sh" "$T/load-bd.md" "$T/load-status.md" T02 --run "$T/run" --base-sha abc123
+has "task line" "$T/out" "Implement exactly one task: T02 — Add the settings loader."
+has "unit line" "$T/out" "work unit WU1 — Save settings"
+has "repo line" "$T/out" "base main @ abc123 · Build check: \`bash build.sh\`"
+has "result path" "$T/out" "$T/run/results/T02.md"
+has "coder skill" "$T/out" "Invoke the tt-coder skill"
+has "changed files left for the coder" "$T/out" "<your changed files>"
+grep -qE '<(ID|title|WU ID|name|common|run|base|BASE_SHA|plan path|status path|repo path|breakdown path)>' "$T/out" && bad "every placeholder filled" || ok "every placeholder filled"
+expect "unresolvable base" 2 bash "$S/handoff.sh" "$T/load-bd.md" "$T/load-status.md" T02 --run "$T/run"
+expect "unknown task" 2 bash "$S/handoff.sh" "$T/load-bd.md" "$T/load-status.md" T99 --run "$T/run" --base-sha abc123
+
+echo "# task-files.sh"
+echo 'left over' >"$T/repo/earlier.txt"
+expect "snapshot" 0 bash "$S/task-files.sh" snapshot "$T/load-bd.md" "$T/run" T02
+has "earlier work in the snapshot" "$T/run/snapshots/T02.tsv" "earlier.txt"
+echo 'echo load' >"$T/repo/src/loader.sh"
+echo 'echo more' >>"$T/repo/src/store.sh"
+echo 'stray' >"$T/repo/stray file.txt"
+mkdir -p "$T/repo/.tt" && echo r >"$T/repo/.tt/result.md"
+expect "diff flags a file not on the card" 1 bash "$S/task-files.sh" diff "$T/load-bd.md" "$T/run" T02
+has "new card file" "$T/out" "new	src/loader.sh	on card"
+has "changed card file" "$T/out" "change	src/store.sh	on card"
+has "stray file flagged" "$T/out" "new	stray file.txt	NOT ON CARD"
+hasnt "earlier work not counted" "$T/out" "earlier.txt"
+hasnt "run files ignored" "$T/out" ".tt/"
+has "summary" "$T/out" "files: 3 changed, 1 not on the card, 0 card files untouched"
+rm "$T/repo/stray file.txt"
+expect "diff with every change on the card" 0 bash "$S/task-files.sh" diff "$T/load-bd.md" "$T/run" T02
+expect "diff without a snapshot" 2 bash "$S/task-files.sh" diff "$T/load-bd.md" "$T/run" T01
+
+echo "# result-scaffold.sh"
+expect "scaffold T02" 0 bash "$S/result-scaffold.sh" "$T/load-bd.md" T02 --run "$T/run"
+has "result heading" "$T/out" "# Result: T02 — Add the settings loader"
+has "deferred to its unit" "$T/out" "- Validation: Deferred to WU1"
+has "changed file listed" "$T/out" "- new \`src/loader.sh\`: <!-- fill: purpose -->"
+cp "$T/out" "$T/scaffold.md"
+expect "status-log refuses unfilled markers" 2 bash "$S/status-log.sh" "$T/load-status.md" "$T/scaffold.md"
+expect "scaffold without a snapshot" 0 bash "$S/result-scaffold.sh" "$T/load-bd.md" T03
+has "files marker" "$T/out" "<!-- fill: new|change"
+(cd "$T/repo" && git checkout -q -- src/store.sh && rm -rf src/loader.sh earlier.txt .tt)
+
+echo "# fix-card.sh"
+expect "fix card for WU1" 0 bash "$S/fix-card.sh" "$T/load-bd.md" WU1 --check 2
+has "next ID" "$T/out" "T05"
+has "task map row" "$T/out" "| T05 | <title> | Agent | T02 | WU1 | <Plan step> | <Traces to> |"
+has "unit tasks" "$T/out" "WU1 Tasks: T01, T02, T05"
+has "task board row" "$T/out" "| T05 | <title> | Agent | WU1 | T02 | Todo | |"
+has "card heading" "$T/out" "### T05 — <imperative title>"
+has "validated in" "$T/out" "**Validated in:** WU1, checks 2"
+expect "fix card after a named task" 0 bash "$S/fix-card.sh" "$T/load-bd.md" WU2 --after T03 --executor Engineer
+has "engineer executor" "$T/out" "| **Executor** | Engineer |"
+expect "unknown unit" 2 bash "$S/fix-card.sh" "$T/load-bd.md" WU9
+expect "unknown after task" 2 bash "$S/fix-card.sh" "$T/load-bd.md" WU1 --after T99
+
 echo "# donewhen.sh"
 PL="$T/Demo - Comprehensive Tech Plan.md"
 expect "list the plan's items" 0 bash "$S/donewhen.sh" "$PL"
@@ -211,6 +280,35 @@ sed 's/$/\r/' "$F/Demo - Task Status.md" >"$T/crlf.md"
 expect "set on a CRLF document" 0 bash "$S/status-set.sh" "$T/crlf.md" T01 "In Progress"
 [ "$(grep -c $'\r$' "$T/crlf.md")" = "$(wc -l <"$T/crlf.md" | tr -d ' ')" ] && ok "CRLF kept on every line" || bad "CRLF kept on every line"
 ls -a "$T" | grep -q '^\.status-' && bad "temp files left behind" || ok "no temp files left behind"
+
+echo "# guide.sh"
+GD="$root/tt-guide/scripts/guide.sh"
+bash "$GD" quip >"$T/quip"
+[ "$(wc -l <"$T/quip" | tr -d ' ')" = 1 ] && ! grep -q '^#' "$T/quip" && ok "one quip, not a comment" || bad "one quip, not a comment" "$(cat "$T/quip")"
+bash "$GD" start >"$T/start"
+has "start prints the table" "$T/start" "/tt-adversarial-plan"
+expect "about a skill" 0 bash "$GD" about tt-execute
+has "the skill's entry" "$T/out" "### [\`tt-execute\`]"
+expect "about a stage skill" 0 bash "$GD" about scope
+has "the planning stages" "$T/out" "### The planning stages"
+expect "about a topic" 0 bash "$GD" about "work units"
+expect "about nothing known" 1 bash "$GD" about nope
+G="$T/guide"; mkdir -p "$G/.tt/Ex - Familiarisation" "$G/empty"; : >"$G/.tt/Ex - Familiarisation/focus-log.md"
+printf -- '- **Status:** Draft · **Stage:** Scope\r\n\r\n**Stages**\r\n\r\n| Stage | Status | Output | Challenges |\r\n|---|---|---|---|\r\n| Requirements | Closed | R | |\r\n| Scope & Constraints | Challenge pending | S | |\r\n' >"$G/Draft - Comprehensive Tech Plan.md"
+printf -- '- **Status:** Signed off · **Revision:** 3\n' >"$G/Old - Comprehensive Tech Plan.md"
+printf -- '- **Mirrors revision:** 2 of the comprehensive plan\n' >"$G/Old - Tech Plan.md"
+cp "$ST" "$G/Demo - Task Status.md"
+(cd "$G" && bash "$GD" where) >"$T/where" 2>&1
+has "draft plan stage" "$T/where" "Draft: planning, draft plan at Scope & Constraints (Challenge pending)."
+has "resume planning" "$T/where" "/tt-adversarial-plan resume \"Draft - Comprehensive Tech Plan.md\""
+has "signed off, break down" "$T/where" "/tt-task-breakdown \"Old - Comprehensive Tech Plan.md\""
+has "stale Tech Plan" "$T/where" "mirrors revision 2; the plan is at 3"
+has "Task Status, execute" "$T/where" "/tt-execute \"Demo - Task Status.md\""
+has "Focus Log" "$T/where" "/tt-familiarisation-doc \".tt/Ex - Familiarisation/focus-log.md\""
+hasnt "no awk warnings" "$T/where" "warning"
+bash "$GD" where "$G/empty" >"$T/where"
+has "empty folder" "$T/where" "No tt documents in"
+expect "no such folder" 2 bash "$GD" where "$G/missing"
 
 echo
 echo "$pass passed, $fail failed"

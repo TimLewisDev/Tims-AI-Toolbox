@@ -28,8 +28,12 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
   stage follows (role, Consensus Ledger, IDs, Setup, the stage contract,
   contradiction handling, Critical Decisions, proposals and challenge
   resolution). The planning stages and `tt-adversarial-plan` read it.
+- [`breakdown-rules.md`](breakdown-rules.md): the rules for tasks, work units,
+  executors, amendments and Critical Decisions shared by `tt-task-breakdown`
+  (which writes the breakdown) and `tt-execute` (which works through it).
 - [`templates/`](templates/): templates shared by more than one skill
-  (`comprehensive-plan.md`, created by whichever stage runs Setup).
+  (`comprehensive-plan.md`, created by whichever stage runs Setup;
+  `critical-decision.md`, how the breakdown skills present a decision).
 - [`scripts/`](scripts/): POSIX bash plus git helpers. Run them as
   `bash "<this folder>/scripts/<name>.sh" …`. Each one prints usage with `-h`.
 
@@ -43,11 +47,16 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
 | `status-boards.sh` | Build a new Task Status's boards from a Task Breakdown's tables |
 | `status-counts.sh` | Recompute a Task Status's derived header fields from its boards; flag inconsistencies |
 | `status-set.sh` | Set a task's or unit's status; the unit, tasks, Step Log, header and Resume Here follow |
-| `status-log.sh` | Apply an implementation subagent's result file: Step Log entry, risks, improvements, then the status |
+| `status-log.sh` | Apply a coder subagent's result file: Step Log entry, risks, improvements, then the status |
 | `status-record.sh` | Record a decision, breakdown change, risk, improvement, validation attempt or one check's result |
 | `continue-preflight.sh` | Reconcile a Task Status with its breakdown, plan and repo without a model; flag plan drift |
 | `run-checks.sh` | Run a work unit's `checks` block; save logs and write the validation attempt |
 | `validation-checklist.sh` | Draft a unit's engineer checklist from its block, its latest attempt and its tasks' To validate notes |
+| `execute-load.sh` | Print what `tt-execute` reads to start: the status header, Resume Here and boards, the breakdown header and Work Units, the current unit's block |
+| `handoff.sh` | Print the filled-in coder handoff prompt for one task |
+| `task-files.sh` | Snapshot the working tree before a task; afterwards list the files it changed and flag any not on its card |
+| `result-scaffold.sh` | Print a task's result file with its heading, unit and changed files written, `<!-- fill: -->` markers for the rest |
+| `fix-card.sh` | Draft a fix task for a failed unit: next ID, table rows and the card with its known fields filled |
 | `donewhen.sh` | List a plan's "Done when" items, numbered `§N #k` the one way every skill uses (sub-bullets are the items) |
 | `skeleton-tsv.sh` | Read a breakdown skeleton's tasks, units, Done-when map and unit checks as TSV (used by the scripts below) |
 | `skeleton-check.sh` | Check a skeleton against its plan: steps, units, dependencies, parallel tasks, the Done-when map, Affected Files |

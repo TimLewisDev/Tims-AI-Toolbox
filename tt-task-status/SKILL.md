@@ -8,7 +8,7 @@ description: >
   later inline validation), record decisions, risks, improvements, breakdown
   changes and work-unit validation results, keep the header, boards and Resume
   Here consistent, and reconcile the document with the repo. Called by
-  tt-task-breakdown and tt-implementation-agent whenever they change the
+  tt-task-breakdown, tt-execute and tt-coder whenever they change the
   status; run directly to get a resume summary and a reconcile. Never commits.
 metadata:
   version: "2.0"
@@ -31,8 +31,9 @@ skill needs:
 
 | Caller | Uses |
 |---|---|
-| `tt-task-breakdown` | `init` (breakdown mode, through `status-init.sh`; `briefs/init.md` is the fallback); `summary` and `reconcile` (continue mode, the read-only part through `briefs/reconcile.md`); `set` at every task and unit state change; `log` from each implementation subagent's result file; `record` for decisions, risks, improvements, breakdown changes and work-unit validation runs |
-| `tt-implementation-agent` | Standalone only: `init`, `set`, `log` and `record` for its own steps. In delegated mode it never calls this skill. |
+| `tt-task-breakdown` | `init` (through `status-init.sh`; `briefs/init.md` is the fallback) |
+| `tt-execute` | `summary` and `reconcile` (the read-only part through `continue-preflight.sh`, `briefs/reconcile.md` the fallback); `set` at every task and unit state change; `log` from each coder subagent's result file; `record` for decisions, risks, improvements, breakdown changes and work-unit validation runs |
+| `tt-coder` | Standalone only: `init`, `set`, `log` and `record` for its own steps. In delegated mode it never calls this skill. |
 
 A caller that has already loaded this skill follows its rules for later
 updates; it re-invokes it if they've dropped out of context.
@@ -76,7 +77,7 @@ mid-response. So:
 - **Read only what you need:** `md-section.sh get <doc> "# Status" "# Resume Here"
   "# Work Unit Board" "# Task Board"` (in `../tt-common/scripts/`) for the
   header and boards; the one Step Log entry you are changing.
-- **One writer.** When `tt-task-breakdown` runs implementation subagents, it
+- **One writer.** When `tt-execute` runs coder subagents, it
   is the only writer of this document; subagents return their Step Log content
   instead of writing it.
 - **Use the scripts for every routine write.** They are in
@@ -152,7 +153,7 @@ In **standalone** mode there are no work units: a task goes `Todo` →
   the sibling documents' header or tag block and link style.
   `status-init.sh <breakdown> <status>` does all of this; use
   `briefs/init.md` only if it can't read the breakdown.
-- **Standalone, from a plan** (called by `tt-implementation-agent` when there
+- **Standalone, from a plan** (called by `tt-coder` when there
   is no breakdown): write the minimal variant. Its tasks are the plan's steps,
   numbered as the plan numbers them. Put it beside the plan. Confirm the
   location first.
@@ -233,7 +234,7 @@ discrepancy with a proposed correction. Apply corrections only after the
 engineer confirms, and log each one under Breakdown Changes (or, standalone,
 Decisions Taken).
 
-Plan drift is not this skill's job; `tt-task-breakdown` checks it.
+Plan drift is not this skill's job; `tt-execute` checks it.
 
 ### `summary`
 

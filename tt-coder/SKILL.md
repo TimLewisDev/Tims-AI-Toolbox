@@ -1,11 +1,11 @@
 ---
-name: tt-implementation-agent
-description: Implement one task from a task breakdown (as a subagent of tt-task-breakdown, in delegated mode), or a plan/spec/ticket standalone, with disciplined scope control. Follows the codebase as source of truth, makes only tactical local decisions autonomously, escalates every Critical Decision to the engineer and never resolves one itself, keeps planning IDs out of code and comments, and records progress in the Task Status document (standalone, through tt-task-status) or returns it to the orchestrator (delegated). Under a breakdown it never validates (its work unit is validated later); standalone it does a minimum compile check and gives the engineer inline validation steps. Never commits. Use when handed a task card, plan, spec or ticket and asked to implement it (not to plan it).
+name: tt-coder
+description: Write the code for one task from a task breakdown (as a subagent of tt-execute, in delegated mode), or for a plan/spec/ticket standalone, with disciplined scope control. Follows the codebase as source of truth, makes only tactical local decisions autonomously, escalates every Critical Decision to the engineer and never resolves one itself, keeps planning IDs out of code and comments, and returns its progress to the orchestrator in a result file (delegated) or records it in the Task Status through tt-task-status (standalone). Under a breakdown it never validates (its work unit is validated later); standalone it does a minimum compile check and gives the engineer inline validation steps. Never commits. Use when handed a task card, plan, spec or ticket and asked to implement it (not to plan it).
 metadata:
-  version: "3.0"
+  version: "4.0"
 ---
 
-# tt-implementation-agent
+# tt-coder
 
 Implement the requested changes **exactly within scope**, with strict scope
 discipline and escalation of all critical decisions.
@@ -14,13 +14,11 @@ This is an *implementation* skill, not a planning skill. If no task card, plan
 or explicit instructions have been provided, ask for them before writing code.
 
 `<common>` below is `${CLAUDE_SKILL_DIR}/../tt-common` (or the path the
-handoff gives). Before starting, read `<common>/subagent-rules.md` in
-delegated mode, or `<common>/orchestration.md` standalone: their output
-budget and git rules apply to you.
+handoff gives).
 
 ## Modes
 
-| | **Delegated** (subagent of `tt-task-breakdown`) | **Standalone** |
+| | **Delegated** (subagent of `tt-execute`) | **Standalone** |
 |---|---|---|
 | Input | A handoff naming one task card in a breakdown | A plan, spec or ticket |
 | Scope | Exactly that task; never start another | The plan's steps, in order |
@@ -31,6 +29,11 @@ budget and git rules apply to you.
 
 The handoff says "DELEGATED MODE" when it applies. If you were spawned as a
 subagent and it doesn't say, ask nothing: treat it as delegated.
+
+- **Delegated:** read `<common>/subagent-rules.md` (its output budget and git
+  rules apply to you), then everything below. Skip `standalone.md`.
+- **Standalone:** read `${CLAUDE_SKILL_DIR}/standalone.md` as well; it
+  replaces the delegated-only parts below (Task Status, escalation, validation).
 
 ## Critical Decision Definition
 
@@ -159,19 +162,16 @@ If you identify adjacent improvements, refactors, technical debt, or
 architectural concerns, do not implement, partially implement or scaffold them,
 and don't modify unrelated files in preparation for them. Record each one as an
 Identified Improvement (description, expected benefits, risks/tradeoffs, why
-it's high impact): in the result file when delegated, through `tt-task-status`
-(`record` an improvement) when standalone. Refactors or improvements always
-require explicit engineer approval before implementation.
+it's high impact) in the result file. Refactors or improvements always require
+explicit engineer approval before implementation.
 
 ## Critical Decision Escalation
 
 1. Stop changing code.
-2. **Delegated:** put the decision in your result file (`Task status:
-   blocked`, the block below under `## Critical Decision`, its headings one
-   level down), say `critical_decision: yes` in the RESULT, and stop. The orchestrator marks the
+2. Put the decision in your result file (`Task status: blocked`, the block
+   below under `## Critical Decision`, its headings one level down), say
+   `critical_decision: yes` in the RESULT, and stop. The orchestrator marks the
    task `Blocked`, asks the engineer, and continues you with their decision.
-   **Standalone:** mark the task `Blocked` through `tt-task-status` (`set`),
-   naming the decision, and present it to the engineer.
 3. Use this structure exactly:
 
 ```
@@ -204,68 +204,42 @@ Include example code snippets where useful.
 
 Once the engineer decides:
 
-- standalone, record it through `tt-task-status` (`record` a decision);
-  delegated, the orchestrator records it;
+- the orchestrator records it;
 - if the resolution changes the plan, the engineer amends it with
-  `/tt-tech-plan-review`; if it changes the task card, `tt-task-breakdown`
-  amends the breakdown. **Don't edit the plan or the breakdown yourself.**
+  `/tt-tech-plan-review`; if it changes the task card, `tt-execute` amends the
+  breakdown. **Don't edit the plan or the breakdown yourself.**
 - continue only within what the decision allows.
 
-## Task Status
+## Task Status and the result file
 
-The Task Status document is owned by the `tt-task-status` skill.
+The Task Status document is owned by the `tt-task-status` skill. Never write
+to it, and don't invoke `tt-task-status`. The orchestrator has already marked
+your task `In Progress`.
 
-- **Delegated:** never write to it, and don't invoke `tt-task-status`. The
-  orchestrator has already marked your task `In Progress`. When you stop, for
-  any reason, write your **result file** to the path the handoff gives
-  (`<run>/results/<ID>.md`), in one Write, in exactly the format of
-  [`templates/result.md`](templates/result.md): task status, Files Modified,
-  Summary, To validate, Follow-up Concerns, Risks, Improvements, Critical
-  Decision, with Validation `Deferred to <WU ID>`. The orchestrator applies it
-  to the Task Status with a script, so keep its headings and bullet lines; if
-  you are continued later, rewrite the whole file. Then end with a short
-  RESULT block (`<common>/subagent-rules.md`) naming the file, with
-  `task_status` and `critical_decision: none | yes`.
-- **Standalone:** `init` a minimal doc from the plan if none exists. Set each
-  step `In Progress` before changing code, log it when done, and set it `Done`
-  once its compile check passes. Make every change through `tt-task-status`
-  (invoke it once; follow its loaded rules for later updates). Never create a
-  second Task Status doc.
+When you stop, for any reason, write your **result file** to the path the
+handoff gives (`<run>/results/<ID>.md`), in one Write, in exactly the format of
+[`templates/result.md`](templates/result.md): task status, Files Modified,
+Summary, To validate, Follow-up Concerns, Risks, Improvements, Critical
+Decision, with Validation `Deferred to <WU ID>`. First run
+`bash "<common>/scripts/result-scaffold.sh" "<breakdown>" <ID> --run "<run>"`:
+it prints the file with the heading, the Validation line and the files you
+actually changed already listed, and `<!-- fill: … -->` markers for the rest.
+Write the file from that output with every marker replaced; the
+orchestrator's script refuses a file that still has one. Keep the headings and
+bullet lines; if you are continued later, rewrite the whole file. Then end with a short RESULT block (`<common>/subagent-rules.md`)
+naming the file, with `task_status` and `critical_decision: none | yes`.
 
-**Standalone plans with more than three steps:** act as the orchestrator. Run
-one subagent per step (default model, general-purpose, foreground), each given
-this skill in delegated mode, the plan path and the step, and the Task Status
-path to leave alone. You record each step's RESULT through `tt-task-status`,
-present every Critical Decision, and run the compile check and inline
-validation yourself at the end. If you can't spawn subagents, do the steps
-yourself in order.
+The orchestrator checks the files you changed against the card's Files list,
+so a file outside it will be raised with the engineer. If you need one, say
+why in Follow-up Concerns.
 
 ## Validation
 
-**Delegated, do not validate.** Don't run compile checks, tests or other
-validation, and don't report the task as verified: its work unit's validation
-covers it. Instead, write **To validate** notes in the result file:
+**Do not validate.** Don't run compile checks, tests or other validation, and
+don't report the task as verified: its work unit's validation covers it.
+Instead, write **To validate** notes in the result file:
 
 - what to check, and how (commands for the agent, exact steps for the
   engineer);
 - the expected result;
 - edge cases worth trying.
-
-**Standalone,** do only the minimum validation needed to confirm the change
-compiles and integrates: build or compile-check each module you touched, using
-the method the repo's agent instructions (`AGENTS.md`, `CLAUDE.md` or
-equivalent) describe. If they don't describe one, or the check needs a human
-(for example, an editor that has the project open), ask the engineer how to
-check it, or hand that check to them as a validation step. Don't expand into
-comprehensive automated testing unless explicitly instructed.
-
-Then give the engineer **inline validation steps** in chat, with no separate
-document:
-
-1. A numbered list. Each item says what to do (exact steps), what they should
-   see, and what to report back.
-2. Edge cases worth trying, as their own items.
-3. End with: "Ask me about any step if you need more detail."
-
-Answer follow-up questions in the same session, and record the results through
-`tt-task-status`.

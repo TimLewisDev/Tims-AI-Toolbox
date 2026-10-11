@@ -42,7 +42,7 @@ Nothing changes in how you start the skills:
 2. **Break down:** `/tt-task-breakdown <comprehensive tech plan>`. You review
    and approve the skeleton as before. The skill now checks it with a script
    before showing you, and the cards come from a scaffold.
-3. **Build:** `/tt-task-breakdown continue <task status>`. The pre-flight
+3. **Build:** `/tt-execute <task status>`. The pre-flight
    runs first, without subagents. Then come the tasks, then the unit's checks,
    then your checklist in chat. Answer each check as before; the skill records
    it.
