@@ -49,4 +49,13 @@ args=(--record "$log" --match "$match")
 
 # Detached, so the session can exit while the transcript is read.
 nohup bash "$here/../transcript-metrics.sh" "${args[@]}" "$tp" </dev/null >/dev/null 2>&1 &
+
+# Also write a per-thread detail TSV for drill-down in the viz.
+mkdir -p "$home/sessions"
+fullid=$(basename "$tp" .jsonl)
+shortid=${fullid:0:8}
+detailfile="$home/sessions/$shortid.tsv"
+[ -f "$detailfile" ] || \
+    nohup bash "$here/../transcript-metrics.sh" --detail "$fullid" "$tp" \
+        </dev/null >"$detailfile" 2>/dev/null &
 exit 0

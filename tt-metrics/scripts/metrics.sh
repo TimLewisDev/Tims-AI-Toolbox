@@ -9,6 +9,10 @@ usage() {
 usage: metrics.sh on | off | status
        metrics.sh report [--last N] [--since YYYY-MM-DD] [--skill <text>] [--raw]
        metrics.sh viz    [--last N] [--since YYYY-MM-DD] [--skill <text>] [--output <path>]
+       metrics.sh detail <session-id-prefix>
+       metrics.sh rescan [--project <path>]
+       metrics.sh pack   [--output <path>]
+       metrics.sh unpack <archive.tar.gz>
 
   on      create the flag; check the SessionEnd hook is registered
   off     remove the flag (the hook stays registered and then does nothing)
@@ -25,7 +29,10 @@ EOT
 }
 
 here=$(cd -P "$(dirname "$0")" && pwd) || exit 2
-root=$(cd -P "$here/../.." && pwd) || exit 2
+# readlink -f resolves Windows junctions; fall back to logical path otherwise
+_r=$(readlink -f "$0" 2>/dev/null) || _r=""
+[ -n "$_r" ] && root=$(cd "$(dirname "$_r")/../.." && pwd) || root=$(cd -P "$here/../.." && pwd)
+unset _r
 cfg=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
 home=${TT_METRICS_HOME:-$cfg/tt-metrics}
 flag=$home/enabled
@@ -126,6 +133,24 @@ EOT
 					substr($1,3,16),substr(q($2),1,8),q($3),q($4),q($5),q($6),
 					$8+0,$9+0,t($10),t($11),t($12),t($13),t($14),t($15),$16+0
 			}')
+		detaildata=$(
+			sep=""
+			for tf in "$home/sessions"/*.tsv; do
+				[ -f "$tf" ] || continue
+				sid=$(basename "$tf" .tsv)
+				rows=$(awk -F'\t' '
+					function t(s,  u,v) { u=substr(s,length(s)); v=s+0
+						if(u=="k") return v*1000; if(u=="M") return v*1000000; return v }
+					function q(s) { gsub(/\\/,"\\\\",s); gsub(/"/,"\\\"",s); return s }
+					FNR==1 { next }
+					FNR>2  { printf "," }
+					FNR>1  { printf "{\"kind\":\"%s\",\"model\":\"%s\",\"requests\":%d,\"cacheWrite\":%d,\"cacheRead\":%d,\"input\":%d,\"output\":%d,\"weighted\":%d,\"maxCtx\":%d,\"stalls\":%d,\"description\":\"%s\"}",
+						$2,$3,$4+0,t($5),t($6),t($7),t($8),t($9),t($10),$11+0,q($12) }' "$tf")
+				[ -n "$rows" ] || continue
+				printf '%s"%s":[%s]' "$sep" "$sid" "$rows"
+				sep=","
+			done
+		)
 		{
 		cat << 'TMHTML'
 <!DOCTYPE html>
@@ -153,6 +178,15 @@ td{padding:7px 10px;border-bottom:1px solid var(--gl);color:var(--t2);text-align
 td:nth-child(-n+4){text-align:left;color:var(--t1);max-width:220px;overflow:hidden;text-overflow:ellipsis}
 tr:last-child td{border-bottom:none}tr:hover td{background:rgba(128,128,128,.05)}
 .asc::after{content:" ↑"}.desc::after{content:" ↓"}
+tbody tr{cursor:pointer}tbody tr.sel td{background:rgba(128,128,128,.12)}
+.dp{display:none;margin-top:20px;background:var(--sf);border-radius:8px;padding:20px;border:1px solid var(--gl);position:relative}
+.dp.on{display:block}.dp-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px}
+.dp-hd h2{font-size:13px;font-weight:600;color:var(--t1)}.dp-sub{color:var(--t2);font-size:12px;margin-bottom:16px}
+.dp-close{background:none;border:none;color:var(--tm);font-size:20px;cursor:pointer;line-height:1;padding:0 0 0 12px;flex-shrink:0}
+.dp-close:hover{color:var(--t1)}.dp-notice{color:var(--tm);font-size:12px;padding:8px 0}
+.dp-bar{margin-bottom:16px}.dp .tbl-wrap{overflow-x:auto}
+.dp table td:last-child{text-align:left;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dp table th:last-child{text-align:left}
 </style>
 </head>
 <body>
@@ -187,10 +221,25 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(128,128,128,.05)
 <tbody id="tbody"></tbody>
 </table>
 </div>
+<div class="dp" id="dp">
+<div class="dp-hd"><h2 id="dp-title"></h2><button class="dp-close" id="dp-close">&#xd7;</button></div>
+<p class="dp-sub" id="dp-sub"></p>
+<p class="dp-notice" id="dp-notice" style="display:none">Detail not available &mdash; run <code>/tt-metrics rescan</code> to backfill from transcripts.</p>
+<div class="dp-bar" id="dp-bar"><canvas id="cD"></canvas></div>
+<div class="tbl-wrap"><table><thead><tr>
+<th>Kind</th><th>Model</th><th>Req</th><th>Cache W</th><th>Cache R</th><th>Cache%</th>
+<th>Input</th><th>Output</th><th>Weighted</th><th>Max Ctx</th><th>Stalls</th><th>Description</th>
+</tr></thead><tbody id="dtbody"></tbody></table></div>
+</div>
 <script>
 const sessions=
 TMHTML
 		printf '[%s]' "$jsdata"
+		cat << 'TMHTML'
+;
+const sessionDetails=
+TMHTML
+		printf '{%s}' "$detaildata"
 		cat << 'TMHTML'
 ;
 function h(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return Math.round(n/1e3)+'k';return String(n)}
@@ -199,7 +248,7 @@ sessions.forEach(s=>{
   s.cacheEff=tot?s.cacheRead/tot:0;
   s.outPerReq=s.requests?Math.round(s.output/s.requests):0;
 });
-document.getElementById('sub').textContent=sessions.length+' session'+(sessions.length!==1?'s':'');
+document.getElementById('sub').textContent=sessions.length+' session'+(sessions.length!==1?'s':'')+' — click a row to drill down';
 const cs=getComputedStyle(document.documentElement);
 const gv=p=>cs.getPropertyValue(p).trim();
 const C=[gv('--c1'),gv('--c2'),gv('--c3'),gv('--c4'),gv('--c5'),gv('--c6'),gv('--c7'),gv('--c8')];
@@ -251,7 +300,9 @@ function fmtCell(s,c){switch(c){
 function renderTbl(){
   const tb=document.getElementById('tbody');tb.innerHTML='';
   tdata.forEach(s=>{const tr=document.createElement('tr');
-    tr.innerHTML=COLS.map(c=>`<td>${fmtCell(s,c)}</td>`).join('');tb.appendChild(tr);});}
+    tr.innerHTML=COLS.map(c=>`<td>${fmtCell(s,c)}</td>`).join('');
+    tr.addEventListener('click',()=>showDetail(s,tr));
+    tb.appendChild(tr);});}
 renderTbl();
 document.querySelectorAll('th[data-col]').forEach(th=>{
   th.addEventListener('click',()=>{
@@ -260,11 +311,122 @@ document.querySelectorAll('th[data-col]').forEach(th=>{
     document.querySelectorAll('th').forEach(t=>t.className='');th.className=sortDir;
     tdata.sort((a,b)=>{const cmp=NCOLS.has(c)?a[c]-b[c]:String(a[c]).localeCompare(String(b[c]));return sortDir==='asc'?cmp:-cmp;});
     renderTbl();});});
+
+// Detail panel
+let dChart=null,dSel=null;
+function showDetail(s,tr){
+  if(dSel){dSel.classList.remove('sel');}
+  tr.classList.add('sel');dSel=tr;
+  const panel=document.getElementById('dp');
+  document.getElementById('dp-title').textContent='Session '+s.session+' · '+s.start.slice(0,10)+' · '+s.skills;
+  document.getElementById('dp-sub').textContent=s.model+' · '+h(s.weighted)+' weighted · '+s.requests+' req · '+s.subs+' sub'+(s.subs!==1?'s':'');
+  const threads=sessionDetails[s.session];
+  const notice=document.getElementById('dp-notice');
+  const bar=document.getElementById('dp-bar');
+  if(!threads||!threads.length){
+    notice.style.display='';bar.style.display='none';
+    document.getElementById('dtbody').innerHTML='';
+    panel.classList.add('on');panel.scrollIntoView({behavior:'smooth',block:'start'});return;
+  }
+  notice.style.display='none';bar.style.display='';
+  const sorted=[...threads].sort((a,b)=>b.weighted-a.weighted);
+  const lbls=sorted.map(t=>{const d=t.description==='-'?'Main thread':t.description;return d.length>44?d.slice(0,42)+'…':d;});
+  bar.style.height=Math.min(420,Math.max(100,sorted.length*36+20))+'px';
+  if(dChart){dChart.destroy();dChart=null;}
+  dChart=new Chart(document.getElementById('cD'),{type:'bar',data:{
+    labels:lbls,
+    datasets:[{label:'Weighted tokens',data:sorted.map(t=>t.weighted),
+      backgroundColor:sorted.map(t=>t.kind==='main'?C[0]:C[1]),borderRadius:3,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>{const t=sorted[ctx.dataIndex];
+        return[h(t.weighted)+' weighted','Req: '+t.requests+'  Stalls: '+t.stalls,t.model];}}}},
+    scales:{x:{grid:{color:GL},ticks:{color:TM,callback:h}},
+      y:{grid:{color:'transparent'},ticks:{color:TM,font:{size:11}}}}}});
+  threads.forEach(t=>{const tot=t.cacheWrite+t.cacheRead+t.input;t.cacheEff=tot?t.cacheRead/tot:0;});
+  const dtbody=document.getElementById('dtbody');dtbody.innerHTML='';
+  threads.forEach(t=>{const tr2=document.createElement('tr');
+    tr2.innerHTML=`<td>${t.kind}</td><td>${t.model}</td><td>${t.requests}</td><td>${h(t.cacheWrite)}</td><td>${h(t.cacheRead)}</td><td>${Math.round(t.cacheEff*100)}%</td><td>${h(t.input)}</td><td>${h(t.output)}</td><td>${h(t.weighted)}</td><td>${h(t.maxCtx)}</td><td>${t.stalls}</td><td>${t.description}</td>`;
+    dtbody.appendChild(tr2);});
+  panel.classList.add('on');panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+document.getElementById('dp-close').addEventListener('click',()=>{
+  document.getElementById('dp').classList.remove('on');
+  if(dChart){dChart.destroy();dChart=null;}
+  if(dSel){dSel.classList.remove('sel');dSel=null;}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('dp-close').click();});
 </script>
 </body>
 </html>
 TMHTML
 		} > "$outfile"
 		echo "report: $outfile" ;;
+	detail)
+		[ $# -ge 1 ] || { echo "usage: metrics.sh detail <session-id>" >&2; exit 2; }
+		short=${1:0:8}
+		tf="$home/sessions/$short.tsv"
+		[ -f "$tf" ] || { echo "no detail for $short (run: metrics.sh rescan)" >&2; exit 1; }
+		cat "$tf" ;;
+	rescan)
+		projroot=${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects
+		while [ $# -gt 0 ]; do
+			case "$1" in --project) projroot=${2:?}; shift 2 ;; *) usage ;; esac
+		done
+		[ -f "$log" ] || { echo "no log at $log" >&2; exit 1; }
+		mkdir -p "$home/sessions"
+		found=0; wrote=0; skipped=0; missed=0
+		while IFS= read -r sid; do
+			[ -n "$sid" ] || continue
+			tf="$home/sessions/$sid.tsv"
+			if [ -f "$tf" ]; then skipped=$((skipped+1)); continue; fi
+			tp=""
+			for pdir in "$projroot"/*/; do
+				for f in "$pdir"${sid}*.jsonl; do [ -f "$f" ] && tp="$f" && break 2; done
+			done
+			if [ -z "$tp" ]; then missed=$((missed+1)); continue; fi
+			found=$((found+1))
+			fullid=$(basename "$tp" .jsonl)
+			if bash "$root/tools/transcript-metrics.sh" --detail "$fullid" "$tp" > "$tf" 2>/dev/null; then
+				wrote=$((wrote+1))
+			else
+				rm -f "$tf"; missed=$((missed+1))
+			fi
+		done < <(grep '^| [0-9]\{4\}-' "$log" | awk -F' [|] ' '{gsub(/^[ \t]+|[ \t]+$/,"",$2); print substr($2,1,8)}')
+		echo "rescan: $wrote written, $skipped already present, $missed not found" ;;
+	pack)
+		packout=${TT_METRICS_PACK:-$HOME/tt-metrics-data-$(date +%F).tar.gz}
+		while [ $# -gt 0 ]; do
+			case "$1" in --output) packout=${2:?}; shift 2 ;; *) usage ;; esac
+		done
+		[ -f "$log" ] || { echo "no log at $log" >&2; exit 1; }
+		mkdir -p "$home/sessions"
+		tar -czf "$packout" -C "$home" token-log.md sessions 2>/dev/null
+		echo "packed: $packout" ;;
+	unpack)
+		[ $# -ge 1 ] || { echo "usage: metrics.sh unpack <archive.tar.gz>" >&2; exit 2; }
+		archive=$1
+		[ -f "$archive" ] || { echo "not found: $archive" >&2; exit 1; }
+		tmp=$(mktemp -d)
+		tar -xzf "$archive" -C "$tmp" 2>/dev/null || { echo "extract failed" >&2; rm -rf "$tmp"; exit 1; }
+		rows_added=0; files_copied=0; skipped=0
+		if [ -f "$tmp/token-log.md" ]; then
+			while IFS= read -r row; do
+				sid=$(printf '%s' "$row" | awk -F' [|] ' '{gsub(/^[ \t]+|[ \t]+$/,"",$2); print substr($2,1,8)}')
+				[ -n "$sid" ] || continue
+				if grep -qF "| $sid |" "$log" 2>/dev/null; then
+					skipped=$((skipped+1))
+				else
+					printf '%s\n' "$row" >> "$log"; rows_added=$((rows_added+1))
+				fi
+			done < <(grep '^| [0-9]\{4\}-' "$tmp/token-log.md")
+		fi
+		mkdir -p "$home/sessions"
+		for tf in "$tmp/sessions/"*.tsv; do
+			[ -f "$tf" ] || continue
+			dest="$home/sessions/$(basename "$tf")"
+			if [ ! -f "$dest" ]; then cp "$tf" "$dest"; files_copied=$((files_copied+1)); else skipped=$((skipped+1)); fi
+		done
+		rm -rf "$tmp"
+		echo "unpack: $rows_added log rows added, $files_copied detail files copied, $skipped skipped" ;;
 	*) usage ;;
 esac
