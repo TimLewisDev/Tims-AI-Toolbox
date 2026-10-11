@@ -14,6 +14,7 @@ They are instructions and document templates, plus small bash scripts in
 
 | Skill | What it does |
 |---|---|
+| [`tt-guide`](tt-guide/SKILL.md) | New here? Tatty, the toolbox's guide: says where your documents stand, which command comes next, and answers "how do I…". |
 | [`tt-familiarise`](tt-familiarise/SKILL.md) | Explores a part of the codebase with you, a question at a time, until you've pinned down what you actually care about. |
 | [`tt-familiarisation-doc`](tt-familiarisation-doc/SKILL.md) | Writes up only the part of that exploration you said you're interested in, as a readable doc. |
 | [`tt-adversarial-plan`](tt-adversarial-plan/SKILL.md) | Runs planning stage by stage, has an adversary challenge each stage, and gets you to a signed-off plan. |
@@ -100,6 +101,7 @@ In order:
 
 | You want to… | Run |
 |---|---|
+| find out which skill to use, or where you left off | `/tt-guide [question]` |
 | explore how something in the codebase works | `/tt-familiarise <what you want to explore>` |
 | write up an exploration | `/tt-familiarisation-doc [focus log]` |
 | plan a feature from an idea, exploration, spec or ticket | `/tt-adversarial-plan [description, familiarisation doc, spec or ticket]` |
@@ -115,7 +117,8 @@ In order:
 | review a GitLab MR | `/tt-mr-review [MR number or branch]` |
 
 `[…]` is optional and `<…>` is required. If you're new to these skills, start with
-`tt-adversarial-plan`; it offers to explore the code first when that helps.
+`/tt-guide`, or go straight to `tt-adversarial-plan`; it offers to explore the
+code first when that helps.
 
 ## Key ideas
 
@@ -240,6 +243,21 @@ equivalent). If they don't say how to compile-check, the breakdown asks once
 and records the answer.
 
 ## Skill reference
+
+### [`tt-guide`](tt-guide/SKILL.md): ask Tatty
+
+A guide, not a doer. Tatty, a small ASCII robot, says hello with a quip, tells
+you where the tt documents in the current folder stand and which command comes
+next, then answers questions about the toolbox.
+
+- **Run it:** `/tt-guide [question]`, e.g. "how do I change a signed-off
+  plan?". For the greeting and the next command with no model tokens at all,
+  type `! bash ~/.claude/skills/tt-guide/scripts/guide.sh` in Claude Code.
+- **Scripted:** the greeting, the quip (from `tt-guide/quips.txt`), the
+  "where things stand" check and the README sections it answers from all come
+  from `tt-guide/scripts/guide.sh` (`hello`, `where [folder]`, `start`,
+  `about <skill or topic>`). The model only holds the conversation.
+- **Won't:** run other skills, edit documents, or touch git.
 
 ### [`tt-familiarise`](tt-familiarise/SKILL.md): explore the code
 
@@ -520,6 +538,12 @@ up new skills.
 `../tt-common/` from their own folder. When a new skill folder appears after
 a pull, link it the same way. When one is renamed (`tt-implementation-agent`
 became `tt-coder`), remove the old link, which now points at nothing.
+
+To link one new skill on Windows, e.g. `tt-guide`:
+
+```powershell
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\tt-guide" -Target "<clone path>\tt-guide"
+```
 
 ### Testing the scripts
 

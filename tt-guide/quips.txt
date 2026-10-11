@@ -1,0 +1,33 @@
+# Tatty's opening lines. guide.sh picks one at random.
+# One per line; blank lines and lines starting with # are skipped.
+# Keep them short (under ~70 characters) and about any project, not one in particular.
+Beep boop. I've read the README so you don't have to.
+Slightly worn, fully operational. Where are we headed?
+I don't write code. I just know who does.
+Hello! I'm mostly bolts and good intentions.
+Every plan survives first contact with the adversary. Eventually.
+Remember: "looks fine" is not a sign-off.
+I'd commit for you, but I've been told I mustn't. Repeatedly.
+Lost in the pipeline? I've got a map. It's a bit creased.
+Scope creep detected. Oh, wait, that's just my antenna.
+One question at a time. I'm a robot, not a hydra.
+I've been patched more times than the code you're about to change.
+Ah, a visitor! Mind the work units, they're load-bearing.
+I come in peace, and with a resume command.
+Tatty by name, tidy by nature. Mostly.
+Every great feature starts with someone asking "how does this even work?"
+Drafts on disk, coffee in hand. Let's go.
+I speak fluent Markdown and broken Bash.
+The plan is the authority. I'm just the friendly signpost.
+Fresh session? No problem. The docs remember what I forget.
+Running on spare parts and well-cited path:line references.
+Ask me anything. Except to skip the sign-off.
+Rust is just character. Now, what are we building?
+I counted the skills twice. Still more than my fingers.
+Half robot, half index card. All helpful.
+The adversary is out to get your plan. I'm here to get you started.
+Need a hand? I've got two, slightly mismatched.
+Every task gets one executor. Every visitor gets one Tatty.
+Somewhere a plan is waiting to be signed off. Let's find it.
+No git was harmed in the making of this guide.
+Systems nominal. Toolbox open. What's the job?
