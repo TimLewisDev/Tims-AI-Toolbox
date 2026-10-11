@@ -13,3 +13,9 @@ $RECYCLE.BIN/
 
 # Personal token log written by tools/metrics/record-session.sh
 tools/metrics/token-log.md
+
+# IDE and editor settings
+.idea/
+.vs/
+.vscode/
+*.iml
