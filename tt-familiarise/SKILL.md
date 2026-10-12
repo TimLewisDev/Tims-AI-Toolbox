@@ -12,6 +12,8 @@ description: >
   session can carry on or document it. Never designs, recommends or plans.
   Hand the result to tt-familiarisation-doc to write it up; that document
   can be read on its own or used as the foundation for tt-adversarial-plan.
+  In lite mode (a small change) it also records the change facts a brief
+  needs and hands the log to tt-lite-brief instead.
   Use when the engineer wants to explore, understand or get familiar with how
   something in the codebase works.
 metadata:
@@ -24,10 +26,15 @@ metadata:
 
 ```
 /tt-familiarise <what you want to explore>
+/tt-familiarise lite <the small change you want to make>
 /tt-familiarise resume <focus log>
 ```
 
 With no seed, ask one open question: "What would you like to explore?"
+
+`lite` (or "Mode: lite" in the invoking prompt, as `tt-workflow-lite` gives it, or
+`**Mode:** lite` in the header of the Focus Log being resumed) is for a small change that will go to `tt-lite-brief` rather than a full plan:
+read **Lite mode** below.
 
 ## How to run this skill
 
@@ -51,7 +58,42 @@ With no seed, ask one open question: "What would you like to explore?"
 tt-familiarise ──► Focus Log ──► tt-familiarisation-doc ──► Familiarisation doc
                                                                    ├─ read on its own, or
                                                                    └─ tt-adversarial-plan (stage 0 of planning)
+
+lite mode:  tt-familiarise ──► Focus Log + Change facts ──► tt-lite-brief ──► tt-execute-lite
 ```
+
+## Lite mode
+
+For a small change (one request, a few files), when the invoking prompt says
+`Mode: lite` or the engineer ran `/tt-familiarise lite …`. A resumed log whose header
+has `**Mode:** lite` is in lite mode too, whatever the resuming prompt says. Read the "Lite mode"
+appendix of `<skill>/templates/focus-log.md` when you create the log. The Role,
+How to talk and Flow below all still apply; these are the differences:
+
+- **Open.** The purpose is "to change it": don't ask. Take the folder and prefix
+  from the prompt (ask only if they aren't given). Put `**Mode:** lite` in the
+  log's header.
+- **Map.** At most 2 mapping subagents, and 1 when the seed names a single
+  place.
+- **Ask for the change early.** Right after the map, ask in one open question
+  what change they want and what they will see when it works. Record both
+  verbatim under **Change facts**. That is the engineer's wish, not your design:
+  if they ask how it could be built, show how the existing code does the
+  nearest similar thing (cited) and record the open choices under **Open
+  choices** for `tt-lite-brief`; never recommend one.
+- **Dig toward the change.** As you learn them, note under **Change facts** the
+  seams (where a change would attach), the precedents to copy, files that a
+  tool owns, how the code is built or compile-checked (the repo's agent
+  instructions, else ask), and constraints, each cited `path:line`.
+- **Boil down** after two or three Dig turns, then every three. Stop digging
+  when the Change facts hold: the wanted change, at least one acceptance
+  statement, the seams (or "a new file"), and the build or check method.
+- **Close.** Show the focus statement, the Focus topics and the Change facts for
+  confirmation (the same rule: silence is not confirmation). Then offer, with
+  `AskUserQuestion`: **write the lite brief now** (invoke `tt-lite-brief` with
+  the Focus Log path) · **write it in a fresh session**
+  (`/tt-lite-brief <focus log>`) · **stop here**. Don't offer
+  `tt-familiarisation-doc` unless the engineer asks.
 
 ## Role
 
@@ -177,7 +219,8 @@ resume command.
 `/tt-familiarise resume <focus log>`, or "continue" after a stall: read the
 Focus Log (and nothing else until needed), tell the engineer in three lines
 where things stand (the purpose, the draft focus statement, the last topic),
-and carry on from `Next`. The pinned `BASE_SHA` is in the log's header; keep
+and carry on from `Next`. If the log's header says
+`**Mode:** lite`, stay in lite mode (see above). The pinned `BASE_SHA` is in the log's header; keep
 using it unless the engineer asks to move on (then re-pin and say so).
 
 A long exploration's context grows with every turn. Once it is very large,

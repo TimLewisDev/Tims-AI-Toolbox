@@ -57,6 +57,9 @@ need_readme() {
   break it into tasks ..... /tt-task-breakdown <comprehensive tech plan>
   build ................... /tt-execute <task status>
   small change, no plan ... /tt-coder <plan, spec or ticket>
+  small feature or a bug .. /tt-workflow-lite [bug | feature]
+  chase a bug ............. /tt-debug <symptom>
+  build a lite brief ...... /tt-execute-lite <lite brief>
   review an MR ............ /tt-mr-review [MR or branch]
 EOF
 	return 1

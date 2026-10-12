@@ -75,6 +75,9 @@ It asks whether to explore first.
 A feature that is built and validated has no next skill: say so. Committing and
 the MR are the engineer's.
 
+For a small feature or a bug fix, `tt-workflow-lite` is lighter: say so if the
+engineer describes work that small (one request, a few files, or a bug).
+
 ## 3. Confirm once
 
 Ask with `AskUserQuestion`: the feature, where it stands, the exact command

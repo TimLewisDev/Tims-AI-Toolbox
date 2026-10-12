@@ -16,6 +16,7 @@ They are instructions and document templates, plus small bash scripts in
 |---|---|
 | [`tt-guide`](tt-guide/SKILL.md) | New here? Tatty, the toolbox's guide: says where your documents stand, which command comes next, and answers "how do I…". |
 | [`tt-workflow`](tt-workflow/SKILL.md) | One entry point: link a feature folder, type `tt-workflow`, and it works out the stage and runs the skill that comes next. |
+| [`tt-workflow-lite`](tt-workflow-lite/SKILL.md) | The same single entry for small work: asks bug or feature, then runs the lite route below. |
 | [`tt-familiarise`](tt-familiarise/SKILL.md) | Explores a part of the codebase with you, a question at a time, until you've pinned down what you actually care about. |
 | [`tt-familiarisation-doc`](tt-familiarisation-doc/SKILL.md) | Writes up only the part of that exploration you said you're interested in, as a readable doc. |
 | [`tt-adversarial-plan`](tt-adversarial-plan/SKILL.md) | Runs planning stage by stage, has an adversary challenge each stage, and gets you to a signed-off plan. |
@@ -31,6 +32,10 @@ They are instructions and document templates, plus small bash scripts in
 | [`tt-execute`](tt-execute/SKILL.md) | Works through the breakdown one unit at a time: hands each task to a coder, then validates the unit with you. |
 | [`tt-task-status`](tt-task-status/SKILL.md) | Keeps the progress record that lets any new session pick up where the last one stopped. |
 | [`tt-coder`](tt-coder/SKILL.md) | Writes the code for one task (or a small plan), strictly within scope. |
+| [`tt-lite-brief`](tt-lite-brief/SKILL.md) | Lite route: turns a short exploration or a found root cause into one brief (goal, acceptance, decisions, tasks, checks). |
+| [`tt-execute-lite`](tt-execute-lite/SKILL.md) | Lite route: builds the brief the way `tt-execute` builds a breakdown, with no plan to drift from. |
+| [`tt-debug`](tt-debug/SKILL.md) | A pair-programming debugging companion: you drive, it navigates, hunting the root cause. |
+| [`tt-debug-doc`](tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
 | [`tt-mr-review`](tt-mr-review/SKILL.md) | Reviews a GitLab merge request and posts only the comments you approve. |
 | [`tt-common`](tt-common/SKILL.md) | Not run directly: the shared rules for long runs and for planning, shared templates, and the helper scripts the other skills call. |
 
@@ -102,11 +107,43 @@ In order:
 6. **Commit and publish yourself.** No skill stages, commits, pushes or creates
    branches. Once there's an MR, `tt-mr-review` can review it.
 
+### The lite route (small features and bugs)
+
+The chain above is built for large features. For one request or one bug,
+`tt-workflow-lite` asks which you have and runs a shorter route that keeps the
+gates that matter (you confirm the focus, every design choice is yours,
+references are checked, the unit is validated) and drops the heavy parts (no
+adversary rounds, no Proposals, Tech Plan or Future Iterations, no breakdown
+stage).
+
+```text
+Feature                                          Bug
+  tt-familiarise (lite mode) ──► Focus Log         tt-debug ──► Debug Log
+  │   + the change you want                        │   hypotheses, evidence, root cause
+  ▼                                                ├─► tt-debug-doc ──► Debug Report
+tt-lite-brief ◄────────────────────────────────────┘ (to fix it)
+  ├─► Lite Brief   (plan + task cards + checks, one document)
+  └─ one independent check of the brief against the code
+  │
+  ▼
+tt-execute-lite (best in a fresh session), one unit:
+  ├─ Agent tasks    ──► tt-coder
+  ├─ Engineer tasks ──► a checklist for you
+  └─ validate the unit, then stop and report
+```
+
+The Lite Brief is shaped so the same scripts that run a Task Breakdown run it,
+and it is its own plan, so `tt-execute-lite` has nothing to drift from: a change
+to the goal, the acceptance or a decision goes back through
+`tt-lite-brief revise`. If the change grows past about six tasks, use
+`tt-workflow`.
+
 ## Where to start
 
 | You want to… | Run |
 |---|---|
 | start or carry on a feature without picking the skill yourself | `/tt-workflow [feature folder \| new]` |
+| start or carry on a small feature or a bug fix | `/tt-workflow-lite [bug \| feature \| task folder]` |
 | find out which skill to use, or where you left off | `/tt-guide [question]` |
 | explore how something in the codebase works | `/tt-familiarise <what you want to explore>` |
 | write up an exploration | `/tt-familiarisation-doc [focus log]` |
@@ -118,6 +155,10 @@ In order:
 | carry on building | `/tt-execute <task status doc>` |
 | see where things stand | `/tt-task-status <task status doc>` |
 | implement a small plan or ticket without a breakdown | `/tt-coder <plan, spec or ticket>` |
+| chase a bug with a pair-programming companion | `/tt-debug <symptom>` |
+| write up a debugging session | `/tt-debug-doc [debug log]` |
+| plan a small change or a bug fix | `/tt-lite-brief <focus log or debug log>` |
+| build a Lite Brief | `/tt-execute-lite <lite brief>` |
 | rebuild the brief Tech Plan | `/tt-tech-plan <comprehensive tech plan>` |
 | tidy a proposals doc, or create one for an existing plan | `/tt-tech-proposals <proposals doc or comprehensive tech plan>` |
 | review a GitLab MR | `/tt-mr-review [MR number or branch]` |
@@ -145,6 +186,8 @@ elsewhere.
 | Future Iterations | `<Prefix> - Future Iterations.md` | `tt-plan-signoff` | Work that came up and was deliberately left out. |
 | Task Breakdown | `<Prefix> - Task Breakdown.md` | `tt-task-breakdown` | Task cards and work units, each with an *In plain English* summary for non-technical readers. |
 | Task Status | `<Prefix> - Task Status.md` | `tt-task-status` | Progress, logs, decisions and validation results. A new session reads this first. |
+| Lite Brief | `<Prefix> - Lite Brief.md` | `tt-lite-brief` | The lite route's plan and task breakdown in one: goal, acceptance, decisions, one work unit with its checks, and the task cards. `tt-execute-lite` builds from it; its Task Status sits beside it. |
+| Debug Report | `<Prefix> - Debug Report.md` | `tt-debug-doc`, from the Debug Log in `.tt/<Prefix> - Debug/` | What was wrong, how the root cause was found, what was ruled out and why, and the fix direction. |
 
 ### IDs and revisions
 
@@ -497,6 +540,80 @@ Implements exactly what it's given and escalates everything else.
 - **Won't:** expand scope, refactor nearby code, add dependencies, or touch
   git.
 
+### The lite route
+
+Not yet exercised in a live session.
+
+#### [`tt-workflow-lite`](tt-workflow-lite/SKILL.md): one entry for small work
+
+Like `tt-workflow`, but for one small feature or one bug. It asks which, links a
+folder for that task (kept in its own file, `~/.claude/tt-workflow/lite-links.tsv`,
+so it never replaces the folder `tt-workflow` links), reads where the documents
+stand with the same script, and runs the next skill after one confirmation.
+
+- **Run it:** `/tt-workflow-lite bug`, `/tt-workflow-lite feature`, or just
+  `/tt-workflow-lite` to carry on; `status`, `unlink` and `<task folder>` work
+  as in `tt-workflow`.
+- **Fresh session for the build:** before `tt-execute-lite` it offers to open a
+  new terminal tab running it (`tt-common/scripts/new-session.sh`, only if you
+  say yes). A skill can't clear its own session, but it can start another.
+
+#### [`tt-lite-brief`](tt-lite-brief/SKILL.md): plan the small change
+
+- **Run it:** `/tt-lite-brief <focus log or debug log>`; change a brief later
+  with `/tt-lite-brief revise <lite brief>`.
+- **How it goes:** reads the confirmed log, puts every design choice to you with
+  options and a recommendation, outlines the tasks for your approval, writes the
+  brief from parts, checks it by script (structure, references, planning IDs),
+  and has one independent subagent test it against the code before you see the
+  command to build it.
+- **Writes:** `<Prefix> - Lite Brief.md`: goal, acceptance, how it works today,
+  the decisions taken, what's out of scope, one work unit with its checks, and
+  the task cards. The two overview tables are written by `lite-index.sh`.
+- **Won't:** make a design choice for you, write production code, or commit.
+
+#### [`tt-execute-lite`](tt-execute-lite/SKILL.md): build the brief
+
+- **Run it:** `/tt-execute-lite <lite brief>`; `status` reports only. Best in a
+  fresh session.
+- **How it goes:** creates (or resumes) the Task Status, reconciles it with the
+  repo, runs each Agent task in its own `tt-coder` subagent and each Engineer
+  task as a checklist for you, then validates the unit: the agent's checks by
+  script, yours inline in chat. It uses the same scripts as `tt-execute`.
+- **Differs from `tt-execute`:** the brief is the only plan, so there is no
+  plan-drift or reconcile subagent and no breakdown to amend; a change to the
+  goal, acceptance or a decision goes back to `tt-lite-brief revise`.
+- **Won't:** write production code itself, or commit.
+
+#### [`tt-debug`](tt-debug/SKILL.md): a debugging companion
+
+You drive; it navigates. Started from a symptom, it asks for expected versus
+actual behaviour, how to reproduce it and what you've tried, maps the failing
+path with read-only subagents, and keeps ranked hypotheses with the evidence
+for and against each.
+
+- **Run it:** `/tt-debug <symptom>`; carry on with `/tt-debug resume <debug log>`.
+- **Following your lead:** after each step it offers two to four next
+  experiments with what each result would mean, and takes your idea first,
+  recording your hypotheses as yours. Nothing happens without your direction.
+- **Root cause, not symptom:** it keeps asking why, and calls it a root cause
+  only with a cited mechanism, an observation that tells it apart, and an
+  explanation of every observation so far. You confirm.
+- **Hands off the code:** it reads and traces. It adds temporary logging only
+  when you ask; every such line carries `TT-DEBUG-TEMP` and
+  `tt-common/scripts/debug-temp.sh` must find none left before it closes.
+- **Ends with:** the Debug Report (`tt-debug-doc`), a fix through `tt-lite-brief`,
+  or just stop. The Debug Log in `.tt/<Prefix> - Debug/` lets a fresh session
+  resume.
+- **Won't:** write the fix, run anything with side effects unasked, or touch git.
+
+#### [`tt-debug-doc`](tt-debug-doc/SKILL.md): the Debug Report
+
+- **Run it:** `/tt-debug-doc [debug log]`. `tt-common/scripts/debug-doc.sh`
+  renders the report straight from the log (no model writes it), refuses a log
+  that isn't finished and lists what's missing; the skill then checks the
+  references and applies your corrections.
+
 ### [`tt-mr-review`](tt-mr-review/SKILL.md): review a GitLab MR
 
 A line-by-line review meant to stand in for a senior engineer's review.
@@ -574,7 +691,8 @@ New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\tt-guide" -Ta
 
 [`tools/test-scripts.sh`](tools/test-scripts.sh) runs the breakdown,
 execute and status scripts against the fixtures in `tools/fixtures/`
-(`demo/`: a plan, a breakdown and a Task Status; `demo-draft/`: a skeleton) in
+(`demo/`: a plan, a breakdown and a Task Status; `demo-draft/`: a skeleton;
+`lite/`: a Lite Brief and a Debug Log) in
 a throwaway git repo, including a CRLF copy:
 
 ```sh

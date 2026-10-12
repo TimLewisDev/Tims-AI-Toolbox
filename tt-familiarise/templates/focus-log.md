@@ -32,3 +32,22 @@ they confirm it, then "(confirmed <YYYY-MM-DD>)".>
 - **Open questions:** <questions raised and not answered by the code, or none>
 - **Research:** `research/<file>.md`
 ```
+
+## Lite mode
+
+In lite mode (see `SKILL.md`) the header gains `- **Mode:** lite` (above
+**Status**), and the log gains this section after **Focus statement**. Fill it
+in as the exploration goes; `tt-lite-brief` reads it. The wanted change and the
+acceptance are the engineer's words, quoted. Everything else is a cited fact.
+
+```markdown
+## Change facts
+- **Wanted change:** "<the engineer's words>"
+- **Acceptance:** "<what they will see when it works>"; "<…>"
+- **Seams:** `path:line`: <where the change would attach>
+- **Precedents:** `path:line`: <existing code that does the nearest similar thing>
+- **Tool-managed files:** <files made in a tool and not by hand, or none>
+- **Build / check:** <how the code is built or compile-checked, from the repo's instructions or the engineer; or "unknown">
+- **Constraints:** <platform, performance, compatibility, ownership; or none>
+- **Open choices:** <design choices the engineer hasn't made yet, or none>
+```

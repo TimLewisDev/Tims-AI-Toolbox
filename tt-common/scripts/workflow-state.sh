@@ -19,6 +19,7 @@ where it stands and the command to run next:
   kind: primary (the next step), alt (another sensible step), warn (a problem)
   phase: exploring explored planning signed-off breakdown-draft breakdown-written
          building complete breakdown-orphan empty
+         lite-focus lite-brief debugging debug-done debugged (the lite route)
   skill is "-" when nothing is left to run (complete).
 
 Exit: 0 found something, 1 no tt documents in the folder, 2 usage error.
@@ -60,12 +61,15 @@ prefixes=$(
 		[ -f "$f" ] || continue
 		b=${f##*/}
 		case $b in
-		*" - Comprehensive Tech Plan.md" | *" - Task Status.md" | *" - Task Breakdown.md" | *" - Familiarisation.md")
+		*" - Comprehensive Tech Plan.md" | *" - Task Status.md" | *" - Task Breakdown.md" | *" - Familiarisation.md" | *" - Lite Brief.md" | *" - Debug Report.md")
 			echo "${b% - *}" ;;
 		esac
 	done
 	for d in "$dir"/.tt/*" - Familiarisation"; do
 		[ -f "$d/focus-log.md" ] && b=${d##*/} && echo "${b% - Familiarisation}"
+	done
+	for d in "$dir"/.tt/*" - Debug"; do
+		[ -f "$d/debug-log.md" ] && b=${d##*/} && echo "${b% - Debug}"
 	done
 )
 prefixes=$(printf '%s\n' "$prefixes" | awk 'NF' | sort -u)
@@ -78,6 +82,7 @@ else
 		plan="$dir/$p - Comprehensive Tech Plan.md"; st="$dir/$p - Task Status.md"
 		bd="$dir/$p - Task Breakdown.md"; tp="$dir/$p - Tech Plan.md"
 		fam="$dir/$p - Familiarisation.md"; log="$dir/.tt/$p - Familiarisation/focus-log.md"
+		lb="$dir/$p - Lite Brief.md"; dlog="$dir/.tt/$p - Debug/debug-log.md"; drep="$dir/$p - Debug Report.md"
 		if [ -f "$st" ]; then
 			state=$(field "$st" '^- State:'); state=${state#- State: }
 			prog=$(field "$st" '^- Progress:'); prog=${prog#- Progress: }
@@ -86,8 +91,11 @@ else
 				row "$p" primary complete - "" "" "built and validated ($prog). Commit it yourself, then review the MR."
 				row "$p" alt complete tt-mr-review "" "" "review the MR:" "[MR number or branch]"
 			else
-				row "$p" primary building tt-execute "" "$(rel "$st")" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"
+				if [ -f "$lb" ]; then ex=tt-execute-lite; exa=$(rel "$lb"); else ex=tt-execute; exa=$(rel "$st"); fi
+				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"
 			fi
+		elif [ -f "$lb" ]; then
+			row "$p" primary lite-brief tt-execute-lite "" "$(rel "$lb")" "lite brief written; not started."
 		elif [ -f "$plan" ]; then
 			status=$(field "$plan" 'Status:')
 			if printf '%s' "$status" | grep -q Draft; then
@@ -109,11 +117,36 @@ else
 			fi
 		elif [ -f "$fam" ]; then
 			row "$p" primary explored tt-adversarial-plan "" "$(rel "$fam")" "explored and written up; no plan yet."
+		elif [ -f "$log" ] && grep -q 'Mode:\*\* lite' "$log"; then
+			if grep -q '^- \*\*Status:\*\* *Focus confirmed' "$log"; then
+				row "$p" primary lite-focus tt-lite-brief "" "$(rel "$log")" "lite exploration done; ready for the brief."
+			else
+				row "$p" primary exploring tt-familiarise resume "$(rel "$log")" "exploring (lite; the focus is not yet confirmed)."
+			fi
 		elif [ -f "$log" ]; then
 			row "$p" primary exploring tt-familiarise resume "$(rel "$log")" "exploring (a Focus Log, not yet written up)."
 			row "$p" alt exploring tt-familiarisation-doc "" "$(rel "$log")" "or write it up:"
+		elif [ -f "$drep" ]; then
+			row "$p" primary debugged - "" "" "debugged; the report is written."
+			if [ -f "$dlog" ] && field "$dlog" '^- [*][*]Status:[*][*]' | grep -q 'Root cause confirmed'; then
+				row "$p" alt debugged tt-lite-brief "" "$(rel "$dlog")" "or fix it:"
+			fi
+		elif [ -f "$dlog" ]; then
+			dst=$(field "$dlog" '^- [*][*]Status:[*][*]')
+			if printf '%s' "$dst" | grep -Eq 'Root cause confirmed|Unresolved'; then
+				row "$p" primary debug-done tt-debug-doc "" "$(rel "$dlog")" "debugging finished; no report yet."
+				printf '%s' "$dst" | grep -q 'Root cause confirmed' &&
+					row "$p" alt debug-done tt-lite-brief "" "$(rel "$dlog")" "or fix it:"
+			else
+				row "$p" primary debugging tt-debug resume "$(rel "$dlog")" "debugging (the root cause is not yet confirmed)."
+			fi
 		elif [ -f "$bd" ]; then
 			row "$p" primary breakdown-orphan tt-task-status "" "$(rel "$bd")" "a Task Breakdown with no plan or Task Status beside it."
+		fi
+		# A fix may be planned or built before the debugging is written up: keep offering the report.
+		if [ -f "$lb" ] && [ -f "$dlog" ] && [ ! -f "$drep" ] &&
+			field "$dlog" '^- [*][*]Status:[*][*]' | grep -Eq 'Root cause confirmed|Unresolved'; then
+			row "$p" alt debug-done tt-debug-doc "" "$(rel "$dlog")" "or write up the debugging:"
 		fi
 	done <<<"$prefixes"
 fi

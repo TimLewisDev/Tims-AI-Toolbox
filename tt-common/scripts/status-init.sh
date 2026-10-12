@@ -5,7 +5,7 @@ set -eu
 
 usage() {
 	cat >&2 <<'EOF'
-usage: status-init.sh <task breakdown.md> <task status.md>
+usage: status-init.sh [--label <name>] <task breakdown.md> <task status.md>
 
 Writes the Task Status (tt-task-status's template): the breakdown's header
 or tag block (a leading "# Tags" block up to its "---", or YAML front
@@ -19,6 +19,9 @@ Branch, base, repo and the plan link come from the breakdown header
 "tech plan" line). Links follow the breakdown's style ([[wiki]] or Markdown).
 The breakdown's line endings are kept.
 
+--label names the first document in the status ("Lite Brief" for a Lite Brief,
+which is its own plan): it replaces "Task Breakdown" and the tech plan link.
+
 Refuses if <task status.md> exists: there is only ever one.
 Exit: 0 written, 1 the breakdown has no Task Map, 2 usage error or the
 status document exists.
@@ -26,6 +29,11 @@ EOF
 	exit 2
 }
 
+label=""
+if [ "${1:-}" = --label ]; then
+	[ $# -ge 2 ] || usage
+	label=$2; shift 2
+fi
 [ $# -eq 2 ] || usage
 case "$1" in -h | --help) usage ;; esac
 bd=$1; st=$2
@@ -59,8 +67,9 @@ if [ "$style" = wiki ]; then
 	bdlink="[[$(basename "$bd" .md)]]"
 else
 	planlink=$(printf '%s' "$planline" | grep -o '\[[^]]*\]([^)]*)' | head -n 1)
-	bdlink="[Task Breakdown]($(basename "$bd" | sed 's/ /%20/g'))"
+	bdlink="[${label:-Task Breakdown}]($(basename "$bd" | sed 's/ /%20/g'))"
 fi
+if [ -n "$label" ]; then if [ "$style" = wiki ]; then docs="$label $bdlink"; else docs=$bdlink; fi; else docs="Comprehensive tech plan ${planlink:-(see the breakdown header)} · Task Breakdown $bdlink"; fi
 first=$(awk 'NR > 3 && /^\| WU/ { split($0, c, "|"); gsub(/ /, "", c[2]); print c[2]; exit }' "$work/boards")
 case "$branch" in *" "* | "") brline="- Branch: ${branch:-unknown} (base \`${base:-?}\`)" ;; *) brline="- Branch: \`$branch\` (base \`${base:-?}\`)" ;; esac
 
@@ -84,7 +93,7 @@ $brline
 3. Waiting on the engineer: nothing.
 4. Next action: -.
 
-**Documents:** Comprehensive tech plan ${planlink:-(see the breakdown header)} · Task Breakdown $bdlink · Repo \`${repo:-?}\`
+**Documents:** $docs · Repo \`${repo:-?}\`
 
 EOF
 	cat "$work/boards"

@@ -14,7 +14,7 @@ usage: workflow.sh start                    Tatty, then this project's linked fo
        workflow.sh new <parent> <name>      create <parent>/<name>, link it, print its folder and prefix
 
 The link is kept per project (the git root of the current directory) in
-${TT_WORKFLOW_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-workflow}/links.tsv
+${TT_WORKFLOW_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-workflow}/${TT_WORKFLOW_LINKS:-links.tsv}
 Exit: 0 ok, 1 nothing linked, 2 usage or environment error (a missing folder is one).
 EOF
 }
@@ -22,7 +22,7 @@ EOF
 here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
 common="$(dirname "$(dirname "$here")")/tt-common/scripts"
 home=${TT_WORKFLOW_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-workflow}
-links="$home/links.tsv"
+links="$home/${TT_WORKFLOW_LINKS:-links.tsv}"
 
 # abs <dir>: the folder's absolute path, with forward slashes
 abs() { (cd "$1" 2>/dev/null && { pwd -W 2>/dev/null || pwd; }); }

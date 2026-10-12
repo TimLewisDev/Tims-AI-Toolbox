@@ -383,6 +383,210 @@ expect "stale link is reported" 2 wf state
 has "stale link message" "$T/out" "linked folder is missing"
 expect "unlink" 0 wf unlink
 expect "unlink again" 1 wf unlink
+echo "# lite.sh (its own link)"
+LITE="$root/tt-workflow-lite/scripts/lite.sh"
+lw() { (cd "$T/wf proj" && bash "$LITE" "$@"); }
+expect "lite: nothing linked, whatever tt-workflow links" 1 lw state
+wf link "$T/wf proj/feature a" >/dev/null
+expect "lite: still nothing linked" 1 lw state
+expect "lite: link a folder" 0 lw link "$T/wf proj/feature a"
+[ -f "$TT_WORKFLOW_HOME/lite-links.tsv" ] && ok "lite keeps its own links file" || bad "lite keeps its own links file"
+expect "lite: new folder" 0 lw new "$T/wf proj" "Lite B"
+expect "lite: an empty task folder" 0 lw state
+has "lite: asks bug or feature" "$T/out" "a new task: is it a bug or a feature?"
+hasnt "lite: no full-pipeline suggestion" "$T/out" "tt-adversarial-plan"
+expect "tt-workflow's link is untouched" 0 wf state
+has "tt-workflow still on its folder" "$T/out" "No tt documents in"
+rm -rf "$T/wf proj/Lite B"
+lw unlink >/dev/null; wf unlink >/dev/null
+
+echo "# lite brief: lite-index.sh and lite-check.sh"
+LF="$root/tools/fixtures/lite"
+mkdir -p "$T/lrepo/src" && (cd "$T/lrepo" && git init -q -b feature/farewell && git config core.autocrlf false && echo 'exit 0' >build.sh &&
+	echo 'echo hello' >src/greet.sh && git add . && git -c user.email=t@t -c user.name=t commit -qm init)
+mkdir -p "$T/lite"
+LB="$T/lite/Farewell - Lite Brief.md"; LS="$T/lite/Farewell - Task Status.md"; LR="$T/lite/.tt/Farewell - Task Status"
+sed "s#REPO#$T/lrepo#g" "$LF/Farewell - Lite Brief.md" >"$LB"
+expect "the fixture brief is clean" 0 bash "$S/lite-check.sh" "$LB"
+expect "tables are up to date" 0 bash "$S/lite-index.sh" --check "$LB"
+awk '/^## Work Units/ { s = 1 } /^## WU1/ { s = 0 } !s' "$LB" >"$T/lite/notables.md"
+expect "missing tables are flagged" 1 bash "$S/lite-index.sh" --check "$T/lite/notables.md"
+expect "lite-index writes them" 0 bash "$S/lite-index.sh" "$T/lite/notables.md"
+cmp -s "$LB" "$T/lite/notables.md" && ok "regenerated tables match the written ones" || bad "regenerated tables match the written ones"
+sed 's/$/\r/' "$LB" >"$T/lite/crlf.md"; awk '/^## Work Units/ { s = 1 } /^## WU1/ { s = 0 } !s' "$T/lite/crlf.md" >"$T/lite/crlf2.md"
+expect "lite-index on a CRLF brief" 0 bash "$S/lite-index.sh" "$T/lite/crlf2.md"
+[ "$(grep -c $'\r$' "$T/lite/crlf2.md")" = "$(wc -l <"$T/lite/crlf2.md" | tr -d ' ')" ] && ok "CRLF kept on every line" || bad "CRLF kept on every line"
+lc() { sed "$2" "$LB" >"$T/lite/bad.md"; expect "lite-check: $1" 1 bash "$S/lite-check.sh" "$T/lite/bad.md"; }
+lc "an Agent card with no Files" '/^- new `src\/farewell.sh`/d'; has "names the card" "$T/out" "card T01: an Agent card needs Files"
+lc "a checks line for a missing item" 's/^2 | nonempty/9 | nonempty/'; has "names the line" "$T/out" "checks line 9 names no Validation item"
+lc "a checks line for an engineer item" 's/^2 | nonempty/3 | nonempty/'; has "engineer item" "$T/out" "only the engineer checks"
+lc "an uncited acceptance item" 's/ (A1) (Agent)/ (Agent)/'; has "names the item" "$T/out" "acceptance A1 is not cited"
+lc "an ID inside a code fence" 's/^1 | ok | bash build.sh/1 | ok | bash build.sh # T07/'; has "ID in code" "$T/out" "planning ID in a code block"
+lc "an unknown executor" 's/\*\*Executor\*\* | Agent/**Executor** | Robot/'; has "executor" "$T/out" "Executor must be Agent or Engineer"
+lc "a dependency on a missing card" 's/\*\*Depends on\*\* | T01/**Depends on** | T09/'; has "dependency" "$T/out" "T09, which is not a card"
+lc "no Build check" '/Build check/d'; has "build check" "$T/out" "no **Build check:**"
+lc "a stale Task Map" 's/| T02 | Look at the farewell in the tool | Engineer/| T02 | Look at it | Engineer/'; has "stale" "$T/out" "out of date"
+lc "a leftover marker" 's/^None\.$/TODO/'; has "marker" "$T/out" "leftover marker"
+expect "lite-check: not a file" 2 bash "$S/lite-check.sh" "$T/lite/none.md"
+sed 's/^1 | ok | bash build.sh/1 | ok | bash build.sh # T07/' "$LB" >"$T/lite/Spaced - Lite Brief.md"
+expect "lite-check: an ID in a code fence, in a file name with spaces" 1 bash "$S/lite-check.sh" "$T/lite/Spaced - Lite Brief.md"
+has "the hit is reported" "$T/out" "planning ID in a code block: T07"
+{ printf -- '---
+tags: [x]
+---
+'; cat "$LB"; } >"$T/lite/fm.md"
+expect "lite-check: YAML front matter before the title" 0 bash "$S/lite-check.sh" "$T/lite/fm.md"
+{ printf -- '# Tags
+#a
+---
+'; cat "$LB"; } >"$T/lite/tags.md"
+expect "lite-check: a tag block before the title" 0 bash "$S/lite-check.sh" "$T/lite/tags.md"
+lc "a title that isn't a Lite Brief" '1s/.*/# Farewell: Task Breakdown/'; has "title" "$T/out" "the title must read"
+
+echo "# the tt-execute scripts on a Lite Brief"
+expect "status-init with a label" 0 bash "$S/status-init.sh" --label "Lite Brief" "$LB" "$LS"
+has "documents line" "$LS" "**Documents:** [Lite Brief](Farewell%20-%20Lite%20Brief.md) · Repo"
+hasnt "no second label" "$LS" "Lite Brief [Lite Brief]"
+has "boards from the brief" "$LS" "| T02 | Look at the farewell in the tool | Engineer | WU1 | T01 | Todo | |"
+expect "the status is consistent" 0 bash "$S/status-counts.sh" "$LS"
+expect "execute-load reads the brief" 0 bash "$S/execute-load.sh" "$LS" "$LB"
+has "load: the unit" "$T/out" "==== unit: WU1"
+has "load: the checks block" "$T/out" "2 | nonempty | bash src/farewell.sh"
+expect "preflight: the brief is its own plan" 0 bash "$S/continue-preflight.sh" "$LS" "$LB" --plan "$LB"
+has "preflight says so" "$T/out" "plan: not checked (the document is its own plan)"
+expect "handoff for T01" 0 bash "$S/handoff.sh" "$LB" "$LS" T01 --run "$LR" --plan "$LB" --base-sha abc1234
+has "handoff names the task" "$T/out" "Implement exactly one task: T01 — Add the farewell."
+has "handoff names the unit" "$T/out" "work unit WU1 — Say goodbye"
+has "handoff gives the build check" "$T/out" "Build check: \`bash build.sh\`"
+mkdir -p "$LR/results"
+expect "snapshot" 0 bash "$S/task-files.sh" snapshot "$LB" "$LR" T01
+expect "start T01" 0 bash "$S/status-set.sh" "$LS" T01 "In Progress"
+echo 'echo goodbye' >"$T/lrepo/src/farewell.sh"
+expect "scope check" 0 bash "$S/task-files.sh" diff "$LB" "$LR" T01
+bash "$S/result-scaffold.sh" "$LB" T01 --run "$LR" >"$LR/results/T01.md"
+has "scaffold lists the card file" "$LR/results/T01.md" "- new \`src/farewell.sh\`"
+expect "log refuses unfilled markers" 2 bash "$S/status-log.sh" "$LS" "$LR/results/T01.md"
+cat >"$LR/results/T01.md" <<'EOF'
+# Result: T01 — Add the farewell
+
+- Task status: implemented
+- Validation: Deferred to WU1
+
+## Files Modified
+- new `src/farewell.sh`: prints the farewell
+
+## Summary
+Wrote it.
+
+## To validate
+1. Run `bash src/farewell.sh` → expect goodbye.
+
+## Follow-up Concerns
+none
+
+## Risks
+- none
+
+## Improvements
+none
+
+## Critical Decision
+none
+EOF
+expect "log T01" 0 bash "$S/status-log.sh" "$LS" "$LR/results/T01.md"
+bash "$S/status-set.sh" "$LS" T02 "In Progress" >/dev/null
+expect "T02 implemented" 0 bash "$S/status-set.sh" "$LS" T02 Implemented
+expect "unit ready" 0 bash "$S/status-set.sh" "$LS" WU1 "Ready to Validate"
+expect "run the unit's checks" 0 bash "$S/run-checks.sh" "$LB" WU1 "$LR/validation/WU1-attempt1" --why "first run"
+has "build passed" "$T/out" "passed	bash build.sh"
+expect "record the attempt" 0 bash "$S/status-record.sh" "$LS" validation WU1 --file "$LR/validation/WU1-attempt1/attempt.md"
+expect "engineer checklist" 0 bash "$S/validation-checklist.sh" "$LB" "$LS" WU1
+has "checklist: the engineer's check" "$T/out" "The farewell looks right in the tool"
+expect "engineer check passes" 0 bash "$S/status-record.sh" "$LS" check WU1 3 passed --evidence "saw goodbye"
+expect "unit done" 0 bash "$S/status-set.sh" "$LS" WU1 Done
+has "all complete" "$LS" "- State: Complete"
+expect "no planning IDs in the written code" 0 bash "$S/check-planning-ids.sh" --repo "$T/lrepo" "$T/lrepo/src/farewell.sh"
+
+echo "# workflow-state.sh: the lite route"
+L2="$T/lstate"; mkdir -p "$L2/.tt/A - Familiarisation" "$L2/.tt/B - Familiarisation" "$L2/.tt/C - Debug" "$L2/.tt/D - Debug" "$L2/.tt/E - Debug"
+printf -- '- **Mode:** lite\n- **Status:** Focus confirmed 2026-10-12\n' >"$L2/.tt/A - Familiarisation/focus-log.md"
+printf -- '- **Mode:** lite\n- **Status:** Exploring\n  (later: `Focus confirmed <date>`)\n' >"$L2/.tt/B - Familiarisation/focus-log.md"
+printf -- '- **Status:** Debugging · **Next:** x\n' >"$L2/.tt/C - Debug/debug-log.md"
+printf -- '- **Status:** Root cause confirmed 2026-10-12 · **Next:** -\n' >"$L2/.tt/D - Debug/debug-log.md"
+printf -- '- **Status:** Unresolved 2026-10-12\n' >"$L2/.tt/E - Debug/debug-log.md"
+: >"$L2/F - Debug Report.md"; : >"$L2/G - Lite Brief.md"; : >"$L2/H - Lite Brief.md"
+cp "$ST" "$L2/H - Task Status.md"
+bash "$WS" --tsv "$L2" >"$T/rows"
+has "lite focus confirmed" "$T/rows" "A	primary	lite-focus	tt-lite-brief		$L2/.tt/A - Familiarisation/focus-log.md	"
+has "lite focus not confirmed" "$T/rows" "B	primary	exploring	tt-familiarise	resume"
+hasnt "no write-up offered for a lite exploration" "$T/rows" "B	alt	exploring	tt-familiarisation-doc"
+has "debugging" "$T/rows" "C	primary	debugging	tt-debug	resume	$L2/.tt/C - Debug/debug-log.md	"
+has "root cause confirmed: the report" "$T/rows" "D	primary	debug-done	tt-debug-doc"
+has "root cause confirmed: or fix it" "$T/rows" "D	alt	debug-done	tt-lite-brief"
+has "unresolved: the report" "$T/rows" "E	primary	debug-done	tt-debug-doc"
+hasnt "unresolved: no fix offered" "$T/rows" "E	alt"
+has "report written" "$T/rows" "F	primary	debugged	-"
+has "lite brief, not started" "$T/rows" "G	primary	lite-brief	tt-execute-lite		$L2/G - Lite Brief.md	"
+has "building a lite brief" "$T/rows" "H	primary	building	tt-execute-lite		$L2/H - Lite Brief.md	"
+hasnt "not tt-execute" "$T/rows" "H	primary	building	tt-execute	"
+printf -- '- **Status:** Root cause confirmed 2026-10-12 · **Next:** - · Documented 2026-10-12: x
+' >"$L2/.tt/C - Debug/debug-log.md"
+: >"$L2/C - Debug Report.md"
+mkdir -p "$L2/.tt/J - Debug" "$L2/.tt/K - Debug"
+printf -- '- **Status:** Unresolved 2026-10-12 · **Next:** - · Documented 2026-10-12: x
+' >"$L2/.tt/J - Debug/debug-log.md"; : >"$L2/J - Debug Report.md"
+printf -- '- **Status:** Root cause confirmed 2026-10-12 · **Next:** -
+' >"$L2/.tt/K - Debug/debug-log.md"; : >"$L2/K - Lite Brief.md"
+bash "$WS" --tsv "$L2" >"$T/rows"
+has "documented keeps the outcome: the fix is offered" "$T/rows" "C	alt	debugged	tt-lite-brief"
+has "unresolved and written up" "$T/rows" "J	primary	debugged	-"
+hasnt "unresolved: no fix offered" "$T/rows" "J	alt"
+has "a brief before the write-up: the report is still offered" "$T/rows" "K	alt	debug-done	tt-debug-doc"
+
+echo "# debug-doc.sh and debug-temp.sh"
+DT="$T/dbg"; mkdir -p "$DT"
+sed "s#FOLDER#$DT#" "$LF/Slow - debug-log.md" >"$DT/log.md"
+expect "a finished log is complete" 0 bash "$S/debug-doc.sh" --check "$DT/log.md"
+expect "render the report" 0 bash "$S/debug-doc.sh" "$DT/log.md" "$DT/Slow - Debug Report.md"
+has "outcome" "$DT/Slow - Debug Report.md" "**Outcome:** Root cause found"
+has "the root cause" "$DT/Slow - Debug Report.md" "prints the name variable without a fallback"
+has "what it wasn't" "$DT/Slow - Debug Report.md" "| The caller passes an empty string (engineer's) |"
+has "log path from the prefix" "$DT/Slow - Debug Report.md" ".tt/Slow - Debug/debug-log.md"
+has "temporary edits removed" "$DT/Slow - Debug Report.md" "has been removed"
+expect "the report is not overwritten" 2 bash "$S/debug-doc.sh" "$DT/log.md" "$DT/Slow - Debug Report.md"
+expect "references in the report check out" 0 bash "$S/verify-refs.sh" --repo "$T/lrepo" --worktree --only-problems "$DT/Slow - Debug Report.md"
+dd() { sed "$2" "$DT/log.md" >"$DT/bad.md"; expect "debug-doc: $1" 1 bash "$S/debug-doc.sh" --check "$DT/bad.md"; }
+dd "a draft In short" 's/^The greeting script prints/(draft) The greeting script prints/'; has "draft" "$T/out" "still marked (draft)"
+dd "an unfinished status" 's/Root cause confirmed 2026-10-12/Debugging/'; has "status" "$T/out" "a finished Status"
+dd "a temporary edit left" 's/| yes |$/| no |/'; has "left" "$T/out" "temporary edit not removed"
+dd "no root cause text" '/^`src\/greet.sh:1` prints/d'; has "root cause" "$T/out" "the Root cause section"
+dd "no Root cause hypothesis" 's/| Root cause |/| Supported |/'; has "hypothesis" "$T/out" "Status \"Root cause\""
+sed 's/Root cause confirmed 2026-10-12/Unresolved 2026-10-12/; /^`src\/greet.sh:1` prints/d; s/| Root cause |/| Supported |/' "$DT/log.md" >"$DT/unres.md"
+expect "an unresolved log is complete" 0 bash "$S/debug-doc.sh" "$DT/unres.md" "$DT/unres-report.md"
+has "unresolved outcome" "$DT/unres-report.md" "**Outcome:** Unresolved"
+has "where it stands" "$DT/unres-report.md" "## Where it stands"
+mkdir -p "$T/dtrepo/.tt" && (cd "$T/dtrepo" && git init -q && echo 'echo hi' >a.sh && git add a.sh && git -c user.email=t@t -c user.name=t commit -qm i)
+echo 'echo dbg # TT-DEBUG-TEMP' >"$T/dtrepo/b.sh"; echo 'the marker TT-DEBUG-TEMP' >"$T/dtrepo/.tt/log.md"
+expect "debug-temp finds an untracked line" 1 bash "$S/debug-temp.sh" check "$T/dtrepo"
+has "names the file" "$T/out" "b.sh:1:"
+hasnt "ignores .tt" "$T/out" ".tt/log.md"
+expect "debug-temp list never fails" 0 bash "$S/debug-temp.sh" list "$T/dtrepo"
+rm "$T/dtrepo/b.sh"
+expect "debug-temp clean" 0 bash "$S/debug-temp.sh" check "$T/dtrepo"
+echo 'TT-DEBUG-TEMP in a cell' >"$T/dtrepo/Slow - Debug Report.md"
+expect "debug-temp ignores a Debug Report" 0 bash "$S/debug-temp.sh" check "$T/dtrepo"
+
+echo "# new-session.sh"
+NS="$S/new-session.sh"
+if command -v claude >/dev/null 2>&1; then
+	expect "print the command" 0 bash "$NS" --print "$T" '/tt-execute-lite "a b.md"'
+	has "shows the command" "$T/out" "claude '/tt-execute-lite \"a b.md\"'"
+	expect "no such folder" 2 bash "$NS" --print "$T/none" "x"
+else
+	ok "new-session.sh needs the claude command (skipped)"
+fi
+expect "new-session usage" 2 bash "$NS"
+
 unset TT_WORKFLOW_HOME
 echo
 echo "$pass passed, $fail failed"

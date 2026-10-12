@@ -84,7 +84,9 @@ reasons=()
 read_rev=$(printf '%s\n' "$head_bd" | sed -n 's/.*[Pp]lan read:[^0-9]*revision \([0-9][0-9]*\).*/\1/p' | head -n 1)
 plan_line="plan: not checked (no plan found)"
 drift=0
-if [ -n "$plan" ] && [ -f "$plan" ]; then
+if [ -n "$plan" ] && [ "$plan" -ef "$bd" ]; then
+	plan_line="plan: not checked (the document is its own plan)"
+elif [ -n "$plan" ] && [ -f "$plan" ]; then
 	now_rev=$(tr -d '\r' <"$plan" | sed -n '1,40p' | sed -n 's/.*Revision:\**[ \t]*\**\([0-9][0-9]*\).*/\1/p' | head -n 1)
 	if [ -z "$read_rev" ] || [ -z "$now_rev" ]; then
 		plan_line="plan: revision unknown (breakdown read '${read_rev:-?}', plan '${now_rev:-?}')"

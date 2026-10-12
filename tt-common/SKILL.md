@@ -66,6 +66,11 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
 | `status-init.sh` | Create a Task Status from a finished breakdown |
 | `workflow-state.sh` | Work out where the tt documents in a folder stand and which skill comes next (used by `tt-workflow` and `tt-guide`) |
 | `tatty.sh` | Draw Tatty with a quip from `quips.txt` (used by `tt-guide` and `tt-workflow`) |
+| `lite-index.sh` | Write a Lite Brief's Work Units and Task Map tables from its unit blocks and cards |
+| `lite-check.sh` | Check a Lite Brief's structure: header, sections, cards, checks block, acceptance coverage, planning IDs in code |
+| `debug-doc.sh` | Render the Debug Report from a finished Debug Log; list what the log lacks |
+| `debug-temp.sh` | Find (or check there are none left of) the temporary logging `tt-debug` adds, marked `TT-DEBUG-TEMP` |
+| `new-session.sh` | Open a fresh Claude Code session in a new terminal, started with a prompt such as `/tt-execute-lite "<brief>"` (only when the engineer says yes) |
 
 The status scripts write atomically, keep line endings, and print one line per
 change, never the document. `tools/test-scripts.sh` in the repo runs them
