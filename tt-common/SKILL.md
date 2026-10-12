@@ -64,6 +64,8 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
 | `card-scaffold.sh` | Pre-write a unit's block and cards from the skeleton, plan and glossary, with `<!-- fill: -->` markers for the rest |
 | `coverage.sh` | The mechanical coverage audit of a breakdown's parts; writes the Coverage section |
 | `status-init.sh` | Create a Task Status from a finished breakdown |
+| `workflow-state.sh` | Work out where the tt documents in a folder stand and which skill comes next (used by `tt-workflow` and `tt-guide`) |
+| `tatty.sh` | Draw Tatty with a quip from `quips.txt` (used by `tt-guide` and `tt-workflow`) |
 
 The status scripts write atomically, keep line endings, and print one line per
 change, never the document. `tools/test-scripts.sh` in the repo runs them

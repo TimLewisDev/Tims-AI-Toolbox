@@ -310,6 +310,80 @@ bash "$GD" where "$G/empty" >"$T/where"
 has "empty folder" "$T/where" "No tt documents in"
 expect "no such folder" 2 bash "$GD" where "$G/missing"
 
+
+echo "# workflow-state.sh"
+WS="$root/tt-common/scripts/workflow-state.sh"
+bash "$WS" --tsv "$G" >"$T/rows"
+has "building row" "$T/rows" "Demo	primary	building	tt-execute		$G/Demo - Task Status.md	"
+has "planning row" "$T/rows" "Draft	primary	planning	tt-adversarial-plan	resume	$G/Draft - Comprehensive Tech Plan.md	"
+has "signed-off row" "$T/rows" "Old	primary	signed-off	tt-task-breakdown		$G/Old - Comprehensive Tech Plan.md	"
+has "review the plan alt row" "$T/rows" "Old	alt	signed-off	tt-tech-plan-review"
+has "stale Tech Plan warn row" "$T/rows" "Old	warn	signed-off	tt-tech-plan"
+has "exploring row" "$T/rows" "Ex	primary	exploring	tt-familiarise	resume	$G/.tt/Ex - Familiarisation/focus-log.md	"
+has "write-up alt row" "$T/rows" "Ex	alt	exploring	tt-familiarisation-doc"
+W2="$T/wstate"; mkdir -p "$W2/.tt/Dr - Task Breakdown"
+printf -- '- **Status:** Signed off 2026-10-01 · **Revision:** 1\n' >"$W2/Dr - Comprehensive Tech Plan.md"
+printf -- '- **Status:** Signed off 2026-10-01 · **Revision:** 1\n' >"$W2/Bd - Comprehensive Tech Plan.md"
+: >"$W2/Bd - Task Breakdown.md"
+printf -- '- **Status:** Signed off · **Revision:** 1\n' >"$W2/Fresh - Comprehensive Tech Plan.md"
+: >"$W2/Fam - Familiarisation.md"
+: >"$W2/Orph - Task Breakdown.md"
+sed 's/^- State: .*/- State: Complete/' "$ST" >"$W2/Fin - Task Status.md"
+bash "$WS" --tsv "$W2" >"$T/rows"
+has "breakdown draft" "$T/rows" "Dr	primary	breakdown-draft	tt-task-breakdown"
+has "breakdown, no status" "$T/rows" "Bd	primary	breakdown-written	tt-task-status"
+has "ready to break down" "$T/rows" "Fresh	primary	signed-off	tt-task-breakdown"
+has "explored" "$T/rows" "Fam	primary	explored	tt-adversarial-plan"
+has "orphan breakdown" "$T/rows" "Orph	primary	breakdown-orphan	tt-task-status"
+has "complete has no skill" "$T/rows" "Fin	primary	complete	-"
+has "complete offers MR review" "$T/rows" "Fin	alt	complete	tt-mr-review"
+expect "empty folder is exit 1" 1 bash "$WS" "$G/empty"
+has "empty folder row" "$T/out" "/tt-adversarial-plan <idea, spec or ticket>"
+expect "bad folder is exit 2" 2 bash "$WS" "$G/missing"
+expect "no folder is exit 2" 2 bash "$WS"
+
+echo "# tatty.sh"
+TY="$root/tt-common/scripts/tatty.sh"
+bash "$TY" quip >"$T/quip"
+[ "$(wc -l <"$T/quip" | tr -d ' ')" = 1 ] && ! grep -q '^#' "$T/quip" && ok "one quip, not a comment" || bad "one quip, not a comment" "$(cat "$T/quip")"
+TT_GUIDE_ASCII=1 bash "$TY" banner >"$T/banner"
+has "banner is Tatty" "$T/banner" "Tatty"
+grep -q '[^ -~]' "$T/banner" && bad "ASCII banner has no box characters" || ok "ASCII banner has no box characters"
+expect "unknown tatty command" 2 bash "$TY" nope
+
+echo "# workflow.sh"
+WF="$root/tt-workflow/scripts/workflow.sh"
+export TT_WORKFLOW_HOME="$T/wfhome"
+mkdir -p "$T/wf proj/feature a" "$T/other"
+(cd "$T/wf proj" && git init -q)
+wf() { (cd "$T/wf proj" && bash "$WF" "$@"); }
+expect "nothing linked" 0 wf start
+has "start says none linked" "$T/out" "No folder linked"
+expect "state with no link" 1 wf state
+expect "link a folder" 0 wf link "$T/wf proj/feature a"
+expect "start shows the link" 0 wf start
+has "start shows the folder" "$T/out" "Linked folder: "
+has "start shows the state" "$T/out" "No tt documents in"
+expect "link replaces" 0 wf link "$T/other"
+[ "$(wc -l <"$TT_WORKFLOW_HOME/links.tsv" | tr -d ' ')" = 1 ] && ok "one row per project" || bad "one row per project"
+(cd "$T/other" && git init -q && bash "$WF" link "$T/wf proj" >/dev/null)
+[ "$(wc -l <"$TT_WORKFLOW_HOME/links.tsv" | tr -d ' ')" = 2 ] && ok "projects kept apart" || bad "projects kept apart"
+expect "link a missing folder" 2 wf link "$T/nowhere"
+expect "new creates and links" 0 wf new "$T/wf proj" "Feature B"
+has "new prints the prefix" "$T/out" "Prefix: Feature B"
+[ -d "$T/wf proj/Feature B" ] && ok "new made the folder" || bad "new made the folder"
+expect "state follows the new link" 0 wf state
+has "state names the new folder" "$T/out" "Feature B"
+echo x >"$T/wf proj/Feature B/file.txt"
+expect "new refuses a non-empty folder" 2 wf new "$T/wf proj" "Feature B"
+expect "new refuses a bad name" 2 wf new "$T/wf proj" "a/b"
+expect "new refuses a missing parent" 2 wf new "$T/nowhere" "X"
+rm -rf "$T/wf proj/Feature B"
+expect "stale link is reported" 2 wf state
+has "stale link message" "$T/out" "linked folder is missing"
+expect "unlink" 0 wf unlink
+expect "unlink again" 1 wf unlink
+unset TT_WORKFLOW_HOME
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

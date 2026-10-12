@@ -29,129 +29,22 @@ readme="$root/README.md"
 MD="$root/tt-common/scripts/md-section.sh"
 [ -f "$MD" ] || MD="$(cd "$(dirname "$0")/../.." && pwd)/tt-common/scripts/md-section.sh"
 
-quip() {
-	local n
-	n=$(awk 'NF && !/^#/' "$skill/quips.txt" 2>/dev/null | wc -l | tr -d ' ')
-	[ "${n:-0}" -gt 0 ] || { echo "Hello. I'd tell a joke, but my quips file is missing."; return; }
-	awk -v k=$((RANDOM % n + 1)) '{ sub(/\r$/, "") } NF && !/^#/ && ++i == k { print; exit }' "$skill/quips.txt"
-}
+TATTY="$root/tt-common/scripts/tatty.sh"
+STATE="$root/tt-common/scripts/workflow-state.sh"
 
-art() {
-	if [ "${TT_GUIDE_ASCII:-}" = 1 ]; then
-		cat <<EOF
-    [-o-]
-   +-----+
-   | o o |   Tatty
-   |  v  |   "$1"
-   +-+-+-+
-     | |
-EOF
-	else
-		cat <<EOF
-    [¬º-°]¬
-   ┌─────┐
-   │ ◉ ◉ │   Tatty
-   │  ▽  │   "$1"
-   └┬───┬┘
-    ╨   ╨
-EOF
-	fi
-}
-
-# rel <path>: the path as the user would type it
-rel() { case $1 in ./*) printf '%s' "${1#./}" ;; *) printf '%s' "$1" ;; esac; }
+quip() { bash "$TATTY" quip; }
 
 # field <file> <regex>: the first line matching the regex, without CR
 field() { awk -v re="$2" '{ sub(/\r$/, "") } $0 ~ re { print; exit }' "$1"; }
 
-# stage <plan>: "<stage> (<status>)" for the first Stages row not Closed or Skipped
-stage() {
-	awk -F'|' '{ sub(/\r$/, "") }
-		/^\*\*Stages\*\*/ { on = 1; next }
-		on && /^\|/ {
-			s = $2; t = $3; gsub(/^ +| +$/, "", s); gsub(/^ +| +$/, "", t)
-			if (s == "Stage" || s ~ /^-+$/) next
-			if (t != "Closed" && t != "Skipped") { print s " (" t ")"; exit }
-			next
-		}
-		on && NF && !/^\|/ { exit }' "$1"
-}
-
 where() {
 	local dir=${1:-.}
 	[ -d "$dir" ] || { echo "guide.sh: no such folder: $dir" >&2; exit 2; }
-	local prefixes f b d
-	prefixes=$(
-		for f in "$dir"/*" - "*.md; do
-			[ -f "$f" ] || continue
-			b=${f##*/}
-			case $b in
-			*" - Comprehensive Tech Plan.md" | *" - Task Status.md" | *" - Task Breakdown.md" | *" - Familiarisation.md")
-				echo "${b% - *}" ;;
-			esac
-		done
-		for d in "$dir"/.tt/*" - Familiarisation"; do
-			[ -f "$d/focus-log.md" ] && b=${d##*/} && echo "${b% - Familiarisation}"
-		done
-	)
-	prefixes=$(printf '%s\n' "$prefixes" | awk 'NF' | sort -u)
-	if [ -z "$prefixes" ]; then
-		if [ "$dir" = . ]; then echo "No tt documents here."; else echo "No tt documents in $(rel "$dir")."; fi
-		echo "  New here? Explore with /tt-familiarise <topic>, or plan with /tt-adversarial-plan <idea or ticket>."
-		echo "  Docs in a vault or another folder? Ask me to look there (guide.sh where <folder>)."
-		return 0
-	fi
-	local p plan st bd tp fam log state prog next status rev mir s
-	while IFS= read -r p; do
-		plan="$dir/$p - Comprehensive Tech Plan.md"; st="$dir/$p - Task Status.md"
-		bd="$dir/$p - Task Breakdown.md"; tp="$dir/$p - Tech Plan.md"
-		fam="$dir/$p - Familiarisation.md"; log="$dir/.tt/$p - Familiarisation/focus-log.md"
-		if [ -f "$st" ]; then
-			state=$(field "$st" '^- State:'); state=${state#- State: }
-			prog=$(field "$st" '^- Progress:'); prog=${prog#- Progress: }
-			next=$(field "$st" '^4[.] Next action:'); next=${next#4. Next action: }
-			if [ "$state" = Complete ]; then
-				echo "$p: built and validated ($prog). Commit it yourself, then review the MR."
-				echo "  → /tt-mr-review [MR number or branch]"
-			else
-				echo "$p: building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"
-				echo "  → /tt-execute \"$(rel "$st")\""
-			fi
-		elif [ -f "$plan" ]; then
-			status=$(field "$plan" 'Status:')
-			if printf '%s' "$status" | grep -q Draft; then
-				s=$(stage "$plan")
-				echo "$p: planning, draft plan${s:+ at $s}."
-				echo "  → /tt-adversarial-plan resume \"$(rel "$plan")\""
-			elif [ -d "$dir/.tt/$p - Task Breakdown" ]; then
-				echo "$p: signed off; a breakdown is part-written."
-				echo "  → /tt-task-breakdown \"$(rel "$plan")\"   (picks up the draft)"
-			elif [ -f "$bd" ]; then
-				echo "$p: breakdown written, but no Task Status yet."
-				echo "  → /tt-task-status \"$(rel "$bd")\""
-			else
-				echo "$p: plan signed off; ready to break down."
-				echo "  → /tt-task-breakdown \"$(rel "$plan")\""
-			fi
-			rev=$(field "$plan" 'Revision:' | sed -n 's/.*Revision:[* ]*\([0-9][0-9]*\).*/\1/p')
-			if [ -f "$tp" ] && [ -n "$rev" ]; then
-				mir=$(field "$tp" 'Mirrors revision' | sed -n 's/.*Mirrors revision:[* ]*\([0-9][0-9]*\).*/\1/p')
-				[ -n "$mir" ] && [ "$mir" -lt "$rev" ] &&
-					echo "  ! The Tech Plan mirrors revision $mir; the plan is at $rev. → /tt-tech-plan \"$(rel "$plan")\""
-			fi
-		elif [ -f "$fam" ]; then
-			echo "$p: explored and written up; no plan yet."
-			echo "  → /tt-adversarial-plan \"$(rel "$fam")\""
-		elif [ -f "$log" ]; then
-			echo "$p: exploring (a Focus Log, not yet written up)."
-			echo "  → /tt-familiarise resume \"$(rel "$log")\""
-			echo "  → or write it up: /tt-familiarisation-doc \"$(rel "$log")\""
-		elif [ -f "$bd" ]; then
-			echo "$p: a Task Breakdown with no plan or Task Status beside it."
-			echo "  → /tt-task-status \"$(rel "$bd")\""
-		fi
-	done <<<"$prefixes"
+	bash "$STATE" "$dir" && return 0
+	echo "  New here? Or explore first with /tt-familiarise <topic>."
+	echo "  Docs in a vault or another folder? Ask me to look there (guide.sh where <folder>)."
 }
+
 
 need_readme() {
 	[ -f "$readme" ] && [ -f "$MD" ] && return 0
@@ -325,7 +218,7 @@ cmd=${1:-hello}
 [ $# -gt 0 ] && shift
 case $cmd in
 hello)
-	art "$(quip)"
+	bash "$TATTY" banner
 	echo
 	echo "Where things stand in $(pwd):"
 	where .

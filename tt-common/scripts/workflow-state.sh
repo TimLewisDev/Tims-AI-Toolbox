@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# workflow-state.sh: works out where the tt documents in a folder stand and which
+# skill comes next. Used by tt-workflow and tt-guide. Needs bash and awk only.
+# Writes nothing.
+set -u
+
+usage() {
+	cat >&2 <<'EOF'
+usage: workflow-state.sh [--tsv] <folder>
+
+Prints, for each feature (documents sharing a "<Prefix> - " name) in the folder,
+where it stands and the command to run next:
+
+  Demo: building (In Progress; 2/5 tasks). Next: T03 ...
+    → /tt-execute "Demo - Task Status.md"
+
+--tsv prints one row per finding instead, tab-separated:
+  prefix  kind  phase  skill  verb  arg  text  hint
+  kind: primary (the next step), alt (another sensible step), warn (a problem)
+  phase: exploring explored planning signed-off breakdown-draft breakdown-written
+         building complete breakdown-orphan empty
+  skill is "-" when nothing is left to run (complete).
+
+Exit: 0 found something, 1 no tt documents in the folder, 2 usage error.
+EOF
+}
+
+tsv=0
+[ "${1:-}" = --tsv ] && { tsv=1; shift; }
+case ${1:-} in -h | --help) usage; exit 0 ;; esac
+[ $# -eq 1 ] || { usage; exit 2; }
+dir=$1; [ "${dir%/}" != "" ] && dir=${dir%/}
+[ -d "$dir" ] || { echo "workflow-state.sh: no such folder: $dir" >&2; exit 2; }
+
+# rel <path>: the path as the user would type it
+rel() { case $1 in ./*) printf '%s' "${1#./}" ;; *) printf '%s' "$1" ;; esac; }
+
+# field <file> <regex>: the first line matching the regex, without CR
+field() { awk -v re="$2" '{ sub(/\r$/, "") } $0 ~ re { print; exit }' "$1"; }
+
+# stage <plan>: "<stage> (<status>)" for the first Stages row not Closed or Skipped
+stage() {
+	awk -F'|' '{ sub(/\r$/, "") }
+		/^\*\*Stages\*\*/ { on = 1; next }
+		on && /^\|/ {
+			s = $2; t = $3; gsub(/^ +| +$/, "", s); gsub(/^ +| +$/, "", t)
+			if (s == "Stage" || s ~ /^-+$/) next
+			if (t != "Closed" && t != "Skipped") { print s " (" t ")"; exit }
+			next
+		}
+		on && NF && !/^\|/ { exit }' "$1"
+}
+
+# row <prefix> <kind> <phase> <skill> <verb> <arg> <text> [hint]
+rows=""
+row() { rows+=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "${8:-}")$'\n'; }
+
+prefixes=$(
+	for f in "$dir"/*" - "*.md; do
+		[ -f "$f" ] || continue
+		b=${f##*/}
+		case $b in
+		*" - Comprehensive Tech Plan.md" | *" - Task Status.md" | *" - Task Breakdown.md" | *" - Familiarisation.md")
+			echo "${b% - *}" ;;
+		esac
+	done
+	for d in "$dir"/.tt/*" - Familiarisation"; do
+		[ -f "$d/focus-log.md" ] && b=${d##*/} && echo "${b% - Familiarisation}"
+	done
+)
+prefixes=$(printf '%s\n' "$prefixes" | awk 'NF' | sort -u)
+
+if [ -z "$prefixes" ]; then
+	if [ "$dir" = . ]; then here="here"; else here="in $(rel "$dir")"; fi
+	row "" primary empty tt-adversarial-plan "" "" "No tt documents $here." "<idea, spec or ticket>"
+else
+	while IFS= read -r p; do
+		plan="$dir/$p - Comprehensive Tech Plan.md"; st="$dir/$p - Task Status.md"
+		bd="$dir/$p - Task Breakdown.md"; tp="$dir/$p - Tech Plan.md"
+		fam="$dir/$p - Familiarisation.md"; log="$dir/.tt/$p - Familiarisation/focus-log.md"
+		if [ -f "$st" ]; then
+			state=$(field "$st" '^- State:'); state=${state#- State: }
+			prog=$(field "$st" '^- Progress:'); prog=${prog#- Progress: }
+			next=$(field "$st" '^4[.] Next action:'); next=${next#4. Next action: }
+			if [ "$state" = Complete ]; then
+				row "$p" primary complete - "" "" "built and validated ($prog). Commit it yourself, then review the MR."
+				row "$p" alt complete tt-mr-review "" "" "review the MR:" "[MR number or branch]"
+			else
+				row "$p" primary building tt-execute "" "$(rel "$st")" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"
+			fi
+		elif [ -f "$plan" ]; then
+			status=$(field "$plan" 'Status:')
+			if printf '%s' "$status" | grep -q Draft; then
+				s=$(stage "$plan")
+				row "$p" primary planning tt-adversarial-plan resume "$(rel "$plan")" "planning, draft plan${s:+ at $s}."
+			elif [ -d "$dir/.tt/$p - Task Breakdown" ]; then
+				row "$p" primary breakdown-draft tt-task-breakdown "" "$(rel "$plan")" "signed off; a breakdown is part-written." "(picks up the draft)"
+			elif [ -f "$bd" ]; then
+				row "$p" primary breakdown-written tt-task-status "" "$(rel "$bd")" "breakdown written, but no Task Status yet."
+			else
+				row "$p" primary signed-off tt-task-breakdown "" "$(rel "$plan")" "plan signed off; ready to break down."
+				row "$p" alt signed-off tt-tech-plan-review "" "$(rel "$plan")" "or review or change the plan first:"
+			fi
+			rev=$(field "$plan" 'Revision:' | sed -n 's/.*Revision:[* ]*\([0-9][0-9]*\).*/\1/p')
+			if [ -f "$tp" ] && [ -n "$rev" ]; then
+				mir=$(field "$tp" 'Mirrors revision' | sed -n 's/.*Mirrors revision:[* ]*\([0-9][0-9]*\).*/\1/p')
+				[ -n "$mir" ] && [ "$mir" -lt "$rev" ] &&
+					row "$p" warn signed-off tt-tech-plan "" "$(rel "$plan")" "The Tech Plan mirrors revision $mir; the plan is at $rev."
+			fi
+		elif [ -f "$fam" ]; then
+			row "$p" primary explored tt-adversarial-plan "" "$(rel "$fam")" "explored and written up; no plan yet."
+		elif [ -f "$log" ]; then
+			row "$p" primary exploring tt-familiarise resume "$(rel "$log")" "exploring (a Focus Log, not yet written up)."
+			row "$p" alt exploring tt-familiarisation-doc "" "$(rel "$log")" "or write it up:"
+		elif [ -f "$bd" ]; then
+			row "$p" primary breakdown-orphan tt-task-status "" "$(rel "$bd")" "a Task Breakdown with no plan or Task Status beside it."
+		fi
+	done <<<"$prefixes"
+fi
+
+if [ "$tsv" = 1 ]; then
+	printf '%s' "$rows"
+else
+	printf '%s' "$rows" | awk -F'\t' '
+		function cmd(    c) {
+			c = "/" $4
+			if ($5 != "") c = c " " $5
+			if ($6 != "") c = c " \"" $6 "\""
+			if ($8 != "") c = c " " $8
+			return c
+		}
+		$2 == "primary" {
+			print ($1 == "" ? "" : $1 ": ") $7
+			if ($4 != "-") print "  → " cmd()
+			next
+		}
+		$2 == "alt" { print "  → " $7 " " cmd(); next }
+		$2 == "warn" { print "  ! " $7 " → " cmd() }'
+fi
+[ "$prefixes" != "" ]

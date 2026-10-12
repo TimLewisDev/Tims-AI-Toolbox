@@ -15,6 +15,7 @@ They are instructions and document templates, plus small bash scripts in
 | Skill | What it does |
 |---|---|
 | [`tt-guide`](tt-guide/SKILL.md) | New here? Tatty, the toolbox's guide: says where your documents stand, which command comes next, and answers "how do I…". |
+| [`tt-workflow`](tt-workflow/SKILL.md) | One entry point: link a feature folder, type `tt-workflow`, and it works out the stage and runs the skill that comes next. |
 | [`tt-familiarise`](tt-familiarise/SKILL.md) | Explores a part of the codebase with you, a question at a time, until you've pinned down what you actually care about. |
 | [`tt-familiarisation-doc`](tt-familiarisation-doc/SKILL.md) | Writes up only the part of that exploration you said you're interested in, as a readable doc. |
 | [`tt-adversarial-plan`](tt-adversarial-plan/SKILL.md) | Runs planning stage by stage, has an adversary challenge each stage, and gets you to a signed-off plan. |
@@ -73,6 +74,10 @@ tt-execute, one work unit at a time:
 tt-mr-review stands apart: run it on any open GitLab MR.
 ```
 
+`tt-workflow` sits over the whole chain: it picks the stage from the documents
+in a feature folder and runs the right skill, so you don't have to remember
+which one comes next. Every skill below also still runs on its own.
+
 In order:
 
 1. **Explore (optional).** `tt-familiarise` starts from a loose question,
@@ -101,6 +106,7 @@ In order:
 
 | You want to… | Run |
 |---|---|
+| start or carry on a feature without picking the skill yourself | `/tt-workflow [feature folder \| new]` |
 | find out which skill to use, or where you left off | `/tt-guide [question]` |
 | explore how something in the codebase works | `/tt-familiarise <what you want to explore>` |
 | write up an exploration | `/tt-familiarisation-doc [focus log]` |
@@ -253,11 +259,30 @@ next, then answers questions about the toolbox.
 - **Run it:** `/tt-guide [question]`, e.g. "how do I change a signed-off
   plan?". For the greeting and the next command with no model tokens at all,
   type `! bash ~/.claude/skills/tt-guide/scripts/guide.sh` in Claude Code.
-- **Scripted:** the greeting, the quip (from `tt-guide/quips.txt`), the
+- **Scripted:** the greeting, the quip (from `tt-common/quips.txt`), the
   "where things stand" check and the README sections it answers from all come
   from `tt-guide/scripts/guide.sh` (`hello`, `where [folder]`, `start`,
   `about <skill or topic>`). The model only holds the conversation.
 - **Won't:** run other skills, edit documents, or touch git.
+
+### [`tt-workflow`](tt-workflow/SKILL.md): one entry point
+
+Wraps the whole chain. A script reads which documents a feature folder holds,
+so it knows whether the feature is being explored, planned, broken down, built
+or finished, and runs the skill that comes next after one confirmation. When
+that skill hands back, it looks again. Tatty greets you, without the guide.
+
+- **Run it:** `/tt-workflow <feature folder>` the first time (this links the
+  folder to the current project), then just `/tt-workflow`. `/tt-workflow new`
+  ignores the link, asks where to create a new feature folder and what it is,
+  and replaces the old link. `/tt-workflow status` reports without running
+  anything; `/tt-workflow unlink` forgets the link.
+- **Scripted:** the link (`tt-workflow/scripts/workflow.sh`, kept per project in
+  `~/.claude/tt-workflow/links.tsv`, never in your repo or documents) and the
+  stage check (`tt-common/scripts/workflow-state.sh`, also behind
+  `tt-guide`'s "where things stand").
+- **Won't:** edit documents, skip a skill's own gates (sign-off, challenges,
+  validation), or stage, commit or push.
 
 ### [`tt-familiarise`](tt-familiarise/SKILL.md): explore the code
 

@@ -125,7 +125,8 @@ that excluded it). Future Iterations is written from it.
 
 Run by whichever stage finds no draft plan (normally the orchestrator, before
 Requirements). If a Familiarisation doc exists, offer its folder, prefix and
-base branch as the defaults.
+base branch as the defaults. If `tt-workflow` passed a folder and prefix, they
+are already agreed: use them and ask only for the base branch.
 
 1. Settle three things with the engineer: the documents' folder, the prefix,
    and the base branch the work will start from (a Constraint, recorded in the

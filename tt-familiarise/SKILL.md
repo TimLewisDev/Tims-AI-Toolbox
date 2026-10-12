@@ -103,7 +103,8 @@ them the code a piece at a time and following their direction.
 2. In the same question set, settle where the notes go: the documents' folder
    (offer the repo's documented planning folder, a sibling vault folder the
    engineer has used before, or ask), and a **prefix** you propose from the
-   seed (the engineer can change it).
+   seed (the engineer can change it). If the invoking prompt already gives a
+   folder and prefix (from `tt-workflow`), use them and don't ask.
 3. State the base branch you'll read (the repo's default branch, or the one
    the engineer names), `git fetch` once, pin
    `BASE_SHA=$(git rev-parse origin/<base>)`, and say so in one line. Read code
