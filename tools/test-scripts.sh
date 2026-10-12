@@ -586,6 +586,86 @@ else
 	ok "new-session.sh needs the claude command (skipped)"
 fi
 expect "new-session usage" 2 bash "$NS"
+if command -v claude >/dev/null 2>&1; then
+	expect "print the command with a name" 0 bash "$NS" --print --name "Feat : Scope" "$T" '/tt-workflow'
+	has "shows the name" "$T/out" "claude -n 'Feat : Scope' '/tt-workflow'"
+	expect "print a quote in the name" 0 bash "$NS" --print --name "Bob's : Scope" "$T" '/tt-workflow'
+	has "quote survives" "$T/out" "-n 'Bob'\\''s : Scope'"
+fi
+expect "name needs a value" 2 bash "$NS" --name
+
+echo "# workflow-state.sh: the stage column"
+bash "$WS" --tsv "$G" >"$T/rows"
+stage_is() { awk -F'\t' -v p="$2" -v k="$3" -v want="$4" '$1 == p && $2 == k { found = 1; got = $9 } END { exit !(found && got == want) }' "$1" && ok "stage: $5" || bad "stage: $5" "$(grep "^$2	$3" "$1")"; }
+stage_is "$T/rows" Demo primary Build "building"
+stage_is "$T/rows" Draft primary "Scope & Constraints" "a draft plan names its open stage"
+stage_is "$T/rows" Old primary "Task Breakdown" "signed off"
+stage_is "$T/rows" Ex primary Familiarise "exploring"
+bash "$WS" --tsv "$W2" >"$T/rows"
+stage_is "$T/rows" Dr primary "Task Breakdown" "breakdown draft"
+stage_is "$T/rows" Fam primary Planning "explored"
+stage_is "$T/rows" Fin primary "" "complete has no stage"
+bash "$WS" --tsv "$L2" >"$T/rows"
+stage_is "$T/rows" A primary "Lite Brief" "lite exploration done"
+stage_is "$T/rows" D primary "Debug Report" "debug finished"
+stage_is "$T/rows" F primary Fix "debugged"
+stage_is "$T/rows" G primary Build "lite brief"
+
+echo "# workflow.sh linked, session-handoff.sh"
+SHF="$S/session-handoff.sh"
+hf() { (cd "$T/wf proj" && bash "$SHF" "$@"); }
+HF="$T/wf proj/hand"; mkdir -p "$HF"
+cp "$G/Draft - Comprehensive Tech Plan.md" "$HF/Fleet Steer - Comprehensive Tech Plan.md"
+expect "linked: nothing linked" 1 wf linked
+wf unlink >/dev/null; lw unlink >/dev/null
+expect "linked: nothing linked" 1 wf linked
+expect "unlinked: the next step's own command" 0 hf --show "$HF"
+has "name is feature : stage" "$T/out" "Name: Fleet Steer : Scope & Constraints"
+has "own resume command" "$T/out" "Prompt: /tt-adversarial-plan resume \""
+expect "link for the handoff" 0 wf link "$HF"
+expect "linked prints the folder" 0 wf linked
+expect "linked: tt-workflow" 0 hf --show "$HF"
+has "tt-workflow command" "$T/out" "Prompt: /tt-workflow"
+hasnt "not its own command" "$T/out" "tt-adversarial-plan"
+wf unlink >/dev/null; lw link "$HF" >/dev/null
+expect "lite-linked: tt-workflow-lite" 0 hf --show "$HF"
+has "tt-workflow-lite command" "$T/out" "Prompt: /tt-workflow-lite"
+wf link "$HF" >/dev/null
+expect "linked both: a full phase uses tt-workflow" 0 hf --show "$HF"
+has "tt-workflow when both" "$T/out" "Prompt: /tt-workflow"
+hasnt "not lite when both" "$T/out" "tt-workflow-lite"
+expect "--entry overrides" 0 hf --show --entry tt-workflow-lite "$HF"
+has "entry honoured" "$T/out" "Prompt: /tt-workflow-lite"
+expect "bad --entry" 2 hf --show --entry nope "$HF"
+cp "$ST" "$HF/Other - Task Status.md"
+expect "several features need --prefix" 2 hf --show "$HF"
+has "lists the features" "$T/out" "Fleet Steer"
+expect "--prefix picks one" 0 hf --show --prefix Other "$HF"
+has "building stage" "$T/out" "Name: Other : Build"
+expect "--stage and --run override" 0 hf --show --prefix Other --stage "Write-up" --run '/tt-familiarisation-doc "x.md"' "$HF"
+has "stage override" "$T/out" "Name: Other : Write-up"
+has "run override" "$T/out" 'Prompt: /tt-familiarisation-doc "x.md"'
+export CLAUDE_CONFIG_DIR="$T/cc"; mkdir -p "$T/cc/sessions"
+expect "a free name is used as it is" 0 hf --show --prefix Other "$HF"
+has "no counter when free" "$T/out" "Name: Other : Build"
+hasnt "no counter when free (2)" "$T/out" "(2)"
+printf '{"pid":1,"name":"Other : Build","nameSource":"user"}' >"$T/cc/sessions/1.json"
+expect "a name in use gets (2)" 0 hf --show --prefix Other "$HF"
+has "counter added" "$T/out" "Name: Other : Build (2)"
+printf '{"pid":3,"name":"Other : Build (2)","nameSource":"user"}' >"$T/cc/sessions/3.json"
+expect "and then (3)" 0 hf --show --prefix Other "$HF"
+has "next counter" "$T/out" "Name: Other : Build (3)"
+printf '{"pid":4,"name":"Other : Build-mighty-kahan","nameSource":"collision"}' >"$T/cc/sessions/4.json"
+rm -f "$T/cc/sessions/"[123].json
+expect "a suffixed name is not a clash" 0 hf --show --prefix Other "$HF"
+has "plain again" "$T/out" "Name: Other : Build"
+hasnt "plain again, no counter" "$T/out" "(2)"
+unset CLAUDE_CONFIG_DIR
+expect "no tt documents" 2 hf --show "$G/empty"
+mkdir -p "$HF/done"; sed 's/^- State: .*/- State: Complete/' "$ST" >"$HF/done/Fin - Task Status.md"
+expect "nothing left to run" 2 hf --show "$HF/done"
+expect "no such folder" 2 hf --show "$HF/none"
+wf unlink >/dev/null; lw unlink >/dev/null
 
 unset TT_WORKFLOW_HOME
 echo

@@ -7,12 +7,16 @@ set -u
 
 usage() {
 	cat >&2 <<'EOF'
-usage: new-session.sh [--print] <folder> "<prompt>"
+usage: new-session.sh [--print] [--name "<name>"] <folder> "<prompt>"
 
-Opens a new terminal in <folder> running: claude "<prompt>"
-(an interactive session that starts with the prompt, so a slash command works).
+Opens a new terminal in <folder> running: claude [-n "<name>"] "<prompt>"
+(an interactive session that starts with the prompt, so a slash command works;
+--name sets the session's display name, shown in the prompt box and /resume).
 
-  Windows (Git Bash)  Windows Terminal (wt.exe), else a cmd window
+  Windows (Git Bash)  inside a JetBrains (Rider) terminal, a new tab in that terminal, typed in with
+                      keystrokes (rider-tab.ps1; only when Rider has the Terminal focused);
+                      otherwise Windows Terminal (wt.exe), else a cmd window.
+                      TT_SESSION_TERMINAL=wt skips the Rider attempt.
   macOS               Terminal.app, through osascript
   elsewhere           nothing is opened; the command is printed
 
@@ -25,8 +29,15 @@ EOF
 	exit 2
 }
 
-print=0
-[ "${1:-}" = --print ] && { print=1; shift; }
+here=$(cd "$(dirname "$0")" && pwd)
+print=0; name=""
+while :; do
+	case ${1:-} in
+	--print) print=1; shift ;;
+	--name) [ $# -ge 2 ] || usage; name=$2; shift 2 ;;
+	*) break ;;
+	esac
+done
 case ${1:-} in -h | --help) usage ;; esac
 [ $# -eq 2 ] || usage
 dir=$1; prompt=$2
@@ -36,15 +47,23 @@ claude=$(command -v claude) || { echo "new-session.sh: no claude command on the 
 dir=$(cd "$dir" && pwd)
 
 manual() {
-	local q
+	local q n=""
 	q=$(printf '%s' "$prompt" | sed "s/'/'\\\\''/g")
-	printf 'Open a new terminal and run:\n  cd "%s" && claude '"'%s'"'\n' "$dir" "$q"
+	if [ -n "$name" ]; then
+		n=$(printf '%s' "$name" | sed "s/'/'\\\\''/g")
+		n="-n '$n' "
+	fi
+	printf 'Open a new terminal and run:\n  cd "%s" && claude %s'"'%s'"'\n' "$dir" "$n" "$q"
 }
 
 if [ "$print" = 1 ]; then
 	manual
 	case $(uname -s) in
-	MINGW* | MSYS* | CYGWIN*) echo "(it would open a Windows Terminal tab through wt.exe, or a cmd window)" ;;
+	MINGW* | MSYS* | CYGWIN*)
+		if [ "${TERMINAL_EMULATOR:-}" = JetBrains-JediTerm ] && [ "${TT_SESSION_TERMINAL:-auto}" != wt ]; then
+			echo "(inside a Rider terminal it would try a new Rider terminal tab through keystrokes, then fall back to:)"
+		fi
+		echo "(it would open a Windows Terminal tab through wt.exe, or a cmd window)" ;;
 	Darwin) echo "(it would open Terminal.app)" ;;
 	*) echo "(no terminal would be opened on this system)" ;;
 	esac
@@ -54,8 +73,16 @@ fi
 launcher=$(mktemp "${TMPDIR:-/tmp}/tt-session.XXXXXX")
 {
 	echo '#!/usr/bin/env bash'
+	# no path conversion of a slash command such as /tt-workflow, whoever starts the launcher
+	echo "export MSYS2_ARG_CONV_EXCL='*'"
+	# the terminal tab's title, for terminals that take it from the program (Windows Terminal)
+	[ -z "$name" ] || printf '%s\n' "printf '\\033]0;%s\\007' $(printf '%q' "$name")"
 	printf 'cd %q || exit 1\n' "$dir"
-	printf 'exec %q %q\n' "$claude" "$prompt"
+	if [ -n "$name" ]; then
+		printf 'exec %q -n %q %q\n' "$claude" "$name" "$prompt"
+	else
+		printf 'exec %q %q\n' "$claude" "$prompt"
+	fi
 } >"$launcher"
 chmod +x "$launcher"
 
@@ -63,6 +90,16 @@ case $(uname -s) in
 MINGW* | MSYS* | CYGWIN*)
 	export MSYS2_ARG_CONV_EXCL='*'
 	dirw=$(cygpath -w "$dir"); launchw=$(cygpath -w "$launcher"); bashw=$(cygpath -w "$(command -v bash)")
+	# Inside a Rider terminal, open the session in a new Rider terminal tab.
+	if [ "${TERMINAL_EMULATOR:-}" = JetBrains-JediTerm ] && [ "${TT_SESSION_TERMINAL:-auto}" != wt ] && command -v powershell.exe >/dev/null 2>&1; then
+		powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$here/rider-tab.ps1")" "$launchw" "$bashw" "$name" >/dev/null 2>&1
+		case $? in
+		0) echo "opened a new Rider terminal tab in $dir"; exit 0 ;;
+		3) # a tab is open with the command typed but nothing running: don't open a second session
+			echo "a new Rider terminal tab was opened but the session did not start in it; check that tab"
+			manual; exit 1 ;;
+		esac
+	fi
 	if command -v wt.exe >/dev/null 2>&1; then
 		wt.exe -d "$dirw" "$bashw" "$launchw" >/dev/null 2>&1 && { echo "opened a Windows Terminal tab in $dir"; exit 0; }
 	fi

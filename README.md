@@ -554,9 +554,13 @@ stand with the same script, and runs the next skill after one confirmation.
 - **Run it:** `/tt-workflow-lite bug`, `/tt-workflow-lite feature`, or just
   `/tt-workflow-lite` to carry on; `status`, `unlink` and `<task folder>` work
   as in `tt-workflow`.
-- **Fresh session for the build:** before `tt-execute-lite` it offers to open a
-  new terminal tab running it (`tt-common/scripts/new-session.sh`, only if you
-  say yes). A skill can't clear its own session, but it can start another.
+- **Fresh session:** at its confirmation (and before `tt-execute-lite`, where
+  it recommends it) it offers **Continue in a new session**. On yes it opens a
+  new terminal tab named `<Feature> : <Stage>` that starts with
+  `/tt-workflow-lite` (`tt-common/scripts/session-handoff.sh`). A skill can't
+  clear its own session, but it can start another. `tt-workflow`, the planning
+  break points, the end of an exploration or a debugging session, a lite
+  brief and each finished work unit offer the same.
 
 #### [`tt-lite-brief`](tt-lite-brief/SKILL.md): plan the small change
 

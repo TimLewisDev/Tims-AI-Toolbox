@@ -103,16 +103,19 @@ ends here with the block.
 ## 3. Confirm once
 
 Ask with `AskUserQuestion`: the task, where it stands, the exact command (one
-line), and the options **Continue** · each `→ or …` step · **Stop** (all of it
-is on disk). A `!` problem is mentioned, not asked about.
+line), and the options **Continue** · **Continue in a new session** · each
+`→ or …` step · **Stop** (all of it is on disk). A `!` problem is mentioned,
+not asked about.
 
 For `tt-execute-lite`, building is better in a fresh session than after an
-exploration's long context. Offer: **Run it here** · **Open a fresh session for
-it** · **Stop**. Only on the second, run
-`bash "<common>/scripts/new-session.sh" "<repo root>" '/tt-execute-lite "<brief>"'`
-(`<common>` is `<this skill's folder>/../tt-common`; the repo root is
-`git rev-parse --show-toplevel`). It opens a new terminal tab; if it exits `1`,
-give the engineer the command it printed. Then stop; the new session carries on.
+exploration's long context: lead with **Continue in a new session** and
+recommend it.
+
+On **Continue in a new session**, follow `<common>/session-handoff.md` with
+`--entry tt-workflow-lite` (`<common>` is `<this skill's folder>/../tt-common`):
+it opens a terminal tab named `<Prefix> : <Stage>` that starts with
+`/tt-workflow-lite`, so the next skill runs there after the same one
+confirmation. Then stop; the new session carries on.
 
 ## 4. Run it
 
@@ -123,8 +126,8 @@ of that skill's work yourself.
 ## 5. When it hands back
 
 Go to step 2 and read the state again. After two skills have run in one
-conversation, recommend stopping and resuming in a fresh session
-(`/tt-workflow-lite`). A skill that stops at its own gate (a confirmation, a
+conversation, recommend a fresh session: the step 3 question then leads with
+**Continue in a new session**. A skill that stops at its own gate (a confirmation, a
 validation) is left at it.
 
 ## Guardrails

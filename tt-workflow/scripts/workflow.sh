@@ -9,6 +9,7 @@ usage() {
 	cat >&2 <<'EOF'
 usage: workflow.sh start                    Tatty, then this project's linked folder and where it stands
        workflow.sh state [folder]           where the linked (or given) folder stands, and the next command
+       workflow.sh linked                   print this project's linked folder (exit 1 if none)
        workflow.sh link <folder>            link a folder to this project, replacing any old link
        workflow.sh unlink                   forget this project's link
        workflow.sh new <parent> <name>      create <parent>/<name>, link it, print its folder and prefix
@@ -66,6 +67,10 @@ start)
 	exit 0
 	;;
 state) state "$@" ;;
+linked)
+	need_link >/dev/null || { need_link >&2; exit 1; }
+	echo "$folder"
+	;;
 link)
 	[ $# -eq 1 ] || { usage; exit 2; }
 	d=$(abs "$1") || { echo "workflow.sh: no such folder: $1" >&2; exit 2; }

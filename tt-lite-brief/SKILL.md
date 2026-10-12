@@ -147,10 +147,11 @@ Delete the draft folder (say so). Give the path and the **Goal**,
 
 - the command: `/tt-execute-lite "<brief>"`;
 - recommend running it in a **fresh session** (`/clear`, or a new terminal);
-- offer to open one: ask first, and only on a yes run
-  `bash "<scripts>/new-session.sh" "<repo>" '/tt-execute-lite "<brief>"'`
-  (it opens a new terminal tab; `--print` shows the command without opening
-  anything). If it exits `1`, give the engineer the command it printed.
+- offer **Continue in a new session**: follow `<common>/session-handoff.md`
+  (no `--entry`, `--prefix` for this brief's feature). The brief is written,
+  so the session is named `<Prefix> : Build` and starts with the command that
+  carries on (`/tt-workflow-lite` if the folder is linked, else
+  `/tt-execute-lite "<brief>"`).
 
 ## Revising
 

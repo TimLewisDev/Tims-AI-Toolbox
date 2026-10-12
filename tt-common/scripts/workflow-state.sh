@@ -15,8 +15,11 @@ where it stands and the command to run next:
     → /tt-execute "Demo - Task Status.md"
 
 --tsv prints one row per finding instead, tab-separated:
-  prefix  kind  phase  skill  verb  arg  text  hint
+  prefix  kind  phase  skill  verb  arg  text  hint  stage
   kind: primary (the next step), alt (another sensible step), warn (a problem)
+  stage: the stage the next session works on (Familiarise, Planning, or the
+         open planning stage such as Scope, Task Breakdown, Build, Lite Brief,
+         Debug, Debug Report, Fix); empty when nothing is left to run
   phase: exploring explored planning signed-off breakdown-draft breakdown-written
          building complete breakdown-orphan empty
          lite-focus lite-brief debugging debug-done debugged (the lite route)
@@ -52,9 +55,25 @@ stage() {
 		on && NF && !/^\|/ { exit }' "$1"
 }
 
-# row <prefix> <kind> <phase> <skill> <verb> <arg> <text> [hint]
+# stage_of <phase>: the label of the stage the next session works on
+stage_of() {
+	case $1 in
+	empty | explored) echo "Planning" ;;
+	exploring | lite-exploring) echo "Familiarise" ;;
+	planning) echo "Planning" ;;
+	signed-off | breakdown-draft | breakdown-written | breakdown-orphan) echo "Task Breakdown" ;;
+	building | lite-brief) echo "Build" ;;
+	lite-focus) echo "Lite Brief" ;;
+	debugging) echo "Debug" ;;
+	debug-done) echo "Debug Report" ;;
+	debugged) echo "Fix" ;;
+	esac
+}
+
+# row <prefix> <kind> <phase> <skill> <verb> <arg> <text> [hint] [stage]
+# stage defaults to the phase's label (stage_of); "complete" has none.
 rows=""
-row() { rows+=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "${8:-}")$'\n'; }
+row() { rows+=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "${8:-}" "${9:-$(stage_of "$3")}")$'\n'; }
 
 prefixes=$(
 	for f in "$dir"/*" - "*.md; do
@@ -100,7 +119,7 @@ else
 			status=$(field "$plan" 'Status:')
 			if printf '%s' "$status" | grep -q Draft; then
 				s=$(stage "$plan")
-				row "$p" primary planning tt-adversarial-plan resume "$(rel "$plan")" "planning, draft plan${s:+ at $s}."
+				row "$p" primary planning tt-adversarial-plan resume "$(rel "$plan")" "planning, draft plan${s:+ at $s}." "" "${s% (*}"
 			elif [ -d "$dir/.tt/$p - Task Breakdown" ]; then
 				row "$p" primary breakdown-draft tt-task-breakdown "" "$(rel "$plan")" "signed off; a breakdown is part-written." "(picks up the draft)"
 			elif [ -f "$bd" ]; then

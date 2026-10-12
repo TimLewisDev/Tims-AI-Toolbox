@@ -156,10 +156,14 @@ After a stage closes:
 1. Summarise in at most five lines: what the stage settled (IDs), the
    challenges by outcome, and what comes next.
 2. Give the resume command: `/tt-adversarial-plan resume <plan>`.
-3. Ask with `AskUserQuestion`: **Continue now** · **Stop here** (everything is
-   on disk). Recommend stopping and resuming in a fresh session once this
+3. Ask with `AskUserQuestion`: **Continue now** · **Continue in a new session**
+   · **Stop here** (everything is on disk). Recommend a new session once this
    conversation has run through two or more stages, or is very long.
 
+   On **Continue in a new session**, follow `<common>/session-handoff.md` (no
+   `--entry`; give `--prefix` for this plan's feature). The stage is already
+   recorded in the plan's Stages table, so the session is named after the stage
+   that comes next.
 ## Resuming
 
 `/tt-adversarial-plan resume <plan>`, or "continue" after a stall:

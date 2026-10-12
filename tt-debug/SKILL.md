@@ -214,8 +214,10 @@ best next experiment in **Open questions**.
 3. Offer, with `AskUserQuestion`: **write the debug doc** (invoke `tt-debug-doc`
    with the log path) · **hand the fix to a lite brief** (invoke `tt-lite-brief`
    with the log path; only after a confirmed root cause; the build then runs
-   with `/tt-execute-lite` in a fresh session) · **stop here** (the log stays on
-   disk). Both of the first two can be done, in either order.
+   with `/tt-execute-lite` in a fresh session) · **continue in a new session**
+   (follow `<common>/session-handoff.md`; it starts the next step the log
+   points at) · **stop here** (the log stays on disk). Both of the first two can
+   be done, in either order.
 
 If they stop before closing, set **Next** to where you were and give the resume
 command: `/tt-debug resume "<debug log>"`.
@@ -227,8 +229,9 @@ command: `/tt-debug resume "<debug log>"`.
 stand (the symptom, the leading hypothesis, the last experiment, the next
 step), run `debug-temp.sh list "<repo>"` and ask about any marked line that is still in
 the tree, and carry on from **Next**. A long investigation's context grows with
-every turn; once it is large, suggest a fresh session with `resume`: everything
-that matters is in the log.
+every turn; once it is large, offer **Continue in a new session**
+(`<common>/session-handoff.md`; it starts with `resume`): everything that
+matters is in the log.
 
 ## Guardrails
 

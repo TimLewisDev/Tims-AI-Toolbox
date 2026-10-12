@@ -91,8 +91,9 @@ How to talk and Flow below all still apply; these are the differences:
 - **Close.** Show the focus statement, the Focus topics and the Change facts for
   confirmation (the same rule: silence is not confirmation). Then offer, with
   `AskUserQuestion`: **write the lite brief now** (invoke `tt-lite-brief` with
-  the Focus Log path) · **write it in a fresh session**
-  (`/tt-lite-brief <focus log>`) · **stop here**. Don't offer
+  the Focus Log path) · **write it in a new session** (follow
+  `<common>/session-handoff.md`; the session starts the lite brief) ·
+  **stop here**. Don't offer
   `tt-familiarisation-doc` unless the engineer asks.
 
 ## Role
@@ -208,8 +209,9 @@ When the engineer says the focus is right, or asks to stop:
 2. On confirmation, set the log's Status to `Focus confirmed <YYYY-MM-DD>`.
 3. Offer the next step with `AskUserQuestion`: **write it up now**
    (invoke `tt-familiarisation-doc` with the Focus Log path) · **write it up
-   in a fresh session** (`/tt-familiarisation-doc <focus log>`) · **stop
-   here** (the log stays on disk).
+   in a new session** (follow `<common>/session-handoff.md` with
+   `--stage "Familiarisation Doc" --run '/tt-familiarisation-doc "<focus log>"'`)
+   · **stop here** (the log stays on disk).
 
 If they stop before confirming, set `Next` to where you were and give the
 resume command.
@@ -224,8 +226,8 @@ and carry on from `Next`. If the log's header says
 using it unless the engineer asks to move on (then re-pin and say so).
 
 A long exploration's context grows with every turn. Once it is very large,
-suggest continuing in a fresh session with `resume`: everything that matters is
-in the Focus Log.
+offer **Continue in a new session** (`<common>/session-handoff.md`; it starts
+with `resume`): everything that matters is in the Focus Log.
 
 ## Behavioural guardrails
 

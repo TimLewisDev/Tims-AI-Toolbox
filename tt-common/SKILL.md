@@ -29,6 +29,8 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
   contradiction handling, Critical Decisions, proposals and challenge
   resolution). The planning stages and `tt-adversarial-plan` read it.
 - [`breakdown-rules.md`](breakdown-rules.md): the rules for tasks, work units,
+- [`session-handoff.md`](session-handoff.md): how a skill offers **Continue in a new session** at a break point,
+  what `session-handoff.sh` does and what to do with its exit code.
   executors, amendments and Critical Decisions shared by `tt-task-breakdown`
   (which writes the breakdown) and `tt-execute` (which works through it).
 - [`templates/`](templates/): templates shared by more than one skill
@@ -70,7 +72,9 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
 | `lite-check.sh` | Check a Lite Brief's structure: header, sections, cards, checks block, acceptance coverage, planning IDs in code |
 | `debug-doc.sh` | Render the Debug Report from a finished Debug Log; list what the log lacks |
 | `debug-temp.sh` | Find (or check there are none left of) the temporary logging `tt-debug` adds, marked `TT-DEBUG-TEMP` |
-| `new-session.sh` | Open a fresh Claude Code session in a new terminal, started with a prompt such as `/tt-execute-lite "<brief>"` (only when the engineer says yes) |
+| `new-session.sh` | Open a fresh Claude Code session in a new terminal, optionally named (`--name`), started with a prompt such as `/tt-execute-lite "<brief>"` (only when the engineer says yes) |
+| `rider-tab.ps1` | Used by `new-session.sh` inside a Rider terminal: open a new tab in it by keystrokes, only while the Terminal has focus |
+| `session-handoff.sh` | Carry on a feature in a new session: names it `<Prefix> : <Stage>` and starts it with `/tt-workflow`, `/tt-workflow-lite` or the next step's own command (only when the engineer says yes; see `session-handoff.md`) |
 
 The status scripts write atomically, keep line endings, and print one line per
 change, never the document. `tools/test-scripts.sh` in the repo runs them

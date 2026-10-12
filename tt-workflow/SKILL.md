@@ -81,8 +81,15 @@ engineer describes work that small (one request, a few files, or a bug).
 ## 3. Confirm once
 
 Ask with `AskUserQuestion`: the feature, where it stands, the exact command
-(one line), and the options **Continue** · each `→ or …` step · **Stop** (all
-of it is on disk). A `!` problem is mentioned, not asked about.
+(one line), and the options **Continue** · **Continue in a new session** ·
+each `→ or …` step · **Stop** (all of it is on disk). A `!` problem is
+mentioned, not asked about.
+
+On **Continue in a new session**, follow `<common>/session-handoff.md` with
+`--entry tt-workflow` (`<common>` is `<this skill's folder>/../tt-common`): it
+opens a terminal tab named `<Prefix> : <Stage>` that starts with
+`/tt-workflow`, so the next skill runs there after the same one confirmation.
+Then stop.
 
 ## 4. Run it
 
@@ -93,8 +100,9 @@ of that skill's work yourself.
 ## 5. When it hands back
 
 Go to step 2 and read the state again. After two skills have run in one
-conversation, recommend stopping and resuming in a fresh session. A skill
-that stops at its own gate (a sign-off, a validation) is left at it.
+conversation, recommend a fresh session: the step 3 question then leads with
+**Continue in a new session**. A skill that stops at its own gate (a sign-off,
+a validation) is left at it.
 
 ## Guardrails
 

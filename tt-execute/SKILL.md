@@ -226,6 +226,9 @@ When every task in the unit is `Implemented`:
    Once it's implemented, re-run the **whole** unit's validation as a new
    attempt.
 8. Stop and report: the unit's check results, what changed, and the next unit.
+   If there is a next unit, offer **Continue in a new session**
+   (`<common>/session-handoff.md`; the status is already written, so the
+   session is named `<Prefix> : Build` and resumes from it).
 
 ## Guardrails
 
