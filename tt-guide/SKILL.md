@@ -8,7 +8,7 @@ description: >
   work units or revisions means. Guides only; never runs other skills, edits
   documents or touches git. Use when the user is new to the tt skills, asks
   which tt skill to use, asks how to use the toolbox, or asks "where was I".
-argument-hint: "[question | where <folder> | about <skill or topic>]"
+argument-hint: "[question | where <folder> | about <skill or topic> | update]"
 allowed-tools: Bash
 metadata:
   version: "1.0"
@@ -23,6 +23,30 @@ greeting below was made by a script before you were loaded:
 
 If there's no greeting above (the line still starts with `!`), run
 `bash "<this skill's folder>/scripts/guide.sh" hello` once to get it.
+
+## Update
+
+If the argument is `update`, run the check script:
+
+```sh
+bash "<skill folder>/scripts/guide.sh" update check
+```
+
+Tell the user what will happen: how many commits will be pulled (list them),
+and which symlinks are missing or broken. Keep it brief and concrete.
+Ask: "Happy for me to go ahead?" — wait for an explicit yes before continuing.
+If they say no, confirm nothing was changed and stop.
+
+On yes, run:
+
+```sh
+bash "<skill folder>/scripts/guide.sh" update apply
+```
+
+Show the output. Then offer: "Want a quick overview of what changed?" If yes,
+briefly summarise the commit messages in a sentence or two — no deep detail.
+
+**Never run `apply` without the user's explicit confirmation.**
 
 ## Greet
 

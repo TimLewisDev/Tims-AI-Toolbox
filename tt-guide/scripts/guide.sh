@@ -6,12 +6,14 @@ set -u
 
 usage() {
 	cat >&2 <<'EOF'
-usage: guide.sh [hello]          the greeting, then "where ."
-       guide.sh where [dir]      where the tt documents in dir stand, and the next command
-       guide.sh start            the README's "Where to start" table
-       guide.sh about [name]     a skill's README entry, or a topic (documents, ids, work units, ...);
-                                 with no name, the list of topics
-       guide.sh quip             one quip
+usage: guide.sh [hello]                    the greeting, then "where ."
+       guide.sh where [dir]                where the tt documents in dir stand, and the next command
+       guide.sh start                      the README's "Where to start" table
+       guide.sh about [name]               a skill's README entry, or a topic (documents, ids, work units, ...);
+                                           with no name, the list of topics
+       guide.sh update [check|apply]       pull latest from git and fix missing symlinks;
+                                           check (default) previews only, apply makes the changes
+       guide.sh quip                       one quip
 
 TT_GUIDE_ASCII=1 draws Tatty without box-drawing characters.
 Exit: 0 ok, 1 "about" found nothing, 2 usage error.
@@ -223,6 +225,102 @@ about() {
 	return 1
 }
 
+update() {
+	local mode=${1:-check}
+	local skills_dir="$HOME/.claude/skills"
+
+	case $mode in
+	check)
+		printf '=== Toolbox update check ===\nRepo: %s\n' "$root"
+		if git -C "$root" fetch origin --quiet 2>/dev/null; then
+			local behind
+			behind=$(git -C "$root" rev-list HEAD..origin/main --count 2>/dev/null || echo 0)
+			if [ "${behind:-0}" -gt 0 ]; then
+				printf '\nCommits to pull (%s):\n' "$behind"
+				git -C "$root" log HEAD..origin/main --oneline | sed 's/^/  /'
+			else
+				printf '\nAlready up to date.\n'
+			fi
+		else
+			printf '\n(Could not reach remote — skipping fetch.)\n'
+		fi
+		printf '\nSymlink check (%s):\n' "$skills_dir"
+		local ok=0 missing=0 broken=0 name link target expected
+		for d in "$root"/tt-*/; do
+			[ -d "$d" ] || continue
+			name=$(basename "$d")
+			link="$skills_dir/$name"
+			expected=$(cd "$d" && pwd -P)
+			if [ ! -e "$link" ] && [ ! -L "$link" ]; then
+				printf '  MISSING   %s\n' "$name"
+				missing=$((missing+1))
+			else
+				target=$(readlink -f "$link" 2>/dev/null || echo "")
+				if [ "$target" = "$expected" ]; then
+					ok=$((ok+1))
+				else
+					printf '  BROKEN    %s  (-> %s)\n' "$name" "$target"
+					broken=$((broken+1))
+				fi
+			fi
+		done
+		printf '\n%d OK, %d missing, %d broken.\n' "$ok" "$missing" "$broken"
+		;;
+	apply)
+		local old_head new_head
+		old_head=$(git -C "$root" rev-parse HEAD 2>/dev/null)
+		printf '=== Pulling ===\n'
+		if git -C "$root" pull --ff-only origin main; then
+			new_head=$(git -C "$root" rev-parse HEAD 2>/dev/null)
+			if [ "$old_head" != "$new_head" ]; then
+				printf '\nNew commits:\n'
+				git -C "$root" log "${old_head}..${new_head}" --oneline | sed 's/^/  /'
+			fi
+		else
+			printf '(Pull failed — continuing with symlink check.)\n'
+		fi
+		printf '\n=== Symlink check ===\n'
+		local changed=0 ok=0 name link target expected
+		for d in "$root"/tt-*/; do
+			[ -d "$d" ] || continue
+			name=$(basename "$d")
+			link="$skills_dir/$name"
+			expected=$(cd "$d" && pwd -P)
+			if [ ! -e "$link" ] && [ ! -L "$link" ]; then
+				if ln -s "$d" "$link"; then
+					printf 'Linked   %s\n' "$name"
+					changed=$((changed+1))
+				else
+					printf 'FAILED   %s (could not create symlink)\n' "$name"
+				fi
+			else
+				target=$(readlink -f "$link" 2>/dev/null || echo "")
+				if [ "$target" = "$expected" ]; then
+					ok=$((ok+1))
+				else
+					if rm "$link" && ln -s "$d" "$link"; then
+						printf 'Relinked %s\n' "$name"
+						changed=$((changed+1))
+					else
+						printf 'FAILED   %s (could not relink)\n' "$name"
+					fi
+				fi
+			fi
+		done
+		if [ $changed -eq 0 ]; then
+			printf 'All %d symlinks already correct.\n' "$ok"
+		else
+			printf '\n%d symlink(s) updated, %d already correct.\n' "$changed" "$ok"
+		fi
+		printf '\n=== Done ===\n'
+		;;
+	*)
+		printf 'guide.sh update: unknown mode "%s". Use: check | apply\n' "$mode" >&2
+		exit 2
+		;;
+	esac
+}
+
 cmd=${1:-hello}
 [ $# -gt 0 ] && shift
 case $cmd in
@@ -237,6 +335,7 @@ hello)
 where) where "$@" ;;
 start) if need_readme; then bash "$MD" get "$readme" "Where to start" | tr -d '\r'; fi ;;
 about) about "$@" ;;
+update) update "$@" ;;
 quip) quip ;;
 -h | --help) usage ;;
 *) usage; exit 2 ;;
