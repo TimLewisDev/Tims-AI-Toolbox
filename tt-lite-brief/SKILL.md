@@ -132,7 +132,8 @@ a card heading or its table).
 
 ### 6. Independent check (one subagent)
 
-Spawn one subagent (`model: sonnet`, general-purpose, foreground) with
+Spawn one subagent (model and effort from `model-config.sh get brief-check`,
+general-purpose, foreground) with
 `<skill>/briefs/brief-check.md`, the brief, the repo, `BASE_SHA` (or "working
 tree") and `<common>`. It never sees the conversation. It writes
 `<draft>/verify/brief-check.md`. Read its findings and put them to the engineer

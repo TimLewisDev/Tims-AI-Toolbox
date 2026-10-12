@@ -1,0 +1,5 @@
+# thorough: recommended, plus Opus on the tier-2 gates before code. Overrides only: role, model, effort.
+plan-audit	opus	high
+coverage-audit	opus	high
+brief-check	opus	high
+mr-review-group	opus	-

@@ -1,6 +1,6 @@
 # Template: coder handoff
 
-The prompt for one coder subagent (default model, general-purpose,
+The prompt for one coder subagent (model and effort from `model-config.sh get coder`, general-purpose,
 foreground). `handoff.sh` fills in the `<…>` (all but `<your changed files>`);
 send its output as is. Fill it in by hand only if the script fails. Don't
 paste the card: the subagent extracts it.

@@ -159,7 +159,8 @@ them the code a piece at a time and following their direction.
 
 ### 2. Map
 
-Spawn up to 3 mapping subagents in parallel (`model: sonnet`, brief
+Spawn up to 3 mapping subagents in parallel (model and effort from
+`model-config.sh get explore`, brief
 `<skill>/briefs/explore.md`, mode `map`), one per likely area of the seed, each
 writing `<fam>/research/map-<area>.md`. Give each the seed, the purpose, its
 area, the repo, `BASE_SHA` and `<common>`.

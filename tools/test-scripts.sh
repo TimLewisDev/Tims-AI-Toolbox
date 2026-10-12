@@ -668,6 +668,68 @@ expect "no such folder" 2 hf --show "$HF/none"
 wf unlink >/dev/null; lw unlink >/dev/null
 
 unset TT_WORKFLOW_HOME
+
+echo "# model-config.sh"
+MC() { bash "$S/model-config.sh" "$@"; }
+export TT_CONFIG_DIR="$T/ttconfig"
+expect "get defaults to recommended" 0 MC get adversary
+has "adversary is opus/high" "$T/out" "model=opus effort=high"
+expect "coder is sonnet" 0 MC get coder
+has "coder default" "$T/out" "model=sonnet effort=-"
+expect "unknown role" 2 MC get nope
+expect "set rejects a bad model" 2 MC set coder gpt high
+expect "set rejects a bad effort" 2 MC set coder opus loud
+expect "set rejects a bad role" 2 MC set nope opus high
+expect "set an override" 0 MC set coder opus medium
+expect "get sees the override" 0 MC get coder
+has "override applied" "$T/out" "model=opus effort=medium"
+expect "second set replaces the first" 0 MC set coder haiku -
+MC get coder >"$T/out"
+has "replaced, not appended" "$T/out" "model=haiku effort=-"
+expect "saving from an edited shipped mode" 0 MC save cheap
+has "active after save" "$T/out" "active mode: cheap"
+expect "save refuses an existing name" 1 MC save cheap
+expect "save refuses a shipped name" 2 MC save economy --force
+expect "recommended stays pristine" 0 MC use recommended
+MC get coder >"$T/out"; has "shipped mode not changed by save" "$T/out" "model=sonnet effort=-"
+expect "use a saved mode" 0 MC use cheap
+MC get coder >"$T/out"; has "saved mode applies" "$T/out" "model=haiku effort=-"
+expect "use an unknown mode" 2 MC use nope
+expect "economy has no opus" 0 MC use economy
+MC list >"$T/out"; hasnt "economy list has no opus" "$T/out" " opus "
+MC use thorough >/dev/null; MC get plan-audit >"$T/out"; has "thorough gates on opus" "$T/out" "model=opus effort=high"
+MC set unit-writer opus low >/dev/null
+expect "editing a shipped mode shadows it" 0 MC modes
+has "shows edited" "$T/out" "thorough (shipped, edited)"
+expect "reset drops the edits" 0 MC reset thorough
+MC get unit-writer >"$T/out"; has "reset restored the default" "$T/out" "model=sonnet effort=-"
+expect "reset refuses a saved mode" 2 MC reset cheap
+expect "delete refuses a shipped mode" 2 MC delete economy
+MC use cheap >/dev/null
+expect "delete a saved mode" 0 MC delete cheap
+MC modes >"$T/out"; has "back on recommended after deleting the active mode" "$T/out" "* recommended"
+MC list >"$T/out"
+tiers=$(awk 'NR > 2 && NF && $1 ~ /^[*]?$|^[1-4]$/ { for (i = 1; i <= NF; i++) if ($i ~ /^[1-4]$/) { print $i; break } }' "$T/out" | tr -d '\n')
+[ "$tiers" = "$(printf '%s' "$tiers" | fold -w1 | sort -n | tr -d '\n')" ] && ok "list is ordered by tier" || bad "list is ordered by tier" "$tiers"
+expect "stage note for an advisory stage" 0 MC stage-note tt-approach
+has "note names the model" "$T/out" "/model opus and /effort high"
+MC set tt-scope - - >/dev/null
+expect "no note when a stage is left to the session" 0 MC stage-note tt-scope
+[ ! -s "$T/out" ] && ok "session-default stage note is empty" || bad "session-default stage note is empty" "$(cat "$T/out")"
+expect "no note for a subagent role" 0 MC stage-note adversary
+[ ! -s "$T/out" ] && ok "subagent role has no stage note" || bad "subagent role has no stage note"
+CLAUDE_CODE_USE_BEDROCK=1 ANTHROPIC_DEFAULT_OPUS_MODEL= HOME="$T/nohome" expect "status" 0 MC status
+has "bedrock warning" "$T/out" "warning: this looks like Bedrock"
+CLAUDE_CODE_USE_BEDROCK=1 ANTHROPIC_DEFAULT_OPUS_MODEL=x HOME="$T/nohome" expect "status with the alias set" 0 MC status
+hasnt "no warning when set" "$T/out" "warning"
+# every role is wired into a skill, and every wired role exists
+roles=$(awk -F'\t' '$1 !~ /^#/ && $2 == "sub" { print $1 }' "$root/tt-common/model-roles.tsv")
+used=$(grep -rhoE 'model-config\.sh get [a-z][a-z-]*' "$root"/tt-*/ --include=*.md | awk '{ print $3 }' | sort -u)
+for r in $roles; do printf '%s\n' "$used" | grep -qx "$r" && ok "role $r is used by a skill" || bad "role $r is used by a skill" "no 'model-config.sh get $r' in any skill"; done
+for r in $used; do printf '%s\n' "$roles" | grep -qx "$r" && ok "skill role $r is registered" || bad "skill role $r is registered"; done
+hardcoded=$(grep -rln 'model: sonnet' "$root"/tt-*/ --include=*.md || true)
+[ -z "$hardcoded" ] && ok "no skill hard-codes a model" || bad "no skill hard-codes a model" "$hardcoded"
+unset TT_CONFIG_DIR
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

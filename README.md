@@ -37,6 +37,7 @@ They are instructions and document templates, plus small bash scripts in
 | [`tt-debug`](tt-debug/SKILL.md) | A pair-programming debugging companion: you drive, it navigates, hunting the root cause. |
 | [`tt-debug-doc`](tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
 | [`tt-mr-review`](tt-mr-review/SKILL.md) | Reviews a GitLab merge request and posts only the comments you approve. |
+| [`tt-config`](tt-config/SKILL.md) | Chooses the model and thinking effort for each stage, ranked by where a stronger model pays off, and saves the choices as modes you can swap. |
 | [`tt-common`](tt-common/SKILL.md) | Not run directly: the shared rules for long runs and for planning, shared templates, and the helper scripts the other skills call. |
 
 ## How they fit together
@@ -240,7 +241,7 @@ sections of a `SKILL.md` their brief needs):
   checking every reference a plan cites, writing task cards from a skeleton
   you've approved, audits, and rendering the Tech Plan. Questions, decisions
   and design writing always stay in the main conversation.
-- **The adversary is a subagent too**, on the default model because it weighs
+- **The adversary is a subagent too**, on the strongest model by default because it weighs
   reasoning. It gets only the documents and the code, never the conversation,
   so it also tests whether each stage's handover stands on its own.
 - **Planning is split into stages** so no session has to hold all of it. Each
@@ -642,7 +643,7 @@ A line-by-line review meant to stand in for a senior engineer's review.
 
 - **Claude Code features:** the skills call each other through the Skill tool,
   ask questions with `AskUserQuestion`, and spawn subagents with the Agent tool
-  (asking for `model: sonnet` for mechanical work). Other agents may need
+  (with a model and effort per role from `tt-config`). Other agents may need
   equivalents, or do the subagents' work themselves.
 - **bash and git** for the scripts (Git Bash on Windows). No other runtime.
 - **Optional: a `SessionEnd` hook** to log each session's token use (see
@@ -702,6 +703,34 @@ a throwaway git repo, including a CRLF copy:
 ```sh
 bash tools/test-scripts.sh
 ```
+
+### Choosing models and effort (`tt-config`)
+
+Every place a skill picks a model for a subagent is a named **role**
+(`adversary`, `coder`, `explore`, …), listed in
+[`tt-common/model-roles.tsv`](tt-common/model-roles.tsv) from highest value for
+a stronger model to lowest. At each spawn the skill runs
+`tt-common/scripts/model-config.sh get <role>` and passes the model and the
+thinking effort to the Agent tool, so changing a setting never means editing a
+skill.
+
+```
+/tt-config                 # ranked table, then questions: change a stage, switch mode, save as a new mode
+/tt-config mode economy    # swap the whole set at once
+/tt-config save cheap      # keep the current choices under a name
+```
+
+- **Modes** are saved sets of choices. Shipped: `recommended` (Opus on the
+  adversary and the MR refute pass, Sonnet elsewhere), `economy` (all Sonnet)
+  and `thorough` (recommended, plus Opus on the gates before code). Your own
+  modes and edits live in `~/.claude/tt-config/`, outside every repo.
+- **Subagent roles** take effect from the next spawn. **Advisory rows** are the
+  stages that run in your own session (approach and technical design default to
+  Opus, high effort): a skill can't change the session's model, so the
+  workflow skills show a one-line reminder to run `/model` and `/effort`.
+- On Bedrock or a gateway, set `ANTHROPIC_DEFAULT_OPUS_MODEL` (and the Sonnet
+  one) in the env block of `settings.json`, or the `opus` alias may not
+  resolve; `/tt-config` warns when it looks missing.
 
 ### Measuring a run
 

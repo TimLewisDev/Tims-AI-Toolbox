@@ -50,7 +50,8 @@ Normally invoked by `tt-adversarial-plan`.
 
 Identify at least two candidate approaches. Where the scope allows it, one of
 them should be the smallest change that meets the requirements. **Research them
-in parallel:** one subagent per candidate (at most 4, `model: sonnet`, brief
+in parallel:** one subagent per candidate (at most 4, model and effort from
+`model-config.sh get approach-research`, brief
 `<skill>/briefs/research-approach.md`), each given the approach in a few
 lines, the agreed requirements' IDs and text, the repo and `BASE_SHA`. Each
 writes `<draft>/research/approach-<x>.md`: precedents at `path:line`, where it

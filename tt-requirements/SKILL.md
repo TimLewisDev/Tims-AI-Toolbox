@@ -47,7 +47,8 @@ Normally invoked by `tt-adversarial-plan`, which passes the draft plan.
   before the first probe.
 
 **No Familiarisation doc** (the stage was `Skipped`): start a **landscape**
-subagent in the background (`model: sonnet`, brief
+subagent in the background (model and effort from
+`model-config.sh get landscape`, brief
 `<skill>/briefs/landscape.md`) with the feature summary, intake paths, repo and
 `BASE_SHA`. It maps the systems the feature touches while you question the
 engineer, and writes `<draft>/research/landscape.md`. Read its digest when it

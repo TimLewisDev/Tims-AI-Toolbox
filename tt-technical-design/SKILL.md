@@ -57,7 +57,8 @@ Ground the agreed approach in the codebase before anything is written.
 
 List the systems, components, contracts, schemas and services the feature
 touches, and for each, the claims the plan will rely on. **Verify them in
-parallel:** one subagent per area (at most 4, `model: sonnet`, brief
+parallel:** one subagent per area (at most 4, model and effort from
+`model-config.sh get verify-area`, brief
 `<skill>/briefs/verify-area.md`), each writing
 `<draft>/research/facts-<area>.md` in the plan's **Repo Facts Verified**
 format. Then check their references mechanically:

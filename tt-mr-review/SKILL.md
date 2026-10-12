@@ -108,8 +108,9 @@ An MR under about 400 diff lines in total is one group.
 
 ### 5. Review the groups (subagents, in parallel)
 
-One subagent per group, at most 4 at a time, on the **default model**
-(correctness matters here), brief `<skill>/briefs/review-group.md`. Give each:
+One subagent per group, at most 4 at a time (model and effort from
+`model-config.sh get mr-review-group`: correctness matters here),
+brief `<skill>/briefs/review-group.md`. Give each:
 the brief path, `<skill>`, `<work>`, its group number, the repo path, the
 target and source branches, the head SHA, and which stack references apply.
 Each writes `<work>/findings-<group>.tsv` and returns a summary.
@@ -118,7 +119,8 @@ With one group, you may do the review yourself following the same brief.
 
 ### 6. Challenge serious findings (subagents, in parallel)
 
-For each `critical` or `major` finding, one subagent (default model, at most 4
+For each `critical` or `major` finding, one subagent (model and effort from
+`model-config.sh get mr-refute`, at most 4
 at a time) following `<skill>/briefs/refute.md`, given the finding row and
 `<work>`. It tries to prove the finding wrong. Then:
 

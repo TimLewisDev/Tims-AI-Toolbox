@@ -124,8 +124,9 @@ After each stage is `Closed`, take a **Break point**.
 
 1. **Number.** The first `CH` number is one more than the highest in the
    Challenges doc (`ids.sh defined "<challenges>" | grep '^CH'`), or `CH1`.
-2. **Spawn the adversary**: one subagent, in the foreground, on the **default
-   model** (it weighs reasoning; don't use `model: sonnet`). The prompt, 10–20
+2. **Spawn the adversary**: one subagent, in the foreground (model and effort
+   from `model-config.sh get adversary`: it weighs reasoning, so by default it
+   is the strongest model, not the mechanical one). The prompt, 10–20
    lines, gives absolute paths only: "Read `<skill>/briefs/challenge.md` and
    follow it", the lens (`<stage skill>/challenge-lens.md`), the target (the
    doc and the sections or IDs the stage wrote), the plan, the Familiarisation
@@ -159,11 +160,11 @@ After a stage closes:
 3. Ask with `AskUserQuestion`: **Continue now** · **Continue in a new session**
    · **Stop here** (everything is on disk). Recommend a new session once this
    conversation has run through two or more stages, or is very long.
-
    On **Continue in a new session**, follow `<common>/session-handoff.md` (no
    `--entry`; give `--prefix` for this plan's feature). The stage is already
    recorded in the plan's Stages table, so the session is named after the stage
    that comes next.
+
 ## Resuming
 
 `/tt-adversarial-plan resume <plan>`, or "continue" after a stall:

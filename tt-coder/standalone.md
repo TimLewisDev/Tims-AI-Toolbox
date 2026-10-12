@@ -28,7 +28,7 @@ this file replaces its delegated-only parts. `<common>` is
 
 ## Plans with more than three steps
 
-Act as the orchestrator. Run one subagent per step (default model,
+Act as the orchestrator. Run one subagent per step (model and effort from `model-config.sh get coder`,
 general-purpose, foreground), each given this skill in delegated mode, the
 plan path and the step, and the Task Status path to leave alone. You record
 each step's RESULT through `tt-task-status`, present every Critical Decision,

@@ -121,7 +121,7 @@ Tasks run one at a time.
    `status-set.sh "<status>" T01 "In Progress"`. Both **before** the subagent.
 3. **Execute.**
    - **Agent task:** `handoff.sh "<brief>" "<status>" T01 --run "<run>" --base-sha "<BASE_SHA>" --plan "<brief>"`
-     prints the whole prompt. Spawn one coder subagent on the default model
+     prints the whole prompt. Spawn one coder subagent (model and effort from `model-config.sh get coder`)
      (general-purpose, foreground) with that output, unchanged. It reads the
      card from the brief and writes `<run>/results/T01.md`. If the script
      fails, fill in `<skill>/../tt-execute/templates/handoff.md` by hand.

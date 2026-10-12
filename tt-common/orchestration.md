@@ -91,12 +91,19 @@ When you read a RESULT, expect that block.
 
 **Models.**
 
-- `model: sonnet` for verifying, auditing, rendering a signed-off document and
-  writing from an approved skeleton.
-- The default model for implementation, code review, and anything that
-  weighs tradeoffs.
-- If a subagent on the chosen model fails to start, re-run the same brief on
-  the default model.
+- Each spawn names a **role** (`adversary`, `coder`, `explore`, …). Before
+  spawning, run `bash "<common>/scripts/model-config.sh" get <role>`; it prints
+  `model=<m> effort=<e>` for the engineer's active `tt-config` mode. Pass the
+  model and the effort to the Agent tool as given; a `-` means leave that one
+  out and let the subagent inherit the session's. If the script fails, leave
+  both out.
+- The defaults put the strongest model on the few passes that judge or attack
+  reasoning (the adversary, the MR refute pass) and Sonnet on everything else:
+  verifying, auditing, mapping, writing from an approved skeleton and
+  implementation. The engineer changes them with `tt-config`; never hard-code a
+  model in a skill. The roles are listed in `model-roles.tsv`.
+- If a subagent on the chosen model fails to start, re-run the same brief
+  without a model (the session's).
 
 ## 5. Git
 

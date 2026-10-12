@@ -79,7 +79,8 @@ everywhere it applies, and nothing else.
 The plan set is often thousands of lines, so don't read it all into this
 conversation. Instead, without commentary:
 
-- Spawn one subagent (`model: sonnet`, brief `<skill>/briefs/orient.md`) with
+- Spawn one subagent (model and effort from `model-config.sh get
+  plan-review-aux`, brief `<skill>/briefs/orient.md`) with
   the paths you have. It reads the whole set (read-only) and writes
   `<plan folder>/.tt/<Prefix> - Review/index.md`: the orientation facts below,
   plus an **ID index** (every ID, its document, line and a one-line excerpt) and
@@ -257,7 +258,8 @@ For each change:
    review items → Implementation steps (Work, Done when) → Affected Files →
    Non-Goals → Pressure Points → Open Items → Future Iterations → Proposals.
    For a change that touches more than a couple of IDs, have a subagent
-   (`model: sonnet`, brief `<skill>/briefs/impact.md`) list the *candidates*:
+   (model and effort from `model-config.sh get plan-review-aux`, brief
+   `<skill>/briefs/impact.md`) list the *candidates*:
    every line in the plan set that cites the changed IDs or depends on what
    they say, and every breakdown task or unit that does. Then read each
    candidate yourself and decide whether it's affected; the subagent's list is

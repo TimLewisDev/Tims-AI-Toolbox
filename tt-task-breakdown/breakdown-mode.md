@@ -71,7 +71,8 @@ Read only its problem rows (`--only-problems` or `grep`) and the summary.
 ## 4. Semantic verification (subagents, batched)
 
 Group the plan steps that still need a read into batches, and spawn one
-subagent per batch, at most 4 at a time, `model: sonnet`, brief
+subagent per batch, at most 4 at a time, model and effort from
+`model-config.sh get unit-writer`, brief
 `<skill>/briefs/verify-step.md`:
 
 - Skip a step whose `refs.tsv` rows are all `OK` and that cites no symbols.
@@ -166,7 +167,8 @@ table with the plan link, Plan IDs with their glossary excerpts, the Files
 list, the Confirm items, Validated in). Everything that needs judgement is a
 `<!-- fill: … -->` marker.
 
-Then one subagent per work unit, at most 4 at a time, `model: sonnet`, brief
+Then one subagent per work unit, at most 4 at a time, model and effort from
+`model-config.sh get unit-writer`, brief
 `<skill>/briefs/write-unit.md`. Give each: the brief path, `<skill>`,
 `<scripts>`, `<draft>`, the unit ID, the plan path, and the line ranges of the
 plan steps its tasks come from. Each replaces the markers in its unit's parts
@@ -202,7 +204,8 @@ Edit to the affected part, or re-spawn that unit's writer, and re-run until
 it's clean.
 
 What it can't judge, Non-Goals and whether each plain-English paragraph reads
-well, still needs fresh eyes: one subagent (`model: sonnet`,
+well, still needs fresh eyes: one subagent (model and effort from
+`model-config.sh get coverage-audit`,
 `<skill>/briefs/coverage-audit.md`, with the plan, `<draft>` and `<scripts>`),
 or, for a breakdown of 10 cards or fewer, read the cards' plain-English lines
 (`grep -h "In plain English" <draft>/parts/3*.md`) and their Goals against
@@ -220,7 +223,7 @@ bash "<scripts>/status-init.sh" "<folder>/<Prefix> - Task Breakdown.md" "<folder
 
 `status-init.sh` writes the whole Task Status from the breakdown's tables and
 reports the unit and task counts; check them against the Task Map. If it exits
-`2` on a breakdown it can't read, fall back to a subagent (`model: sonnet`)
+`2` on a breakdown it can't read, fall back to a subagent (`model-config.sh get drift-check`)
 following `<skill>/../tt-task-status/briefs/init.md`.
 
 ## 13. Finish

@@ -153,6 +153,14 @@ Familiarisation doc), and treat each broken fact as a contradiction.
 The stages run in this order. Each stage skill follows the same contract, so
 any stage can be run in its own session from what is on disk.
 
+**Model note.** At the start of a stage, run
+`bash "<common>/scripts/model-config.sh" stage-note <stage skill>`. If it prints
+a line and the model you are running on is not the one it names, tell the
+engineer once per session, in one line with the commands it gives (skip it if
+`tt-workflow` or an earlier stage already did): it is the `tt-config`
+recommendation, and only
+the engineer can change the session's model. Carry on either way.
+
 | # | Stage | Skill | Writes |
 |---|---|---|---|
 | 0 | Familiarisation | `tt-familiarise`, `tt-familiarisation-doc` | Familiarisation doc |

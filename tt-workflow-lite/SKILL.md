@@ -119,7 +119,12 @@ confirmation. Then stop; the new session carries on.
 
 ## 4. Run it
 
-Invoke the skill with the Skill tool, in this conversation, with the arguments
+First run `bash "<common>/scripts/model-config.sh" stage-note <the skill>`. If it
+prints a line and the model you are running on is not the one it names, say so
+once, in one line with the `/model` and `/effort` commands it gives, and carry on;
+say nothing if you already match. It is a recommendation from `tt-config`;
+only the engineer can change the session's model.
+Then invoke the skill with the Skill tool, in this conversation, with the arguments
 the arrow gave (the same way `tt-adversarial-plan` runs its stages). Do nothing
 of that skill's work yourself.
 

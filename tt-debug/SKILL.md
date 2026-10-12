@@ -124,7 +124,8 @@ You are the **navigator** in a pair; the engineer is the **driver**.
 
 ### 2. First look
 
-Spawn up to 2 investigate subagents in parallel (`model: sonnet`, brief
+Spawn up to 2 investigate subagents in parallel (model and effort from
+`model-config.sh get debug-investigate`, brief
 `<skill>/briefs/investigate.md`): mode `path` (the failing flow, from the entry
 point to where the symptom appears) and mode `suspects` (candidate causes, with
 recent changes), each writing `<dbg>/research/<mode>-<topic>.md`. Give each the

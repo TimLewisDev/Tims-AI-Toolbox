@@ -1,0 +1,39 @@
+# model-roles.tsv: every place a tt-* skill picks a model, in one list.
+# Read by scripts/model-config.sh (and so by tt-config). The defaults here are
+# the shipped "recommended" mode. Columns (tab-separated):
+#   role   kind   tier   used-by   what it does   model   effort
+# kind: sub  = a subagent the skill spawns; model and effort are applied.
+#       main = a stage that runs in your own session; advisory only, because a
+#              skill cannot change the session's model. The role is the skill name.
+# tier: 1 = highest value for an expensive model, 4 = lowest.
+# model: sonnet | opus | haiku | fable | -    effort: low | medium | high | xhigh | max | -
+# "-" means "don't set it": the subagent (or the session) keeps its own.
+# Add a role here, then name it in the skill with `model-config.sh get <role>`.
+adversary	sub	1	tt-adversarial-plan	Attacks each planning stage's written reasoning	opus	high
+mr-refute	sub	1	tt-mr-review	Tries to disprove each critical or major finding	opus	high
+tt-approach	main	1	tt-approach	Weighs approaches and records the choice	opus	high
+tt-technical-design	main	1	tt-technical-design	Resolves Critical Decisions, writes the implementation outline	opus	high
+plan-audit	sub	2	tt-plan-signoff	Audits the signed-off plan and the Tech Proposals	sonnet	-
+coverage-audit	sub	2	tt-task-breakdown	Fresh-eyes coverage check of a breakdown	sonnet	-
+brief-check	sub	2	tt-lite-brief	Tests a Lite Brief against the code	sonnet	-
+mr-review-group	sub	2	tt-mr-review	Reviews one group of changed files	sonnet	-
+tt-requirements	main	2	tt-requirements	Interrogates the engineer to lock down requirements	sonnet	-
+coder	sub	3	tt-execute, tt-execute-lite, tt-coder	Writes the code for one task	sonnet	-
+unit-writer	sub	3	tt-task-breakdown	Writes and verifies the cards of one work unit	sonnet	-
+doc-writer	sub	3	tt-plan-signoff, tt-tech-plan	Renders the Tech Plan and Future Iterations from a signed-off plan	sonnet	-
+plan-review-aux	sub	3	tt-tech-plan-review	Orients on the plan set; lists the impact of a change	sonnet	-
+debug-investigate	sub	3	tt-debug	Traces a failing path read-only	sonnet	-
+tt-scope	main	3	tt-scope	Drives is / is-not statements and constraints	sonnet	-
+tt-plan-signoff	main	3	tt-plan-signoff	Sign-off gate and plan completion	sonnet	-
+tt-task-breakdown	main	3	tt-task-breakdown	Decomposes a plan into tasks and work units	sonnet	-
+tt-tech-plan-review	main	3	tt-tech-plan-review	Conversational review and amendment of a plan	sonnet	-
+tt-lite-brief	main	3	tt-lite-brief	Writes the Lite Brief for a small change	sonnet	-
+tt-debug	main	3	tt-debug	Pair-debugging with the engineer	sonnet	-
+explore	sub	4	tt-familiarise	Maps part of the codebase (read-only)	sonnet	-
+landscape	sub	4	tt-requirements	Maps the systems a feature touches	sonnet	-
+approach-research	sub	4	tt-approach	Researches one candidate approach in the repo	sonnet	-
+verify-area	sub	4	tt-technical-design	Verifies the claims about one area at the pinned commit	sonnet	-
+drift-check	sub	4	tt-execute, tt-task-breakdown	Plan-drift, reconcile, status-init fallbacks and check runs	sonnet	-
+tt-familiarise	main	4	tt-familiarise	Conversational exploration of the codebase	sonnet	-
+tt-execute	main	4	tt-execute	Orchestrates a breakdown, unit by unit	sonnet	-
+tt-execute-lite	main	4	tt-execute-lite	Orchestrates a Lite Brief	sonnet	-

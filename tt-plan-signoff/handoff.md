@@ -52,9 +52,9 @@ filled) and **Open Items** into the draft with targeted Edits.
 
 ## 3. Audits (subagents, in parallel, read-only)
 
-- `<skill>/briefs/plan-audit.md` (`model: sonnet`): the plan, the Challenges
+- `<skill>/briefs/plan-audit.md` (`model-config.sh get plan-audit`): the plan, the Challenges
   doc, `<common>`, repo and `BASE_SHA`.
-- `<skill>/briefs/proposals-audit.md` (`model: sonnet`): the plan, the
+- `<skill>/briefs/proposals-audit.md` (`model-config.sh get plan-audit`): the plan, the
   proposals doc and `<common>`.
 
 Fix each defect with a targeted Edit. A defect that needs a decision goes back
@@ -71,11 +71,11 @@ Future Iterations, Familiarisation, Challenges), and the Change Log row
 
 ## 5. Tech Plan and Future Iterations (subagents, in parallel)
 
-- **Tech Plan:** a subagent (`model: sonnet`) following
+- **Tech Plan:** a subagent (`model-config.sh get doc-writer`) following
   `<skill>/../tt-tech-plan/briefs/write.md`, mode `Write`, with the plan's
   path.
 - **Future Iterations:** only if `<draft>/research/fi-notes.md` has entries. A
-  subagent (`model: sonnet`) following
+  subagent (`model-config.sh get doc-writer`) following
   `<skill>/briefs/write-future-iterations.md`, with the notes, the plan path and
   the template `<skill>/templates/future-iterations.md`. Don't blend it into the
   plan.
