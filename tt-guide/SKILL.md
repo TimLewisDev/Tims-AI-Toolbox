@@ -8,7 +8,7 @@ description: >
   work units or revisions means. Guides only; never runs other skills, edits
   documents or touches git. Use when the user is new to the tt skills, asks
   which tt skill to use, asks how to use the toolbox, or asks "where was I".
-argument-hint: "[question | where <folder> | about <skill or topic> | update]"
+argument-hint: "[update | question | where <folder> | about <skill or topic>]"
 allowed-tools: Bash
 metadata:
   version: "1.0"
