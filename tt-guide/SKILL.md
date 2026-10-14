@@ -33,7 +33,8 @@ bash "<skill folder>/scripts/guide.sh" update check
 ```
 
 Tell the user what will happen: how many commits will be pulled (list them),
-and which symlinks are missing or broken. Keep it brief and concrete.
+and which symlinks are missing or broken in the Claude Code, Copilot CLI and
+Codex CLI personal skill locations. Keep it brief and concrete.
 Ask: "Happy for me to go ahead?" — wait for an explicit yes before continuing.
 If they say no, confirm nothing was changed and stop.
 

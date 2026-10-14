@@ -659,11 +659,32 @@ A line-by-line review meant to stand in for a senior engineer's review.
 - **For `tt-mr-review`:** GitLab, with `glab` or a GitLab MCP server. An
   issue-tracker integration is optional and used to read the linked issue.
 
-## Setup (Claude Code)
+## Setup (Claude Code, Copilot CLI and Codex CLI)
 
-Claude Code finds personal skills at `~/.claude/skills/<skill-name>/SKILL.md`,
-exactly one folder deep, so it won't see them inside a cloned repo folder.
-Clone the repo anywhere, then link each skill folder into `~/.claude/skills`:
+The clients use these personal skill locations:
+
+- Claude Code: `~/.claude/skills/<skill-name>/SKILL.md`
+- GitHub Copilot CLI: `~/.copilot/skills/<skill-name>/SKILL.md` or
+  `~/.agents/skills/<skill-name>/SKILL.md`
+- Codex CLI: `~/.agents/skills/<skill-name>/SKILL.md`
+
+Codex CLI's current user skill directory is `~/.agents/skills`; this is also
+one of Copilot CLI's supported personal locations. The older
+`~/.codex/skills` path is not managed by this repository's updater.
+These choices follow the [Claude Code skill documentation](https://code.claude.com/docs/en/skills),
+[Copilot CLI skill documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills)
+and [Codex skill documentation](https://developers.openai.com/codex/skills).
+
+Clone the repo anywhere, then run the guide's updater to check or create links
+in all three supported personal locations:
+
+```sh
+bash "<clone path>/tt-guide/scripts/guide.sh" update check
+bash "<clone path>/tt-guide/scripts/guide.sh" update apply
+```
+
+The updater links each skill folder into all three locations. To create the
+links manually, use the client-specific commands below.
 
 ```powershell
 # Windows (PowerShell): directory junctions, no admin rights needed
