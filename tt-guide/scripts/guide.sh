@@ -23,7 +23,7 @@ Exit: 0 ok, 1 "about" found nothing, 2 usage error.
 EOF
 }
 
-# Resolve the ~/.claude/skills link to the clone, where the README is. Git Bash's
+# Resolve the skill link to the clone, where the README is. Git Bash's
 # cd -P doesn't follow Windows junctions, but readlink -f does.
 here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
 skill=$(dirname "$here")
@@ -127,7 +127,104 @@ about() {
 
 update() {
 	local mode=${1:-check}
-	local skills_dir="$HOME/.claude/skills"
+	local skills_dirs=(
+		"$HOME/.claude/skills"
+		"$HOME/.copilot/skills"
+		"$HOME/.agents/skills"
+	)
+
+	is_windows_shell() {
+		case ${OSTYPE:-} in
+		msys* | cygwin* | win32*) return 0 ;;
+		*) return 1 ;;
+		esac
+	}
+
+	create_link() {
+		local target=$1 link=$2
+		if is_windows_shell && command -v powershell.exe >/dev/null 2>&1 &&
+			command -v cygpath >/dev/null 2>&1; then
+			local win_target win_link
+			win_target=$(cygpath -w "$target")
+			win_link=$(cygpath -w "$link")
+			TT_LINK_PATH="$win_link" TT_TARGET_PATH="$win_target" \
+				powershell.exe -NoProfile -NonInteractive -Command \
+				'$ErrorActionPreference = "Stop"; New-Item -ItemType Junction -Path $env:TT_LINK_PATH -Target $env:TT_TARGET_PATH | Out-Null'
+		else
+			ln -s "$target" "$link"
+		fi
+	}
+
+	check_links() {
+		local skills_dir=$1
+		printf '\nSymlink check (%s):\n' "$skills_dir"
+		local ok=0 missing=0 broken=0 name link target expected
+		for d in "$root"/tt-*/; do
+			[ -d "$d" ] || continue
+			name=$(basename "$d")
+			link="$skills_dir/$name"
+			expected=$(cd "$d" && pwd -P)
+			if [ ! -e "$link" ] && [ ! -L "$link" ]; then
+				printf '  MISSING   %s\n' "$name"
+				missing=$((missing+1))
+			else
+				target=$(cd "$link" 2>/dev/null && pwd -P || echo "")
+				if [ "$target" = "$expected" ]; then
+					ok=$((ok+1))
+				else
+					printf '  BROKEN    %s  (-> %s)\n' "$name" "$target"
+					broken=$((broken+1))
+				fi
+			fi
+		done
+		printf '%d OK, %d missing, %d broken.\n' "$ok" "$missing" "$broken"
+	}
+
+	apply_links() {
+		local skills_dir=$1
+		local changed=0 failed=0 ok=0 name link target expected
+		if [ ! -d "$skills_dir" ]; then
+			if mkdir -p "$skills_dir"; then
+				printf 'Created  %s\n' "$skills_dir"
+			else
+				printf 'FAILED   %s (could not create skills directory)\n' "$skills_dir"
+				return 1
+			fi
+		fi
+		printf '\nSymlink check (%s):\n' "$skills_dir"
+		for d in "$root"/tt-*/; do
+			[ -d "$d" ] || continue
+			name=$(basename "$d")
+			link="$skills_dir/$name"
+			expected=$(cd "$d" && pwd -P)
+			if [ ! -e "$link" ] && [ ! -L "$link" ]; then
+				if create_link "$d" "$link"; then
+					printf 'Linked   %s\n' "$name"
+					changed=$((changed+1))
+				else
+					printf 'FAILED   %s (could not create symlink)\n' "$name"
+					failed=1
+				fi
+			else
+				target=$(cd "$link" 2>/dev/null && pwd -P || echo "")
+				if [ "$target" = "$expected" ]; then
+					ok=$((ok+1))
+				elif [ -L "$link" ] && rm -rf "$link" && create_link "$d" "$link"; then
+					printf 'Relinked %s\n' "$name"
+					changed=$((changed+1))
+				else
+					printf 'FAILED   %s (existing path is not a replaceable symlink)\n' "$name"
+					failed=1
+				fi
+			fi
+		done
+		if [ $changed -eq 0 ]; then
+			printf 'All %d symlinks already correct.\n' "$ok"
+		else
+			printf '\n%d symlink(s) updated, %d already correct.\n' "$changed" "$ok"
+		fi
+		return "$failed"
+	}
 
 	case $mode in
 	check)
@@ -144,30 +241,12 @@ update() {
 		else
 			printf '\n(Could not reach remote — skipping fetch.)\n'
 		fi
-		printf '\nSymlink check (%s):\n' "$skills_dir"
-		local ok=0 missing=0 broken=0 name link target expected
-		for d in "$root"/tt-*/; do
-			[ -d "$d" ] || continue
-			name=$(basename "$d")
-			link="$skills_dir/$name"
-			expected=$(cd "$d" && pwd -P)
-			if [ ! -e "$link" ] && [ ! -L "$link" ]; then
-				printf '  MISSING   %s\n' "$name"
-				missing=$((missing+1))
-			else
-				target=$(readlink -f "$link" 2>/dev/null || echo "")
-				if [ "$target" = "$expected" ]; then
-					ok=$((ok+1))
-				else
-					printf '  BROKEN    %s  (-> %s)\n' "$name" "$target"
-					broken=$((broken+1))
-				fi
-			fi
+		for skills_dir in "${skills_dirs[@]}"; do
+			check_links "$skills_dir"
 		done
-		printf '\n%d OK, %d missing, %d broken.\n' "$ok" "$missing" "$broken"
 		;;
 	apply)
-		local old_head new_head
+		local old_head new_head failures=0
 		old_head=$(git -C "$root" rev-parse HEAD 2>/dev/null)
 		printf '=== Pulling ===\n'
 		if git -C "$root" pull --ff-only origin main; then
@@ -180,39 +259,13 @@ update() {
 			printf '(Pull failed — continuing with symlink check.)\n'
 		fi
 		printf '\n=== Symlink check ===\n'
-		local changed=0 ok=0 name link target expected
-		for d in "$root"/tt-*/; do
-			[ -d "$d" ] || continue
-			name=$(basename "$d")
-			link="$skills_dir/$name"
-			expected=$(cd "$d" && pwd -P)
-			if [ ! -e "$link" ] && [ ! -L "$link" ]; then
-				if ln -s "$d" "$link"; then
-					printf 'Linked   %s\n' "$name"
-					changed=$((changed+1))
-				else
-					printf 'FAILED   %s (could not create symlink)\n' "$name"
-				fi
-			else
-				target=$(readlink -f "$link" 2>/dev/null || echo "")
-				if [ "$target" = "$expected" ]; then
-					ok=$((ok+1))
-				else
-					if rm "$link" && ln -s "$d" "$link"; then
-						printf 'Relinked %s\n' "$name"
-						changed=$((changed+1))
-					else
-						printf 'FAILED   %s (could not relink)\n' "$name"
-					fi
-				fi
+		for skills_dir in "${skills_dirs[@]}"; do
+			if ! apply_links "$skills_dir"; then
+				failures=$((failures+1))
 			fi
 		done
-		if [ $changed -eq 0 ]; then
-			printf 'All %d symlinks already correct.\n' "$ok"
-		else
-			printf '\n%d symlink(s) updated, %d already correct.\n' "$changed" "$ok"
-		fi
 		printf '\n=== Done ===\n'
+		[ "$failures" -eq 0 ] || return 1
 		;;
 	*)
 		printf 'guide.sh update: unknown mode "%s". Use: check | apply\n' "$mode" >&2

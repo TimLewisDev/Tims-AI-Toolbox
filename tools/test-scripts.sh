@@ -310,6 +310,23 @@ bash "$GD" where "$G/empty" >"$T/where"
 has "empty folder" "$T/where" "No tt documents in"
 expect "no such folder" 2 bash "$GD" where "$G/missing"
 
+# update checks and repairs each supported personal skill location without
+# fetching the real toolbox repository.
+U="$T/update-toolbox"; mkdir -p "$U/tt-guide/scripts" "$U/tt-alpha" "$U/tt-beta"
+cp "$GD" "$U/tt-guide/scripts/guide.sh"
+git init -q "$U"
+H="$T/update-home"; mkdir -p "$H/.claude/skills" "$H/.copilot/skills"
+mkdir "$T/not-alpha"; MSYS=winsymlinks:nativestrict ln -s "$T/not-alpha" "$H/.copilot/skills/tt-alpha"; rmdir "$T/not-alpha"
+HOME="$H" bash "$U/tt-guide/scripts/guide.sh" update check >"$T/update-check" 2>&1
+has "update checks Claude skills" "$T/update-check" "Symlink check ($H/.claude/skills):"
+has "update checks Copilot skills" "$T/update-check" "Symlink check ($H/.copilot/skills):"
+has "update checks Codex skills" "$T/update-check" "Symlink check ($H/.agents/skills):"
+has "update reports a broken link" "$T/update-check" "BROKEN    tt-alpha"
+expect "update applies all skill locations" 0 env HOME="$H" bash "$U/tt-guide/scripts/guide.sh" update apply
+[ "$(cd "$H/.claude/skills/tt-beta" && pwd -P)" = "$(cd "$U/tt-beta" && pwd -P)" ] && ok "update creates Claude link" || bad "update creates Claude link"
+[ "$(cd "$H/.copilot/skills/tt-alpha" && pwd -P)" = "$(cd "$U/tt-alpha" && pwd -P)" ] && ok "update repairs Copilot link" || bad "update repairs Copilot link"
+[ "$(cd "$H/.agents/skills/tt-guide" && pwd -P)" = "$(cd "$U/tt-guide" && pwd -P)" ] && ok "update creates Codex link" || bad "update creates Codex link"
+
 
 echo "# workflow-state.sh"
 WS="$root/tt-common/scripts/workflow-state.sh"
