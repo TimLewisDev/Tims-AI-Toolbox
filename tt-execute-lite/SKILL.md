@@ -42,8 +42,9 @@ validation logs).
 
 1. Read `<common>/orchestration.md`: the output budget, stall recovery,
    subagents and scripts.
-2. Read only these sections of `<common>/breakdown-rules.md`:
-   `md-section.sh get <common>/breakdown-rules.md "## Executors" "## Critical Decisions" "## Shared guardrails"`.
+2. Read `<common>/breakdown-rules-compact.md`. Consult only the matching
+   sections of `<common>/breakdown-rules.md` when a definition or example is
+   needed.
 3. Then follow the steps below. The handoff template is
    `<skill>/../tt-execute/templates/handoff.md` (`handoff.sh` fills it).
 
@@ -204,7 +205,8 @@ stable; a removed task is marked `Dropped`, never deleted.
 
 ## Guardrails
 
-The shared guardrails in `<common>/breakdown-rules.md` apply. In addition:
+The shared guardrails in `<common>/breakdown-rules-compact.md` apply. In
+addition:
 
 - One unit at a time, one task at a time. Never mark a unit `Done` while a
   check still needs the engineer.

@@ -1,3 +1,11 @@
+---
+kind: knowledge
+scope: review
+topics: [unity, csharp, performance, security]
+triggers: [Unity, C#, MonoBehaviour, ProjectSettings, asmdef]
+load: whole
+---
+
 # Stack reference: Unity and C#
 
 Loaded by the review when the repo is a Unity project (it has

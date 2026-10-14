@@ -35,6 +35,12 @@ Perform a comprehensive, line-level code review of a GitLab Merge Request and
 budget, subagent and concurrency rules apply. `<work>` is a scratch folder
 outside the repo: `${TMPDIR:-/tmp}/tt-mr-review/<mr>/`.
 
+Before loading stack-specific references, use
+`<common>/scripts/knowledge.sh get` against the initialized project index.
+Load `references/unity-csharp.md` only when the project profile or changed files
+identify Unity/C#. If the index is absent or stale, inspect the reference
+directly and say that routing fell back to the authoritative file.
+
 ### Usage
 
 ```

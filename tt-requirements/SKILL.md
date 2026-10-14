@@ -30,7 +30,7 @@ Normally invoked by `tt-adversarial-plan`, which passes the draft plan.
 `<skill>` is this skill's folder (`${CLAUDE_SKILL_DIR}`), `<common>` is
 `<skill>/../tt-common`; `<plan>` and `<draft>` are as in the protocol.
 
-- Read `<common>/orchestration.md` and `<common>/planning-protocol.md` first.
+- Read `<common>/orchestration.md` and `<common>/planning-rules.md` first.
   The protocol's Role, Ledger, Stage contract, Interview conduct,
   Contradiction handling, Critical Decisions and Proposals rules apply
   throughout; this file adds only what is specific to requirements.

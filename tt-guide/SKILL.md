@@ -8,7 +8,7 @@ description: >
   work units or revisions means. Guides only; never runs other skills, edits
   documents or touches git. Use when the user is new to the tt skills, asks
   which tt skill to use, asks how to use the toolbox, or asks "where was I".
-argument-hint: "[update | question | where <folder> | about <skill or topic>]"
+argument-hint: "[init | refresh | context | update | question | where <folder> | about <skill or topic>]"
 allowed-tools: Bash
 metadata:
   version: "1.0"
@@ -48,6 +48,29 @@ briefly summarise the commit messages in a sentence or two — no deep detail.
 
 **Never run `apply` without the user's explicit confirmation.**
 
+## Initialize project context
+
+For `init`, run:
+
+```sh
+bash "<skill folder>/scripts/guide.sh" init [folder]
+```
+
+This performs a bounded metadata scan, writes a machine-local project profile
+and knowledge index, and does not read or summarise the whole source tree. Show
+the generated paths and explain that the profile routes reads but does not
+replace authoritative repository files.
+
+For `refresh`, run the same command with `refresh`. For `context`, run:
+
+```sh
+bash "<skill folder>/scripts/guide.sh" context [folder]
+```
+
+Report `current`, `stale` or `not initialized` exactly. Do not silently refresh
+or treat a stale profile as authoritative. A skill may refresh it when the
+engineer explicitly asks, or fall back to direct source inspection.
+
 ## Greet
 
 Show the greeting to the user exactly as it is, the robot in a code block,
@@ -67,6 +90,8 @@ bash "<this skill's folder>/scripts/guide.sh" start                    # the "Wh
 - Answer from what `about` prints. Read a skill's `SKILL.md` (one section,
   with `../tt-common/scripts/md-section.sh get`) only if that doesn't answer
   it. Don't read the whole README or whole skills, and don't use subagents.
+- When a user asks about project setup or selective knowledge, use `init`,
+  `refresh` or `context` before reading project references.
 - If the docs aren't in the current folder, ask where they live (often a
   vault folder) and run `where` on it.
 - Be brief and warm, a little dry. No more jokes after the greeting. End each

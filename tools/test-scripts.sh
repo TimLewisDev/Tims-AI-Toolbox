@@ -669,6 +669,37 @@ wf unlink >/dev/null; lw unlink >/dev/null
 
 unset TT_WORKFLOW_HOME
 
+echo "# knowledge.sh and project-context.sh"
+KN="$T/knowledge-repo"; mkdir -p "$KN/docs"
+(cd "$KN" && git init -q -b main && git config core.autocrlf false &&
+	printf '#!/bin/sh\nexit 0\n' >build.sh &&
+	printf 'build: bash build.sh\n' >AGENTS.md &&
+	cat >docs/review.md <<'EOF'
+---
+kind: knowledge
+scope: review
+topics: [shell, testing]
+triggers: [build, check]
+load: section
+---
+# Review reference
+Use the build script.
+EOF
+	git add . && git -c user.email=t@t -c user.name=t commit -qm init)
+KNIDX="$T/knowledge.tsv"
+expect "index marked knowledge" 0 bash "$S/knowledge.sh" index "$KN" "$KNIDX"
+has "knowledge index path" "$KNIDX" "docs/review.md	review	shell;testing	build;check	section"
+expect "route by topic" 0 bash "$S/knowledge.sh" get "$KNIDX" review shell
+has "routed source" "$T/out" "docs/review.md	review"
+expect "unmatched topic" 1 bash "$S/knowledge.sh" get "$KNIDX" review unity
+expect "initialize project context" 0 bash "$S/project-context.sh" init "$KN"
+expect "context is current" 0 bash "$S/project-context.sh" status "$KN"
+printf 'updated\n' >>"$KN/AGENTS.md"
+expect "context detects stale inputs" 1 bash "$S/project-context.sh" status "$KN"
+expect "trace retrieval" 0 bash "$S/knowledge.sh" trace "$T/cache" tt-review review docs/review.md
+expect "retrieval report" 0 bash "$root/tools/retrieval-report.sh" "$T/cache"
+has "retrieval report skill" "$T/out" "tt-review / review"
+
 echo "# model-config.sh"
 MC() { bash "$S/model-config.sh" "$@"; }
 export TT_CONFIG_DIR="$T/ttconfig"

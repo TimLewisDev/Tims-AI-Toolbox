@@ -11,6 +11,9 @@ usage: guide.sh [hello]                    the greeting, then "where ."
        guide.sh start                      the README's "Where to start" table
        guide.sh about [name]               a skill's README entry, or a topic (documents, ids, work units, ...);
                                            with no name, the list of topics
+       guide.sh init [dir]                 inspect project metadata and build a local context/index cache
+       guide.sh refresh [dir]              rebuild the local project context/index cache
+       guide.sh context [dir]              report whether the local project context cache is current
        guide.sh update [check|apply]       pull latest from git and fix missing symlinks;
                                            check (default) previews only, apply makes the changes
        guide.sh quip                       one quip
@@ -31,6 +34,7 @@ MD="$root/tt-common/scripts/md-section.sh"
 
 TATTY="$root/tt-common/scripts/tatty.sh"
 STATE="$root/tt-common/scripts/workflow-state.sh"
+CONTEXT="$root/tt-common/scripts/project-context.sh"
 
 quip() { bash "$TATTY" quip; }
 
@@ -217,6 +221,17 @@ update() {
 	esac
 }
 
+context() {
+	local mode=$1 dir=${2:-.}
+	[ -d "$dir" ] || { echo "guide.sh: no such folder: $dir" >&2; exit 2; }
+	case "$mode" in
+		init) bash "$CONTEXT" init "$dir" ;;
+		refresh) bash "$CONTEXT" refresh "$dir" ;;
+		status) bash "$CONTEXT" status "$dir" ;;
+		*) echo "guide.sh context: unknown mode $mode" >&2; exit 2 ;;
+	esac
+}
+
 cmd=${1:-hello}
 [ $# -gt 0 ] && shift
 case $cmd in
@@ -232,6 +247,9 @@ where) where "$@" ;;
 start) if need_readme; then bash "$MD" get "$readme" "Where to start" | tr -d '\r'; fi ;;
 about) about "$@" ;;
 update) update "$@" ;;
+init) context init "${1:-.}" ;;
+refresh) context refresh "${1:-.}" ;;
+context) context status "${1:-.}" ;;
 quip) quip ;;
 -h | --help) usage ;;
 *) usage; exit 2 ;;

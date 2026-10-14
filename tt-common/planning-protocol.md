@@ -1,3 +1,11 @@
+---
+kind: knowledge
+scope: planning
+topics: [planning, ledger, proposals, challenges, signoff]
+triggers: [Consensus Ledger, Critical Decision, contradiction, proposal, challenge]
+load: section
+---
+
 # Planning protocol for the tt-* planning stages
 
 Read this before running any planning stage: `tt-requirements`,

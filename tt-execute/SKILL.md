@@ -37,10 +37,10 @@ and validation logs).
 
 1. Read `<common>/orchestration.md`: the output budget, stall recovery,
    subagents and scripts.
-2. Read only these sections of `<common>/breakdown-rules.md`:
-   `md-section.sh get <common>/breakdown-rules.md "## Authority order" "## The two documents" "## Executors" "## Amending the breakdown" "## Critical Decisions" "## Shared guardrails"`.
-   Read `"## Tasks and work units"` and `"## The plain-English summary"` too
-   only when you write a fix task.
+2. Read `<common>/breakdown-rules-compact.md`. Consult only the matching
+   sections of `<common>/breakdown-rules.md` when a definition or example is
+   needed. Read the task/work-unit and plain-English sections only when
+   writing a fix task.
 3. Then follow the steps below. Briefs are in `<skill>/briefs/` and templates
    in `<skill>/templates/` and `<common>/templates/`.
 
@@ -232,7 +232,8 @@ When every task in the unit is `Implemented`:
 
 ## Guardrails
 
-The shared guardrails in `<common>/breakdown-rules.md` apply. In addition:
+The shared guardrails in `<common>/breakdown-rules-compact.md` apply. In
+addition:
 
 - One unit at a time. Within it, tasks run one at a time unless the two-at-once
   rules allow two. Never mark a unit `Done` while a check still needs the

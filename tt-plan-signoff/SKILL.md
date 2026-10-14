@@ -29,7 +29,7 @@ Normally invoked by `tt-adversarial-plan`.
 `<skill>` is this skill's folder (`${CLAUDE_SKILL_DIR}`), `<common>` is
 `<skill>/../tt-common`; `<plan>` and `<draft>` are as in the protocol.
 
-- Read `<common>/orchestration.md` and `<common>/planning-protocol.md` first.
+- Read `<common>/orchestration.md` and `<common>/planning-rules.md` first.
 - The hand-off procedure is `<skill>/handoff.md`; its briefs are in
   `<skill>/briefs/` and the Future Iterations template in `<skill>/templates/`.
   Read each only when you reach it.

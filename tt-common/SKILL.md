@@ -29,6 +29,14 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
   stage follows (role, Consensus Ledger, IDs, Setup, the stage contract,
   contradiction handling, Critical Decisions, proposals and challenge
   resolution). The planning stages and `tt-adversarial-plan` read it.
+- [`planning-rules.md`](planning-rules.md): the compact mandatory planning
+  rules loaded during normal stage execution. `planning-protocol.md` is the
+  longer explanatory reference.
+- [`knowledge-protocol.md`](knowledge-protocol.md): the metadata, routing,
+  cache and retrieval contract for optional project knowledge.
+- [`breakdown-rules-compact.md`](breakdown-rules-compact.md): the compact
+  mandatory task-breakdown and execution rules. `breakdown-rules.md` is the
+  longer explanatory reference.
 - [`session-handoff.md`](session-handoff.md): how a skill offers **Continue in a new session** at a break point,
   what `session-handoff.sh` does and what to do with its exit code.
 - [`breakdown-rules.md`](breakdown-rules.md): the rules for tasks, work units,
@@ -77,6 +85,8 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
 | `new-session.sh` | Open a fresh Claude Code session in a new terminal, optionally named (`--name`), started with a prompt such as `/tt-execute-lite "<brief>"` (only when the engineer says yes) |
 | `rider-tab.ps1` | Used by `new-session.sh` inside a Rider terminal: open a new tab in it by keystrokes, only while the Terminal has focus |
 | `session-handoff.sh` | Carry on a feature in a new session: names it `<Prefix> : <Stage>` and starts it with `/tt-workflow`, `/tt-workflow-lite` or the next step's own command (only when the engineer says yes; see `session-handoff.md`) |
+| `project-context.sh` | Create, refresh or check the machine-local project profile and knowledge index |
+| `knowledge.sh` | Index marked knowledge sources, route optional references by scope/topic and trace retrieval |
 
 The status scripts write atomically, keep line endings, and print one line per
 change, never the document. `tools/test-scripts.sh` in the repo runs them

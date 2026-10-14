@@ -30,7 +30,7 @@ Normally invoked by `tt-adversarial-plan`.
 `<skill>` is this skill's folder (`${CLAUDE_SKILL_DIR}`), `<common>` is
 `<skill>/../tt-common`; `<plan>` and `<draft>` are as in the protocol.
 
-- Read `<common>/orchestration.md` and `<common>/planning-protocol.md` first.
+- Read `<common>/orchestration.md` and `<common>/planning-rules.md` first.
   The protocol's rules apply throughout; this file adds only what is specific
   to scope and constraints.
 - `<skill>/challenge-lens.md` is for the adversary that runs after this stage;

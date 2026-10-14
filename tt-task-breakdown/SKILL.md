@@ -44,9 +44,9 @@ is this skill's folder (`${CLAUDE_SKILL_DIR}`), and `<common>` is
 
 1. Read `<common>/orchestration.md`: the output budget, drafts on disk, stall
    recovery, subagents and scripts. Every step below follows it.
-2. Read `<common>/breakdown-rules.md`: what tasks and work units are, the
-   executors, the plain-English summary, amendments, Critical Decisions and
-   the shared guardrails. Every card and unit you write follows it.
+2. Read `<common>/breakdown-rules-compact.md` for mandatory task, executor,
+   amendment, escalation and safety rules. Consult `<common>/breakdown-rules.md`
+   for definitions and examples only when needed.
 3. Then follow `<skill>/breakdown-mode.md`.
 4. Templates are in `<skill>/templates/` (and `<common>/templates/`) and
    subagent briefs in `<skill>/briefs/`. Read a template only when writing
@@ -81,7 +81,8 @@ implementation skill:
 
 ## Guardrails
 
-The shared guardrails in `<common>/breakdown-rules.md` apply. In addition:
+The shared guardrails in `<common>/breakdown-rules-compact.md` apply. In
+addition:
 
 - Follow the output budget: never write the breakdown in one response.
 - Don't start any work unit yourself. When the breakdown is written, hand off

@@ -37,10 +37,11 @@ A short description, a spec or ticket, or a Familiarisation doc."
 `<skill>` is this skill's folder (`${CLAUDE_SKILL_DIR}`), `<common>` is
 `<skill>/../tt-common`; `<plan>` and `<draft>` are as in the protocol.
 
-- Read `<common>/orchestration.md` and `<common>/planning-protocol.md` first.
-  The protocol holds the rules every stage shares: Role, Ledger, IDs, Setup,
-  the Stage contract, Contradiction handling, Critical Decisions, Proposals and
-  **Challenge resolution**. This file adds only the orchestration.
+- Read `<common>/orchestration.md` and `<common>/planning-rules.md` first.
+  The compact rules hold the mandatory stage, Ledger, contradiction, Critical
+  Decision and safety rules. Consult `<common>/planning-protocol.md` only for
+  explanatory detail or sections not covered by the compact rules. This file
+  adds only the orchestration.
 - The adversary brief is `<skill>/briefs/challenge.md`, the Challenges
   template `<skill>/templates/challenges.md`. Each stage's lens is the
   `challenge-lens.md` in that stage's skill folder.

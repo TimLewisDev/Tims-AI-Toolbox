@@ -1,3 +1,11 @@
+---
+kind: knowledge
+scope: breakdown
+topics: [tasks, work units, executors, validation, status]
+triggers: [Task Breakdown, Task Status, work unit, Critical Decision, validation]
+load: section
+---
+
 # Breakdown rules
 
 Shared by `tt-task-breakdown` (which writes the Task Breakdown) and

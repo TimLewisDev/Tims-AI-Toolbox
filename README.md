@@ -146,6 +146,8 @@ to the goal, the acceptance or a decision goes back through
 | start or carry on a feature without picking the skill yourself | `/tt-workflow [feature folder \| new]` |
 | start or carry on a small feature or a bug fix | `/tt-workflow-lite [bug \| feature \| task folder]` |
 | find out which skill to use, or where you left off | `/tt-guide [question]` |
+| initialize or refresh the project's selective context/index cache | `/tt-guide init [folder]` or `/tt-guide refresh [folder]` |
+| check whether the cached project context is current | `/tt-guide context [folder]` |
 | explore how something in the codebase works | `/tt-familiarise <what you want to explore>` |
 | write up an exploration | `/tt-familiarisation-doc [focus log]` |
 | plan a feature from an idea, exploration, spec or ticket | `/tt-adversarial-plan [description, familiarisation doc, spec or ticket]` |
@@ -167,6 +169,21 @@ to the goal, the acceptance or a decision goes back through
 `[…]` is optional and `<…>` is required. If you're new to these skills, start with
 `/tt-guide`, or go straight to `tt-adversarial-plan`; it offers to explore the
 code first when that helps.
+
+### Selective project knowledge
+
+`/tt-guide init` performs a bounded metadata scan and writes a compact project
+profile plus a knowledge index outside the repository, under
+`~/.claude/tt-projects/`. It does not summarise the source tree. Use
+`/tt-guide refresh` after instruction files or manifests change, and
+`/tt-guide context` to check freshness.
+
+Skills remain the executable control layer. Mandatory gates, escalation,
+approval and state rules are loaded explicitly from compact rule files.
+Optional references are routed by workflow scope and topic through
+`tt-common/scripts/knowledge.sh`, then read from their authoritative source.
+If the index is missing or stale, a skill falls back to direct source
+inspection rather than trusting a cached summary.
 
 ## Key ideas
 
@@ -703,6 +720,11 @@ a throwaway git repo, including a CRLF copy:
 ```sh
 bash tools/test-scripts.sh
 ```
+
+Selective knowledge retrieval is traced in each project's machine-local
+`retrieval.log`. Summarise one project with
+`bash tools/retrieval-report.sh ~/.claude/tt-projects/<project-key>` or all
+cached projects with `bash tools/retrieval-report.sh --all ~/.claude/tt-projects`.
 
 ### Choosing models and effort (`tt-config`)
 
