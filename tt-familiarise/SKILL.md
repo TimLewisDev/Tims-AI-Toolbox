@@ -1,21 +1,18 @@
 ---
 name: tt-familiarise
 description: >
-  Conversational exploration of a part of the codebase, started from a simple
-  message such as "I want to explore how notifications are sent when an order
-  ships". It asks what the engineer is really trying to find out, maps the
-  relevant code with read-only subagents, describes what it finds in plain
-  words with path:line references, and asks the engineer which way to dig
-  next, one question at a time, until they have boiled it down to the essence
-  of what they care about. Keeps a Focus Log on disk of every topic and how
-  interested the engineer is in it (Focus, Context or Parked), so a fresh
-  session can carry on or document it. Never designs, recommends or plans.
-  Hand the result to tt-familiarisation-doc to write it up; that document
-  can be read on its own or used as the foundation for tt-adversarial-plan.
-  In lite mode (a small change) it also records the change facts a brief
-  needs and hands the log to tt-lite-brief instead.
+  Conversational exploration of a part of the codebase. Asks what the engineer
+  wants to find out, maps relevant code with read-only subagents, explains
+  findings in plain words with path:line references, then asks where to dig
+  next, one question at a time, until the essence of their interest is clear.
+  Keeps an on-disk Focus Log of every topic and the engineer's interest
+  (Focus, Context or Parked), so a fresh session can resume or document it.
+  Never designs, recommends or plans. Hands off to tt-familiarisation-doc
+  for a standalone write-up or the foundation for tt-adversarial-plan.
+  In lite mode (a small change), also records the change facts needed for a
+  brief and hands the log to tt-lite-brief instead.
   Use when the engineer wants to explore, understand or get familiar with how
-  something in the codebase works.
+  part of the codebase works.
 metadata:
   version: "1.0"
 ---

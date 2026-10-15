@@ -1,21 +1,18 @@
 ---
 name: tt-debug
 description: >
-  A debugging companion that pair-programs with the engineer: they drive, it
-  navigates. Started from a symptom such as "the export is empty when the list
-  has one item", it asks for expected versus actual behaviour, how to reproduce
-  it and what has been tried, maps the failing path with read-only subagents,
-  keeps a ranked list of hypotheses with the evidence for and against each, and
-  after every step offers two to four next experiments with what each result
-  would mean. It always follows the engineer's lead, records their hypotheses
-  as theirs, hunts the root cause rather than the nearest failing line, and
-  only ends when the engineer confirms the root cause (or stops). It reads, it
-  traces, it suggests; it edits only the temporary logging the engineer asks
-  for, each line marked and removed before the end. Keeps a Debug Log on disk
-  so a fresh session can carry on, and ends by offering the Debug Report
-  (tt-debug-doc) or a fix through tt-lite-brief. Never writes the fix and never
-  commits. Use when the engineer is chasing a bug and wants help understanding
-  the code and finding its cause.
+  Pair-debugging companion: the engineer drives; it navigates. From a bug
+  symptom, asks expected vs actual behaviour, reproduction and prior attempts;
+  maps the failing path with read-only subagents; ranks hypotheses with
+  evidence for and against each; and offers two to four next experiments after
+  every step, explaining possible results. Follows the engineer's lead,
+  attributes their hypotheses, hunts the root cause rather than the nearest
+  failure, and ends only when they confirm the cause or stop. Reads, traces
+  and suggests; edits only requested temporary logging, marks each line and
+  removes it before ending. Keeps an on-disk Debug Log to resume in a fresh
+  session; ends by offering a Debug Report (tt-debug-doc) or a fix through
+  tt-lite-brief. Never writes the fix or commits. Use when the engineer wants
+  help chasing a bug, understanding the failing code and finding its cause.
 argument-hint: "<symptom> | resume <debug log>"
 metadata:
   version: "1.0"

@@ -1,21 +1,18 @@
 ---
 name: tt-adversarial-plan
 description: >
-  Orchestrate an adversarial planning session that turns an idea, an
-  exploration, a spec or a ticket into a Comprehensive Tech Plan, the single
-  authority that tt-task-breakdown works from. It runs the planning stages
-  in order, each its own skill with its own handover on disk:
-  familiarisation (tt-familiarise, tt-familiarisation-doc), requirements
-  (tt-requirements), scope and constraints (tt-scope), approach
-  (tt-approach), technical design (tt-technical-design) and sign-off
-  (tt-plan-signoff). After every stage it spawns an adversary subagent that
-  sees only the written documents and the code, attacks the stage's reasoning
-  and assumptions, and writes challenges that are put to the engineer one by
-  one and recorded in a Challenges doc. Offers a break point after each stage
-  so sessions stay small; resume picks up from the plan's Stages table. Only
-  the engineer's explicit sign-off ends planning. Use when the user wants to
-  align on a feature, or hands over a spec, ticket or brief and asks for a
-  tech plan / tech design / implementation plan before any code is written.
+  Orchestrate adversarial planning from an idea, exploration, spec, ticket or
+  brief into a Comprehensive Tech Plan, the single authority for
+  tt-task-breakdown. Use to align on a feature or request a tech plan, tech
+  design or implementation plan before coding. Runs stage skills in order,
+  each with an on-disk handover: optional familiarisation (tt-familiarise,
+  tt-familiarisation-doc), requirements (tt-requirements), scope/constraints
+  (tt-scope), approach (tt-approach), technical design (tt-technical-design),
+  sign-off (tt-plan-signoff). After each stage an adversary subagent attacks
+  the stage's reasoning and assumptions using only written documents and code;
+  challenges go to the engineer one at a time and into a Challenges doc.
+  Offers breaks after each stage; resumes from the plan's on-disk Stages table.
+  Only the engineer's explicit sign-off ends planning.
 metadata:
   version: "4.0"
 ---
