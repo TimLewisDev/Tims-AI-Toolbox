@@ -1,0 +1,11 @@
+# Tatty's congratulations, shown when a feature is finished. tatty.sh celebrate picks one at random.
+# One per line; blank lines and lines starting with # are skipped.
+# Keep them short (under ~70 characters) and about any project, not one in particular.
+Built, validated, done. I'm only a robot, but I'm very proud.
+Every work unit Done. That's the whole map, ticked off.
+You did it! The checks passed and so did the sign-offs.
+All units green. I'd throw confetti, but it jams my servos.
+Finished! Now go and have a proper look at that diff.
+Plan to code to validated. Not bad at all.
+That's every task Done. My antenna is tingling.
+Done and dusted. The commit and the MR are all yours.

@@ -367,6 +367,10 @@ TT_GUIDE_ASCII=1 bash "$TY" banner >"$T/banner"
 has "banner is Tatty" "$T/banner" "Tatty"
 grep -q '[^ -~]' "$T/banner" && bad "ASCII banner has no box characters" || ok "ASCII banner has no box characters"
 expect "unknown tatty command" 2 bash "$TY" nope
+TT_GUIDE_ASCII=1 bash "$TY" celebrate >"$T/celebrate"
+has "celebrate is Tatty" "$T/celebrate" "Tatty"
+has "celebrate has confetti" "$T/celebrate" "* . *"
+grep -q '[^ -~]' "$T/celebrate" && bad "ASCII celebrate has no box characters" || ok "ASCII celebrate has no box characters"
 
 echo "# workflow.sh"
 WF="$root/tt-workflow/scripts/workflow.sh"
@@ -381,6 +385,15 @@ expect "link a folder" 0 wf link "$T/wf proj/feature a"
 expect "start shows the link" 0 wf start
 has "start shows the folder" "$T/out" "Linked folder: "
 has "start shows the state" "$T/out" "No tt documents in"
+mkdir -p "$T/wf proj/done a"
+printf '# Status\n- State: Complete\n- Progress: 1 of 1 units Done\n' >"$T/wf proj/done a/Done A - Task Status.md"
+wf link "$T/wf proj/done a" >/dev/null
+TT_GUIDE_ASCII=1 wf start >"$T/out" 2>&1
+has "a finished feature gets the party Tatty" "$T/out" "* . *"
+has "and still says it is built and validated" "$T/out" "built and validated"
+wf link "$T/wf proj/feature a" >/dev/null
+TT_GUIDE_ASCII=1 wf start >"$T/out" 2>&1
+hasnt "an unfinished feature gets the plain Tatty" "$T/out" "* . *"
 expect "link replaces" 0 wf link "$T/other"
 [ "$(wc -l <"$TT_WORKFLOW_HOME/links.tsv" | tr -d ' ')" = 1 ] && ok "one row per project" || bad "one row per project"
 (cd "$T/other" && git init -q && bash "$WF" link "$T/wf proj" >/dev/null)

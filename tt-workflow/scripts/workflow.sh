@@ -58,11 +58,19 @@ cmd=${1:-start}
 [ $# -gt 0 ] && shift
 case $cmd in
 start)
-	bash "$common/tatty.sh" banner
+	art=banner
+	report=
+	if need_link >/dev/null 2>&1; then
+		report=$(state "$folder")
+		# One feature in the folder and it is built and validated: Tatty celebrates.
+		[ "$(printf '%s\n' "$report" | grep -c '^[^[:space:]]')" = 1 ] &&
+			printf '%s\n' "$report" | grep -q 'built and validated' && art=celebrate
+	fi
+	bash "$common/tatty.sh" "$art"
 	echo
 	if need_link; then
 		echo "Linked folder: $folder"
-		state "$folder"
+		printf '%s\n' "$report"
 	fi
 	exit 0
 	;;

@@ -94,7 +94,7 @@ ends here with the block.
   | debugging | `/tt-debug resume <debug log>` |
   | debugging finished | `/tt-debug-doc <debug log>`, or the fix: `/tt-lite-brief <debug log>` |
   | debugged | nothing left; or the fix: `/tt-lite-brief <debug log>` |
-  | built and validated | nothing left; the commit and the MR are the engineer's |
+  | built and validated | nothing left; congratulate the engineer if `start` showed the party Tatty; the commit and the MR are theirs |
 
 - **Anything else** (a Comprehensive Tech Plan, a Task Breakdown, a plan being
   drafted, a Familiarisation doc): this folder is on the full pipeline. Say so,

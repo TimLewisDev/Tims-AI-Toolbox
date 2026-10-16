@@ -331,7 +331,9 @@ next, then answers questions about the toolbox.
 Wraps the whole chain. A script reads which documents a feature folder holds,
 so it knows whether the feature is being explored, planned, broken down, built
 or finished, and runs the skill that comes next after one confirmation. When
-that skill hands back, it looks again. Tatty greets you, without the guide.
+that skill hands back, it looks again. Tatty greets you, without the guide,
+and when the feature is finished (here, or when the last work unit passes in
+`tt-execute`) she raises her arms and congratulates you.
 
 - **Run it:** `/tt-workflow <feature folder>` the first time (this links the
   folder to the current project), then just `/tt-workflow`. `/tt-workflow new`

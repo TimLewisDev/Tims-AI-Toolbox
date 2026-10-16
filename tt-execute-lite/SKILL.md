@@ -194,6 +194,12 @@ say what was built, what the checks showed, and anything left (risks and
 improvements recorded in the Step Log). Do not offer to commit: the engineer
 decides what to commit and when.
 
+If that was the last unit and `status-set.sh` reported `header State: Complete`,
+the change is finished: run `bash "<scripts>/tatty.sh" celebrate`, show its
+output in a code block, and congratulate the engineer in a sentence or two
+before the summary. Say plainly that the change is finished and that
+committing is theirs.
+
 ## Amending the brief
 
 A path, a line reference or a card step the code has outgrown may be corrected

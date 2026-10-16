@@ -229,6 +229,12 @@ When every task in the unit is `Implemented`:
    If there is a next unit, offer **Continue in a new session**
    (`<common>/session-handoff.md`; the status is already written, so the
    session is named `<Prefix> : Build` and resumes from it).
+9. **The last unit.** If `status-set.sh` reported `header State: Complete`, the
+   feature is finished. Run `bash "<scripts>/tatty.sh" celebrate` and show its
+   output in a code block, then congratulate the engineer in a sentence or two:
+   what was built, what the checks showed, and the risks still outstanding.
+   Say plainly that the feature is finished and that committing and the MR are
+   theirs. There is no next unit, so offer no new session.
 
 ## Guardrails
 

@@ -72,8 +72,10 @@ sentence, a spec or a ticket), then run `tt-adversarial-plan` with it and
 "Folder: <folder>. Prefix: <name>" (the folder's name unless `new` printed one).
 It asks whether to explore first.
 
-A feature that is built and validated has no next skill: say so. Committing and
-the MR are the engineer's.
+A feature that is built and validated has no next skill. When `start` showed
+the party Tatty (arms raised, confetti), congratulate the engineer on finishing
+it in a sentence, and say that committing and the MR are theirs. Otherwise just
+say it is finished.
 
 For a small feature or a bug fix, `tt-workflow-lite` is lighter: say so if the
 engineer describes work that small (one request, a few files, or a bug).
