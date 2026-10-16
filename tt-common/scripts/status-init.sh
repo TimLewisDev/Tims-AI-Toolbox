@@ -121,3 +121,11 @@ mv "$t" "$st"
 bash "$here/status-set.sh" "$st" --refresh >/dev/null || true
 nu=$(grep -c '^| WU' "$work/boards" || true); nt=$(awk '/^# Task Board/ { on = 1; next } on && /^\| [A-Z]/ && !/^\| ID/ { n++ } END { print n + 0 }' "$work/boards")
 echo "wrote $st: $nu units, $nt tasks, all Todo"
+# Stage-completion event (tt-common/events.md): the breakdown is written. A Lite
+# Brief is its own plan (tt-lite-brief emits for it), so only a Task Breakdown counts.
+# Best-effort: nothing here can change the output or the exit code.
+case $(basename "$bd") in
+*" - Task Breakdown.md")
+	bn=$(basename "$st")
+	bash "$here/tt-event.sh" emit breakdown.written --prefix "${bn% - Task Status.md}" --folder "$(dirname "$st")" --skill tt-task-breakdown >/dev/null 2>&1 || true ;;
+esac

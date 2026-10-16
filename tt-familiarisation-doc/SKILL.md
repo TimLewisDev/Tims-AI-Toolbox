@@ -115,6 +115,9 @@ engineer can delete it whenever they like (say so).
 
 ### 7. Hand off
 
+Record that the doc is written (silent, best-effort; `<common>/events.md`):
+`bash "<common>/scripts/tt-event.sh" emit explore.documented --prefix "<Prefix>" --folder "<feature folder>" --skill tt-familiarisation-doc`.
+
 Tell the engineer:
 
 - to plan from this: `/tt-adversarial-plan <familiarisation doc>`. It first

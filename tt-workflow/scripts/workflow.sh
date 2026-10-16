@@ -2,7 +2,8 @@
 # workflow.sh: the link between a project and its feature folder, for tt-workflow.
 # Remembers one folder per project in a user-level file; works out where that
 # folder stands with tt-common/scripts/workflow-state.sh. Needs bash and awk only.
-# Writes nothing but the link file and, for "new", the new folder.
+# Writes nothing but the link file, for "new" the new folder, and (through
+# tt-event.sh reconcile, on "state") the stage-completion ledger.
 set -u
 
 usage() {
@@ -50,6 +51,8 @@ need_link() {
 state() {
 	local folder=${1:-}
 	if [ -z "$folder" ]; then need_link || return; fi
+	# Catch stages finished outside a live skill run (best-effort, silent).
+	bash "$common/tt-event.sh" reconcile "$folder" >/dev/null 2>&1
 	bash "$common/workflow-state.sh" "$folder"
 	[ $? -le 1 ] # no tt documents is a state, not a failure
 }

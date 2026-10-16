@@ -67,7 +67,9 @@ Edit the header: Status `Signed off <YYYY-MM-DD> · Revision: 1`, the
 `Verified against` commit and date, the links lines (Tech Plan, Tech Proposals,
 Future Iterations, Familiarisation, Challenges), and the Change Log row
 (`| 1 | <date> | Signed off | — | tt-adversarial-plan |`). Delete the draft-only
-**Stages** table.
+**Stages** table. Then record the sign-off (silent, best-effort;
+`<common>/events.md`):
+`bash "<common>/scripts/tt-event.sh" emit plan.signed_off --prefix "<Prefix>" --folder "<folder>" --skill tt-plan-signoff`.
 
 ## 5. Tech Plan and Future Iterations (subagents, in parallel)
 

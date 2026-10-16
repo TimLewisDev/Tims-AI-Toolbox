@@ -205,6 +205,9 @@ best next experiment in **Open questions**.
 
 ### 6. Close
 
+0. If the Status is `Root cause confirmed`, record it (silent, best-effort;
+   `<common>/events.md`):
+   `bash "<scripts>/tt-event.sh" emit debug.root_cause_confirmed --prefix "<Prefix>" --folder "<feature folder>" --skill tt-debug`.
 1. `bash "<scripts>/debug-temp.sh" check "<repo>"` must be clean. If not, remove the lines
    first.
 2. `bash "<scripts>/debug-doc.sh" --check "<debug log>"` lists anything the log

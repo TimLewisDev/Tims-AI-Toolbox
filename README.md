@@ -749,6 +749,21 @@ Selective knowledge retrieval is traced in each project's machine-local
 `bash tools/retrieval-report.sh ~/.claude/tt-projects/<project-key>` or all
 cached projects with `bash tools/retrieval-report.sh --all ~/.claude/tt-projects`.
 
+### Stage-completion events
+
+Each finished stage or gate (a planning stage closed, the plan signed off, a
+work unit validated, the feature complete, and the lite and debug equivalents)
+is recorded as one line in an append-only ledger,
+`~/.claude/tt-events/events.jsonl`, so a companion app can follow progress and
+award experience without reading the documents. The lines are facts only; the
+reader decides what they are worth. Writing is silent and best-effort, and
+`TT_EVENTS=off` turns it off. `tt-workflow` and `tt-workflow-lite` also
+backfill any stage the documents prove but the ledger lacks. The schema, the
+event catalog and the rules for a reader are in
+[`tt-common/events.md`](tt-common/events.md); the writer is
+`tt-common/scripts/tt-event.sh` (`where`, `tail` and `events` show the path, the
+latest lines and the event names).
+
 ### Choosing models and effort (`tt-config`)
 
 Every place a skill picks a model for a subagent is a named **role**

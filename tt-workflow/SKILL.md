@@ -115,4 +115,6 @@ a validation) is left at it.
 
 - State comes from the scripts, never from memory or a guess at the files.
 - Never edit a document, and never stage, commit, push or create branches.
+  (Reading the state also records finished stages in the event ledger,
+  `<common>/events.md`. The ledger is not a document; this is expected.)
 - Never skip a skill's own gates, and never choose for the engineer.

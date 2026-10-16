@@ -85,6 +85,9 @@ it with `tt-lite-brief`.
 
 ### 5. Hand off
 
+Record that the report is written (silent, best-effort; `<common>/events.md`):
+`bash "<scripts>/tt-event.sh" emit debug.report_written --prefix "<Prefix>" --folder "<feature folder>" --skill tt-debug-doc`.
+
 If the root cause is confirmed, remind the engineer of the next step they may
 want: `/tt-lite-brief "<debug log>"` to plan the fix, then `/tt-execute-lite`
 in a fresh session. Otherwise the report stands on its own.

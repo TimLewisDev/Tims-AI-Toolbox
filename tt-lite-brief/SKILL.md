@@ -143,6 +143,9 @@ If it finds nothing, say so in one line.
 
 ### 7. Hand off
 
+Record that the brief is written (silent, best-effort; `<common>/events.md`):
+`bash "<common>/scripts/tt-event.sh" emit lite.brief_written --prefix "<Prefix>" --folder "<feature folder>" --skill tt-lite-brief`.
+
 Delete the draft folder (say so). Give the path and the **Goal**,
 **Acceptance** and task list in chat, then:
 

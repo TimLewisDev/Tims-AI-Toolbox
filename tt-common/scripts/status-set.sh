@@ -206,5 +206,17 @@ pass == 2 { print }
 
 if [ "$crlf" = 1 ]; then sed 's/$/\r/' "$t2" >"$t1"; mv "$t1" "$doc"; else mv "$t2" "$doc"; fi
 printf '%s\n' "$derived" | grep -v '^! ' | sed -n 's/^\(State\|Next\): /header \1: /p'
+# Stage-completion events (tt-common/events.md): a unit set Done, and a finished
+# feature. Best-effort: nothing here can change the output or the exit code.
+dname=$(basename "$doc")
+case $dname in
+*" - Task Status.md")
+	prefix=${dname% - Task Status.md}
+	{
+		case $id in WU*) [ "$new" = Done ] && bash "$here/tt-event.sh" emit build.unit_validated --prefix "$prefix" --folder "$dir" --qualifier "$id" --skill tt-execute ;; esac
+		printf '%s\n' "$derived" | grep -q '^State: Complete' &&
+			bash "$here/tt-event.sh" emit build.complete --prefix "$prefix" --folder "$dir" --skill tt-execute
+	} >/dev/null 2>&1 || true ;;
+esac
 if [ "$rc" = 1 ]; then printf '%s\n' "$derived" | grep '^! ' >&2; exit 1; fi
 exit 0

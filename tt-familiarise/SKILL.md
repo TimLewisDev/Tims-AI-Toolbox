@@ -204,7 +204,9 @@ When the engineer says the focus is right, or asks to stop:
 1. Show the final focus statement and the Focus and Context topics (one line
    each), and ask them to confirm. "Looks fine" or silence is not
    confirmation; any hesitation is another direction to dig.
-2. On confirmation, set the log's Status to `Focus confirmed <YYYY-MM-DD>`.
+2. On confirmation, set the log's Status to `Focus confirmed <YYYY-MM-DD>`, then
+   record it (silent, best-effort; `<common>/events.md`):
+   `bash "<common>/scripts/tt-event.sh" emit explore.focus_confirmed --prefix "<Prefix>" --folder "<feature folder>" --skill tt-familiarise`.
 3. Offer the next step with `AskUserQuestion`: **write it up now**
    (invoke `tt-familiarisation-doc` with the Focus Log path) · **write it up
    in a new session** (follow `<common>/session-handoff.md` with

@@ -146,7 +146,12 @@ After each stage is `Closed`, take a **Break point**.
    lens).
 5. **Close**: when no blocking challenge is unresolved, set the stage `Closed`
    and link its Challenges section in the Stages table. For Familiarisation,
-   also set the doc's **Challenged** line.
+   also set the doc's **Challenged** line. Then record the close (silent,
+   best-effort; `<common>/events.md`):
+   `bash "<common>/scripts/tt-event.sh" emit plan.<stage>_closed --prefix "<Prefix>" --folder "<folder>" --skill tt-adversarial-plan`,
+   where `<stage>` is `familiarisation`, `requirements`, `scope`, `approach`,
+   `design` (Technical Design) or `whole` (Whole plan). A stage that reopens
+   and closes again is recorded once.
 
 ## Break point
 

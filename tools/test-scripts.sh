@@ -9,6 +9,8 @@ S="$root/tt-common/scripts"
 F="$root/tools/fixtures/demo"
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
+# Keep the tests' stage-completion events out of the real ledger.
+export TT_EVENTS_HOME="$T/events"
 pass=0; fail=0
 
 ok() { pass=$((pass + 1)); echo "ok    $1"; }
@@ -791,6 +793,116 @@ for r in $used; do printf '%s\n' "$roles" | grep -qx "$r" && ok "skill role $r i
 hardcoded=$(grep -rln 'model: sonnet' "$root"/tt-*/ --include=*.md || true)
 [ -z "$hardcoded" ] && ok "no skill hard-codes a model" || bad "no skill hard-codes a model" "$hardcoded"
 unset TT_CONFIG_DIR
+
+echo "# tt-event.sh"
+EV="$S/tt-event.sh"
+LG="$TT_EVENTS_HOME/events.jsonl"
+export TT_EVENTS_HOME="$T/ev-emit"; LG="$TT_EVENTS_HOME/events.jsonl"
+mkdir -p "$T/evdir"
+expect "emit a stage event" 0 bash "$EV" emit plan.scope_closed --prefix Demo --folder "$T/evdir" --skill tt-adversarial-plan
+has "recorded" "$T/out" "recorded: "
+has "event in the ledger" "$LG" '"event":"plan.scope_closed"'
+has "route defaults to full" "$LG" '"route":"full"'
+has "source is skill" "$LG" '"source":"skill","skill":"tt-adversarial-plan","approx":false'
+expect "the same key again" 0 bash "$EV" emit plan.scope_closed --prefix Demo --folder "$T/evdir"
+has "already recorded" "$T/out" "already recorded: "
+[ "$(wc -l <"$LG" | tr -d ' ')" = 1 ] && ok "no second line" || bad "no second line"
+expect "a qualifier is a new key" 0 bash "$EV" emit build.unit_validated --prefix Demo --folder "$T/evdir" --qualifier WU1
+has "qualifier recorded" "$LG" '"qualifier":"WU1"'
+expect "a quote in the prefix" 0 bash "$EV" emit plan.signed_off --prefix 'A"B' --folder "$T/evdir"
+has "quote escaped" "$LG" '"prefix":"A\"B"'
+expect "unknown event" 2 bash "$EV" emit plan.nope --prefix Demo --folder "$T/evdir"
+expect "missing prefix" 2 bash "$EV" emit plan.signed_off --folder "$T/evdir"
+expect "bad route" 2 bash "$EV" emit plan.signed_off --prefix Demo --folder "$T/evdir" --route sideways
+n=$(wc -l <"$LG" | tr -d ' ')
+TT_EVENTS=off expect "off switch" 0 bash "$EV" emit plan.approach_closed --prefix Demo --folder "$T/evdir"
+[ "$(wc -l <"$LG" | tr -d ' ')" = "$n" ] && ok "off writes nothing" || bad "off writes nothing"
+touch "$T/blocker"
+TT_EVENTS_HOME="$T/blocker/x" expect "an unusable home still exits 0" 0 bash "$EV" emit plan.approach_closed --prefix Demo --folder "$T/evdir" --source skill
+bad_lines=$(awk '!/^\{"v":1,"ts":"[0-9T:Z-]+","event":"[a-z_.]+","key":".+","route":"(full|lite|debug)","prefix":".*","folder":".+","project":".+","qualifier":".*","source":"(skill|reconcile)","skill":".*","approx":(true|false)\}$/' "$LG" | wc -l | tr -d ' ')
+[ "$bad_lines" = 0 ] && ok "every ledger line has the v1 shape" || bad "every ledger line has the v1 shape" "$bad_lines bad"
+expect "events lists the names" 0 bash "$EV" events
+has "events has build.complete" "$T/out" "build.complete"
+expect "where" 0 bash "$EV" where
+has "where prints the ledger" "$T/out" "events.jsonl"
+
+echo "# tt-event.sh from status-set.sh"
+export TT_EVENTS_HOME="$T/ev-set"; LG="$TT_EVENTS_HOME/events.jsonl"
+mkdir -p "$T/evset"
+for f in "$F"/*.md; do sed "s#REPO#$T/repo#g" "$f" >"$T/evset/$(basename "$f")"; done
+EST="$T/evset/Demo - Task Status.md"
+expect "a task change emits nothing" 0 bash "$S/status-set.sh" "$EST" T01 "In Progress"
+[ ! -f "$LG" ] && ok "no ledger yet" || bad "no ledger yet" "$(cat "$LG")"
+expect "unit Done" 0 bash "$S/status-set.sh" "$EST" WU1 Done
+has "unit event" "$LG" '"event":"build.unit_validated"'
+has "unit qualifier" "$LG" '"qualifier":"WU1"'
+hasnt "not complete yet" "$LG" "build.complete"
+has "output is unchanged" "$T/out" "WU1: "
+expect "unit Done again" 0 bash "$S/status-set.sh" "$EST" WU1 Done
+[ "$(wc -l <"$LG" | tr -d ' ')" = 1 ] && ok "a repeat adds nothing" || bad "a repeat adds nothing"
+expect "last unit Done" 0 bash "$S/status-set.sh" "$EST" WU2 Done
+has "header State Complete reported" "$T/out" "header State: Complete"
+has "complete event" "$LG" '"event":"build.complete"'
+has "route full" "$LG" '"route":"full"'
+
+echo "# tt-event.sh from status-init.sh"
+export TT_EVENTS_HOME="$T/ev-init"; LG="$TT_EVENTS_HOME/events.jsonl"
+mkdir -p "$T/evinit"
+sed "s#REPO#$T/repo#g" "$F/Demo - Task Breakdown.md" >"$T/evinit/Demo - Task Breakdown.md"
+expect "status-init writes a Task Status" 0 bash "$S/status-init.sh" "$T/evinit/Demo - Task Breakdown.md" "$T/evinit/Demo - Task Status.md"
+has "wrote line is unchanged" "$T/out" "all Todo"
+has "breakdown event" "$LG" '"event":"breakdown.written"'
+
+echo "# tt-event.sh reconcile"
+export TT_EVENTS_HOME="$T/ev-rec"; LG="$TT_EVENTS_HOME/events.jsonl"
+expect "reconcile a finished feature" 0 bash "$EV" reconcile "$T/evset"
+for e in explore.focus_confirmed:no plan.requirements_closed:yes plan.whole_closed:yes plan.signed_off:yes breakdown.written:yes build.unit_validated:yes build.complete:yes; do
+	name=${e%%:*}; want=${e##*:}
+	if [ "$want" = yes ]; then has "reconciled $name" "$LG" "\"event\":\"$name\""; else hasnt "no $name" "$LG" "\"event\":\"$name\""; fi
+done
+has "reconciled rows are approximate" "$LG" '"source":"reconcile"'
+has "approx flag" "$LG" '"approx":true'
+n=$(wc -l <"$LG" | tr -d ' ')
+expect "reconcile twice" 0 bash "$EV" reconcile "$T/evset"
+[ "$(wc -l <"$LG" | tr -d ' ')" = "$n" ] && ok "second reconcile adds nothing" || bad "second reconcile adds nothing"
+# a draft plan: only its Closed stages
+mkdir -p "$T/evdraft"
+cat >"$T/evdraft/Mini - Comprehensive Tech Plan.md" <<'EOF'
+# Mini
+- Status: Draft
+
+**Stages**
+
+| Stage | Status | Doc |
+|---|---|---|
+| Familiarisation | Skipped: known area | |
+| Requirements | Closed | |
+| Scope & Constraints | Closed (challenge skipped: small) | |
+| Approach | In progress | |
+EOF
+export TT_EVENTS_HOME="$T/ev-draft"; LG="$TT_EVENTS_HOME/events.jsonl"
+expect "reconcile a draft plan" 0 bash "$EV" reconcile "$T/evdraft"
+has "closed stage" "$LG" '"event":"plan.requirements_closed"'
+has "closed with a skipped challenge" "$LG" '"event":"plan.scope_closed"'
+hasnt "open stage" "$LG" "plan.approach_closed"
+hasnt "skipped stage" "$LG" "plan.familiarisation_closed"
+hasnt "not signed off" "$LG" "plan.signed_off"
+# the lite and debug routes
+mkdir -p "$T/evlite/.tt/Slow - Debug"
+cp "$LF/Farewell - Lite Brief.md" "$T/evlite/"; cp "$LF/Slow - debug-log.md" "$T/evlite/.tt/Slow - Debug/debug-log.md"
+export TT_EVENTS_HOME="$T/ev-lite"; LG="$TT_EVENTS_HOME/events.jsonl"
+expect "reconcile the lite route" 0 bash "$EV" reconcile "$T/evlite"
+has "lite brief written" "$LG" '"event":"lite.brief_written"'
+has "lite route" "$LG" '"route":"lite"'
+has "root cause confirmed" "$LG" '"event":"debug.root_cause_confirmed"'
+has "debug route" "$LG" '"route":"debug"'
+# workflow.sh state reconciles, and still prints the same state
+export TT_EVENTS_HOME="$T/ev-wf"; LG="$TT_EVENTS_HOME/events.jsonl"
+TT_WORKFLOW_HOME="$T/wfhome" expect "workflow.sh state" 0 bash "$root/tt-workflow/scripts/workflow.sh" state "$T/evset"
+has "state still prints" "$T/out" "built and validated"
+has "state reconciled the ledger" "$LG" '"event":"build.complete"'
+unset TT_EVENTS_HOME
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]
