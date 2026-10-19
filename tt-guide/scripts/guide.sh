@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # guide.sh: Tatty, the tt toolbox guide. Says hello, works out where the tt
 # documents in a folder stand and which command comes next, and prints README
-# sections on request. Needs bash and awk only. Writes nothing.
+# sections on request. Needs bash and awk only. Writes nothing except what
+# init/refresh (the project cache) and update apply (pull, skill links) do.
 set -u
 
 usage() {
@@ -14,6 +15,7 @@ usage: guide.sh [hello]                    the greeting, then "where ."
        guide.sh init [dir]                 inspect project metadata and build a local context/index cache
        guide.sh refresh [dir]              rebuild the local project context/index cache
        guide.sh context [dir]              report whether the local project context cache is current
+       guide.sh connections [dir]          which connections this project's pack needs and which are missing
        guide.sh update [check|apply]       pull latest from git and fix missing symlinks;
                                            check (default) previews only, apply makes the changes
        guide.sh quip                       one quip
@@ -35,6 +37,7 @@ MD="$root/tt-common/scripts/md-section.sh"
 TATTY="$root/tt-common/scripts/tatty.sh"
 STATE="$root/tt-common/scripts/workflow-state.sh"
 CONTEXT="$root/tt-common/scripts/project-context.sh"
+CONNECTIONS="$root/tt-connections/scripts/connections.sh"
 
 quip() { bash "$TATTY" quip; }
 
@@ -265,10 +268,10 @@ update() {
 			fi
 		done
 		printf '\n=== Done ===\n'
+		printf 'Restart your client (Claude Code, Copilot CLI or Codex CLI) to pick up new skills.\n'
 		[ "$failures" -eq 0 ] || return 1
 		;;
 	*)
-		printf 'Restart your client (Claude Code, Copilot CLI or Codex CLI) to pick up new skills.\n'
 		printf 'guide.sh update: unknown mode "%s". Use: check | apply\n' "$mode" >&2
 		exit 2
 		;;
@@ -284,6 +287,18 @@ context() {
 		status) bash "$CONTEXT" status "$dir" ;;
 		*) echo "guide.sh context: unknown mode $mode" >&2; exit 2 ;;
 	esac
+}
+
+# connections [dir]: the project's connection pack and what is missing. Exit 3
+# (no pack for this project) is a normal answer, so it is reported, not failed.
+connections() {
+	local dir=${1:-.} rc
+	[ -d "$dir" ] || { echo "guide.sh: no such folder: $dir" >&2; exit 2; }
+	[ -f "$CONNECTIONS" ] || { echo "No connection setup in this toolbox (tt-connections is missing)."; return 0; }
+	bash "$CONNECTIONS" status "$dir"
+	rc=$?
+	[ "$rc" = 3 ] && return 0
+	return "$rc"
 }
 
 cmd=${1:-hello}
@@ -304,6 +319,7 @@ update) update "$@" ;;
 init) context init "${1:-.}" ;;
 refresh) context refresh "${1:-.}" ;;
 context) context status "${1:-.}" ;;
+connections) connections "${1:-.}" ;;
 quip) quip ;;
 -h | --help) usage ;;
 *) usage; exit 2 ;;

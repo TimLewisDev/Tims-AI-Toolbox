@@ -56,6 +56,7 @@ link the skills by hand instead, see [Setup](#setup-claude-code-copilot-cli-and-
 | [`tt-debug-doc`](tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
 | [`tt-mr-review`](tt-mr-review/SKILL.md) | Reviews a GitLab merge request and posts only the comments you approve. |
 | [`tt-config`](tt-config/SKILL.md) | Chooses the model and thinking effort for each stage, ranked by where a stronger model pays off, and saves the choices as modes you can swap. |
+| [`tt-connections`](tt-connections/SKILL.md) | Checks the MCP servers, logins and git settings a project needs, from a connection pack kept outside the repo, and sets up the missing ones one at a time (yes or skip). |
 | [`tt-common`](tt-common/SKILL.md) | Not run directly: the shared rules for long runs and for planning, shared templates, and the helper scripts the other skills call. |
 
 ## How they fit together
@@ -166,6 +167,7 @@ to the goal, the acceptance or a decision goes back through
 | find out which skill to use, or where you left off | `/tt-guide [question]` |
 | initialize or refresh the project's selective context/index cache | `/tt-guide init [folder]` or `/tt-guide refresh [folder]` |
 | check whether the cached project context is current | `/tt-guide context [folder]` |
+| check and set up the project's MCP servers, logins and git settings | `/tt-connections [setup]` (also offered by `/tt-guide init`) |
 | explore how something in the codebase works | `/tt-familiarise <what you want to explore>` |
 | write up an exploration | `/tt-familiarisation-doc [focus log]` |
 | plan a feature from an idea, exploration, spec or ticket | `/tt-adversarial-plan [description, familiarisation doc, spec or ticket]` |
@@ -195,6 +197,10 @@ profile plus a knowledge index outside the repository, under
 `~/.claude/tt-projects/`. It does not summarise the source tree. Use
 `/tt-guide refresh` after instruction files or manifests change, and
 `/tt-guide context` to check freshness.
+
+After the scan, `init` also checks the project's connections against its
+[connection pack](#tt-connections-set-up-a-projects-connections), if one is
+installed, and offers to set up what is missing. No pack, no extra step.
 
 Skills remain the executable control layer. Mandatory gates, escalation,
 approval and state rules are loaded explicitly from compact rule files.
@@ -342,7 +348,39 @@ next, then answers questions about the toolbox.
   "where things stand" check and the README sections it answers from all come
   from `tt-guide/scripts/guide.sh` (`hello`, `where [folder]`, `start`,
   `about <skill or topic>`). The model only holds the conversation.
-- **Won't:** run other skills, edit documents, or touch git.
+- **Won't:** run other skills (the one exception is `tt-connections`, offered
+  after `init` and started only on your yes), edit documents, or touch git.
+
+### [`tt-connections`](tt-connections/SKILL.md): set up a project's connections
+
+Works out which connections a project needs (an issue tracker or wiki MCP
+server, a source host, a design tool, CLI logins, git settings) and which are
+missing, then walks through the missing ones **one at a time**, asking yes or
+skip for each. On yes it runs the pack's `claude mcp add` (or fix) command and
+hands you the one step it can't do for you, such as signing in through `/mcp`.
+It never asks for a token in chat.
+
+The list is not in this repo or in the project's repo. It is a **connection
+pack**, a small tab-separated `.pack` file shared on its own and installed once
+per machine. Each pack names the git remotes it applies to, so a different
+project gets a different list.
+
+- **Run it:** `/tt-connections` (status) or `/tt-connections setup`. It is also
+  offered at the end of `/tt-guide init`. `/tt-guide connections` reports only.
+- **Packs:** `pack install <file or folder>`, `list`, `which`, `link <pack>`
+  (use a pack whatever the remote), `unlink`. They live in
+  `~/.claude/tt-connections/packs/`, with links in `links.tsv` beside them.
+- **Pack format:** `# name:` and one or more `# match:` globs on the git remote
+  URL, then one row per connection: `id`, `kind`, `label`, `check`, `setup`,
+  `next step` (tab-separated, `-` for empty). `kind` is `mcp` (check = the MCP
+  server's name in `claude mcp list`) or `cmd` (check = a shell command that
+  exits 0 when it works, e.g. `git config user.email` or `glab auth status`).
+  An example is `tools/fixtures/connections/example.pack`.
+- **Scripted:** `tt-connections/scripts/connections.sh` does the matching and
+  every check; the model only asks and runs the commands you approve. MCP setup
+  uses the `claude` CLI, so it is Claude Code only.
+- **Won't:** accept a secret, edit settings files by hand, or run a setup
+  command you haven't said yes to.
 
 ### [`tt-workflow`](tt-workflow/SKILL.md): one entry point
 
@@ -693,6 +731,8 @@ A line-by-line review meant to stand in for a senior engineer's review.
   after a `git fetch`, not in the working tree.
 - **Agent instructions in the repo** (`AGENTS.md`, `CLAUDE.md` or equivalent)
   for build checks and tool-managed files. Without them, the skills ask you.
+- **For `tt-connections`:** a connection pack for your project (optional; without
+  one the skill has nothing to check) and the `claude` CLI for MCP setup.
 - **For `tt-mr-review`:** GitLab, with `glab` or a GitLab MCP server. An
   issue-tracker integration is optional and used to read the linked issue.
 
@@ -721,8 +761,7 @@ bash "<clone path>/tt-guide/scripts/guide.sh" update check
 bash "<clone path>/tt-guide/scripts/guide.sh" update apply
 ```
 
-The updater links each skill folder into all three locations. To create the
-links manually, use the client-specific commands below.
+To create the links manually, use the client-specific commands below.
 
 ```powershell
 # Windows (PowerShell): directory junctions, no admin rights needed

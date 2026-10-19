@@ -330,6 +330,77 @@ expect "update applies all skill locations" 0 env HOME="$H" bash "$U/tt-guide/sc
 [ "$(cd "$H/.agents/skills/tt-guide" && pwd -P)" = "$(cd "$U/tt-guide" && pwd -P)" ] && ok "update creates Codex link" || bad "update creates Codex link"
 
 
+echo "# connections.sh"
+CS="$root/tt-connections/scripts/connections.sh"
+CF="$root/tools/fixtures/connections"
+# The packs, links and `claude mcp list` all stay inside the temp folder.
+CN() { TT_CONNECTIONS_HOME="$T/connhome" TT_CLAUDE_BIN="$CF/fake-claude.sh" FAKE_CLAUDE_LIST="$T/mcplist" FAKE_CLAUDE_CALLS="$T/mcpcalls" bash "$CS" "$@"; }
+printf 'tracker: https://tracker.example.test/mcp (HTTP) - ✓ Connected\ndesign: https://design.example.test/mcp (HTTP) - ⚠ Needs authentication\n' >"$T/mcplist"
+for d in one two three; do
+	mkdir -p "$T/conn/$d" && git -C "$T/conn/$d" init -q && git -C "$T/conn/$d" config user.email t@t
+done
+git -C "$T/conn/one" remote add origin https://example.test/team/project.git
+git -C "$T/conn/two" remote add origin https://other.test/x/y.git
+git -C "$T/conn/three" remote add origin https://elsewhere.test/a/b.git
+expect "no packs installed: no pack" 3 CN which "$T/conn/one"
+expect "install a pack" 0 CN pack install "$CF/example.pack"
+expect "install a folder of packs" 0 CN pack install "$CF"
+printf 'no match line\n# id\n' >"$T/bad.pack"
+expect "a pack with no match line is refused" 2 CN pack install "$T/bad.pack"
+printf '# match: *x*\nonly\tthree\tfields\n' >"$T/bad2.pack"
+expect "a short row is refused" 2 CN pack install "$T/bad2.pack"
+expect "pack matched by remote" 0 CN which "$T/conn/one"
+has "which names the pack" "$T/out" "example"
+expect "second pack matched by remote" 0 CN which "$T/conn/two"
+has "which names the other pack" "$T/out" "other"
+expect "list shows the packs" 0 CN list
+has "list shows a match glob" "$T/out" "*other.test/*"
+: >"$T/mcpcalls"
+expect "status with gaps" 1 CN status "$T/conn/one"
+has "a connected server" "$T/out" "ok             tracker"
+has "a server that needs auth" "$T/out" "NEEDS AUTH     design"
+has "a failing check" "$T/out" "MISSING        always-fails"
+has "a passing command check" "$T/out" "ok             git-email"
+has "the count line" "$T/out" "2 of 4 connected. Still to do: design always-fails."
+[ "$(wc -l <"$T/mcpcalls" | tr -d ' ')" = 1 ] && ok "claude mcp list runs once per status" || bad "claude mcp list runs once per status" "$(wc -l <"$T/mcpcalls")"
+expect "next gives the first gap" 0 CN next "$T/conn/one"
+has "next id" "$T/out" "id=design"
+has "next state" "$T/out" "state=auth"
+has "next hand-off" "$T/out" "handoff=Run /mcp and sign in"
+has "next remaining" "$T/out" "remaining=2"
+expect "next after a skip" 0 CN next "$T/conn/one" --skip design
+has "next goes on to the next gap" "$T/out" "id=always-fails"
+expect "next with everything skipped" 1 CN next "$T/conn/one" --skip design,always-fails
+has "nothing left" "$T/out" "nothing left to set up"
+expect "check a connected server" 0 CN check tracker "$T/conn/one"
+expect "check a server needing auth" 1 CN check design "$T/conn/one"
+has "check says auth" "$T/out" "auth"
+expect "check an unknown id" 2 CN check nope "$T/conn/one"
+expect "other project: wiki missing" 1 CN status "$T/conn/two"
+has "wiki is missing" "$T/out" "MISSING        wiki"
+printf 'wiki: https://wiki.other.test/mcp (HTTP) - ✓ Connected\n' >>"$T/mcplist"
+expect "other project: all connected" 0 CN status "$T/conn/two"
+has "all connected" "$T/out" "1 of 1 connected."
+expect "no pack for an unrelated remote" 3 CN status "$T/conn/three"
+has "says so" "$T/out" "No connection pack for this project."
+(cd "$T/conn/three" && CN link example) >"$T/out" 2>&1 && ok "link a pack by hand" || bad "link a pack by hand" "$(cat "$T/out")"
+expect "a linked pack applies" 1 CN status "$T/conn/three"
+has "linked pack is the example" "$T/out" "Pack: example"
+expect "link an unknown pack" 2 CN link nope
+(cd "$T/conn/three" && CN unlink) >"$T/out" 2>&1 && ok "unlink" || bad "unlink" "$(cat "$T/out")"
+expect "unlinked: back to no pack" 3 CN status "$T/conn/three"
+expect "no such folder" 2 CN status "$T/conn/missing"
+printf 'wiki: https://wiki.other.test/mcp (HTTP) - ✗ Failed to connect\n' >"$T/mcplist"
+expect "a registered server that is down" 1 CN status "$T/conn/two"
+has "down is not connected" "$T/out" "NOT CONNECTED  wiki"
+printf 'tracker: https://tracker.example.test/mcp (HTTP) - ✓ Connected\ndesign: https://design.example.test/mcp (HTTP) - ⚠ Needs authentication\n' >"$T/mcplist"
+CNG() { TT_CONNECTIONS_HOME="$T/connhome" TT_CLAUDE_BIN="$CF/fake-claude.sh" FAKE_CLAUDE_LIST="$T/mcplist" bash "$GD" "$@"; }
+expect "guide connections reports gaps" 1 CNG connections "$T/conn/one"
+has "guide shows the table" "$T/out" "NEEDS AUTH     design"
+expect "guide connections: no pack is fine" 0 CNG connections "$T/conn/three"
+has "guide says no pack" "$T/out" "No connection pack for this project."
+expect "guide connections: no such folder" 2 CNG connections "$T/conn/missing"
+
 echo "# workflow-state.sh"
 WS="$root/tt-common/scripts/workflow-state.sh"
 bash "$WS" --tsv "$G" >"$T/rows"

@@ -1,0 +1,4 @@
+# name: other
+# match: *other.test/*
+# id	kind	label	check	setup	next step
+wiki	mcp	Wiki	wiki	claude mcp add --transport http wiki https://wiki.other.test/mcp	Run /mcp and sign in

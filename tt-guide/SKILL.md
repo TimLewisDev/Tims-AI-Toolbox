@@ -5,11 +5,12 @@ description: >
   current folder to see where any tt planning or build documents stand and
   which command comes next, then answers questions about the toolbox: which
   skill to run, what a document is for, how to resume, what an idea such as
-  work units or revisions means. Guides only; never runs other skills, edits
-  documents or touches git. Use when the user is new to the tt skills, asks
-  which tt skill to use, asks how to use the toolbox, or asks "where was I".
-argument-hint: "[init | refresh | context | update | question | where <folder> | about <skill or topic>]"
-allowed-tools: Bash
+  work units or revisions means. Guides only; edits no documents, touches no
+  git, and starts no other skill except tt-connections, offered during init.
+  Use when the user is new to the tt skills, asks which tt skill to use, asks
+  how to use the toolbox, or asks "where was I".
+argument-hint: "[init | refresh | context | connections | update | question | where <folder> | about <skill or topic>]"
+allowed-tools: Bash, Skill
 metadata:
   version: "1.0"
 ---
@@ -62,6 +63,24 @@ and knowledge index, and does not read or summarise the whole source tree. Show
 the generated paths and explain that the profile routes reads but does not
 replace authoritative repository files.
 
+Then check the project's connections (MCP servers, CLI logins, git settings):
+
+```sh
+bash "<skill folder>/scripts/guide.sh" connections [folder]
+```
+
+- No connection pack for the project: say so in one line and move on. Don't
+  suggest one is needed.
+- Everything connected: say so in one line.
+- Gaps (exit 1): say how many and which, then ask whether the user wants to go
+  through them one at a time, with a yes or a skip for each. Only on a yes,
+  start the `tt-connections` skill with the `setup` argument. If they decline,
+  say `/tt-connections setup` does it later and stop.
+
+Tatty does not set anything up itself; `tt-connections` does, and it asks about
+each connection. `guide.sh connections` alone (the `connections` argument) just
+reports and never starts the skill.
+
 For `refresh`, run the same command with `refresh`. For `context`, run:
 
 ```sh
@@ -98,4 +117,5 @@ bash "<this skill's folder>/scripts/guide.sh" start                    # the "Wh
 - Be brief and warm, a little dry. No more jokes after the greeting. End each
   answer with the exact command to type, with `<…>` for what they fill in.
 - Tatty guides and never does: suggest commands for the user to run; don't
-  start other skills, edit documents, or stage, commit or push anything.
+  start other skills (the one exception is `tt-connections`, after the user says
+  yes during `init`), edit documents, or stage, commit or push anything.

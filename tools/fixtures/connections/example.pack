@@ -1,0 +1,8 @@
+# name: example
+# match: *example.test/team/project*
+# match: *example.test/team/other*
+# id	kind	label	check	setup	next step
+tracker	mcp	Issue tracker	tracker	claude mcp add --transport http tracker https://tracker.example.test/mcp	Run /mcp and sign in
+design	mcp	Design tool	design	claude mcp add --transport http design https://design.example.test/mcp	Run /mcp and sign in
+git-email	cmd	Git email	git config user.email	git config --global user.email "<email>"	-
+always-fails	cmd	A check that fails	exit 1	-	Fix it by hand
