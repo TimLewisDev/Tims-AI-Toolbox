@@ -5,11 +5,13 @@ description: >
   current folder to see where any tt planning or build documents stand and
   which command comes next, then answers questions about the toolbox: which
   skill to run, what a document is for, how to resume, what an idea such as
-  work units or revisions means. Guides only; edits no documents, touches no
-  git, and starts no other skill except tt-connections, offered during init.
+  work units or revisions means. With `connections` it turns the engineer's
+  plain-English list of connections into a machine-wide connection pack, saved
+  only after they confirm it. Otherwise guides only; edits no documents, touches
+  no git, and starts no other skill except tt-connections, offered during init.
   Use when the user is new to the tt skills, asks which tt skill to use, asks
-  how to use the toolbox, or asks "where was I".
-argument-hint: "[init | refresh | context | connections | update | question | where <folder> | about <skill or topic>]"
+  how to use the toolbox, asks "where was I", or wants to describe connections.
+argument-hint: "[init | refresh | context | connections [what to include] | update | question | where <folder> | about <skill or topic>]"
 allowed-tools: Bash, Skill
 metadata:
   version: "1.0"
@@ -78,8 +80,55 @@ bash "<skill folder>/scripts/guide.sh" connections [folder]
   say `/tt-connections setup` does it later and stop.
 
 Tatty does not set anything up itself; `tt-connections` does, and it asks about
-each connection. `guide.sh connections` alone (the `connections` argument) just
-reports and never starts the skill.
+each connection. The script command `guide.sh connections` just reports and never
+starts the skill. (The `/tt-guide connections` argument is different: it is the
+describe-your-connections flow below.)
+
+## Describe your connections
+
+For `connections` (anything typed after it is the engineer's first description),
+help the engineer write a **machine-wide connection pack** in plain English. It
+applies to every project, and a project's own pack still wins over it. If they
+gave no description, ask: "What should your connections include?" (MCP servers,
+CLI logins, git settings.)
+
+1. **Understand.** Turn what they said into one row per connection: `id` (short,
+   lower-case), `kind` (`mcp` or `cmd`), `label`, `check`, `setup`, `next step`.
+   - `mcp`: `check` is the server name; `setup` is
+     `claude mcp add --transport http <name> <url>`; the next step is
+     `Run /mcp and sign in`.
+   - `cmd`: `check` is a shell command that exits 0 when it works (for example
+     `git config user.email` or `<tool> auth status`); `setup` is the command that
+     fixes it, with `<placeholders>` for values they must give.
+   - Never invent a URL or a command. If they didn't give one and you aren't
+     sure, ask, or use `-` and say so in the playback.
+2. **Play it back, in plain English.** One line per connection: what it is, how
+   it is checked, what setup would run. Say plainly anything you guessed. Then ask
+   "Have I understood this right?" and **wait for an explicit yes**. A correction
+   goes back to step 1. Without a yes, write nothing.
+3. **Name it.** Default `personal`. Run
+   `bash "<skill folder>/scripts/guide.sh" pack list`; if the name is taken, ask
+   before replacing it.
+4. **Save.** Only after the yes, pipe the pack text into the script (real tab
+   characters between the six fields; the script checks them):
+
+   ```sh
+   bash "<skill folder>/scripts/guide.sh" pack save <name> [--replace] <<'PACK'
+   # name: <name>
+   # match: *
+   <id>	<kind>	<label>	<check>	<setup>	<next step>
+   PACK
+   ```
+
+   Show the output. If it refuses (exit 2), say why and go back to step 1; exit 4
+   means the name exists, so ask before using `--replace`.
+5. **Hand over.** Say where the file was saved. Setting the connections up is
+   `/tt-connections setup`, and `/tt-connections` shows where they stand. Don't
+   run either, and don't run any `setup` command.
+
+Never accept, echo or write a token, password or key; tell them to enter secrets
+in their own shell or through `/mcp`. Never edit `settings.json`, `.mcp.json` or
+`~/.claude.json`.
 
 For `refresh`, run the same command with `refresh`. For `context`, run:
 
@@ -118,4 +167,6 @@ bash "<this skill's folder>/scripts/guide.sh" start                    # the "Wh
   answer with the exact command to type, with `<…>` for what they fill in.
 - Tatty guides and never does: suggest commands for the user to run; don't
   start other skills (the one exception is `tt-connections`, after the user says
-  yes during `init`), edit documents, or stage, commit or push anything.
+  yes during `init`), edit documents, or stage, commit or push anything. The one
+  file Tatty writes besides the project cache is the connection pack, and only
+  after the engineer confirms it (see "Describe your connections").

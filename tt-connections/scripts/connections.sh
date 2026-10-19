@@ -14,7 +14,9 @@ usage: connections.sh status [dir]              the pack for dir's project and h
        connections.sh which [dir]               the pack that applies to dir's project
        connections.sh list                      installed packs and what they match
        connections.sh pack install <file|dir>   install a .pack file, or every .pack in a folder
-       connections.sh link <pack>               use this pack for dir's project, whatever its remote
+       connections.sh pack save <name> [--replace]
+                                                save the pack text read from stdin as <name>.pack
+       connections.sh link <pack>              use this pack for dir's project, whatever its remote
        connections.sh unlink                    go back to matching by remote
 
 A pack is a tab-separated text file. Comment lines start with "#":
@@ -24,10 +26,13 @@ A pack is a tab-separated text file. Comment lines start with "#":
 kind "mcp": check is the MCP server name, looked up in `claude mcp list`.
 kind "cmd": check is a shell command run in the project; exit 0 means connected.
 Use "-" for an empty setup or next step.
+A pack whose match is a bare "*" applies to every project, but only when no
+other pack matches: a pack with a specific match always wins over it.
 
 Packs and links live in ${TT_CONNECTIONS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-connections}
 TT_CLAUDE_BIN names the claude executable (default: claude).
-Exit: 0 ok, 1 gaps (status) or nothing left (next), 2 usage error, 3 no pack for the project.
+Exit: 0 ok, 1 gaps (status) or nothing left (next), 2 usage error, 3 no pack for the project,
+      4 pack save: that pack already exists (add --replace to overwrite it).
 EOF
 }
 
@@ -69,23 +74,26 @@ pack_file() {
 	return 1
 }
 
-# pack_for <dir>: the pack that applies (a link wins over a remote match), or nothing
+# pack_for <dir>: the pack that applies, or nothing. A link wins over a remote
+# match, and a pack with a specific match wins over one that matches only "*".
 pack_for() {
-	local dir=$1 key linked url f pat
+	local dir=$1 key linked url f pat pass
 	key=$(project_key "$dir")
 	if [ -f "$links" ]; then
 		linked=$(awk -F'\t' -v k="$key" '{ sub(/\r$/, "") } $1 == k { print $2; exit }' "$links")
 		if [ -n "$linked" ]; then pack_file "$linked" && return 0; fi
 	fi
 	url=$(remote_url "$dir")
-	[ -n "$url" ] || return 1
-	for f in "$packs"/*.pack; do
-		[ -f "$f" ] || continue
-		while IFS= read -r pat; do
-			[ -n "$pat" ] || continue
-			# shellcheck disable=SC2254
-			case $url in $pat) printf '%s\n' "$f"; return 0 ;; esac
-		done < <(awk '{ sub(/\r$/, "") } /^# *match:/ { sub(/^# *match: */, ""); print }' "$f")
+	for pass in specific catchall; do
+		for f in "$packs"/*.pack; do
+			[ -f "$f" ] || continue
+			while IFS= read -r pat; do
+				[ -n "$pat" ] || continue
+				if [ "$pat" = "*" ]; then [ "$pass" = catchall ] || continue; else [ "$pass" = specific ] || continue; fi
+				# shellcheck disable=SC2254
+				case $url in $pat) printf '%s\n' "$f"; return 0 ;; esac
+			done < <(awk '{ sub(/\r$/, "") } /^# *match:/ { sub(/^# *match: */, ""); print }' "$f")
+		done
 	done
 	return 1
 }
@@ -234,9 +242,34 @@ valid_pack() {
 	bad=$(rows "$1" | awk -F'\t' 'NF < 5 { n++ } END { print n + 0 }')
 	[ "$bad" = 0 ] || { echo "connections.sh: $1 has $bad row(s) with fewer than 5 tab-separated fields" >&2; return 1; }
 	[ -n "$(rows "$1")" ] || { echo "connections.sh: $1 has no connections" >&2; return 1; }
+	bad=$(rows "$1" | awk -F'\t' '$2 != "mcp" && $2 != "cmd" { n++ } END { print n + 0 }')
+	[ "$bad" = 0 ] || { echo "connections.sh: $1 has $bad row(s) whose kind is not mcp or cmd" >&2; return 1; }
+}
+
+# pack_save <name> [--replace]: validate the pack text on stdin and install it as <name>.pack
+pack_save() {
+	local name=${1:-} replace="" tmp
+	[ -n "$name" ] || { usage; exit 2; }
+	name=${name%.pack}
+	[ "${2:-}" = "--replace" ] && replace=1
+	case $name in
+	*[!a-z0-9._-]* | [!a-z0-9]*) echo "connections.sh: a pack name is lowercase letters, digits, . _ - and starts with a letter or digit: $name" >&2; exit 2 ;;
+	esac
+	if [ -f "$packs/$name.pack" ] && [ -z "$replace" ]; then
+		echo "connections.sh: $name.pack already exists (use --replace to overwrite it)" >&2
+		exit 4
+	fi
+	mkdir -p "$packs" || exit 2
+	tmp=$(mktemp) || exit 2
+	tr -d '\r' >"$tmp"
+	grep -q '^# *name:' "$tmp" || { { printf '# name: %s\n' "$name"; cat "$tmp"; } >"$tmp.n" && mv "$tmp.n" "$tmp"; }
+	if ! valid_pack "$tmp"; then rm -f "$tmp"; exit 2; fi
+	cp "$tmp" "$packs/$name.pack" && echo "saved $name.pack" && echo "$packs/$name.pack"
+	rm -f "$tmp"
 }
 
 pack_cmd() {
+	[ "${1:-}" = save ] && { shift; pack_save "$@"; return; }
 	[ "${1:-}" = install ] && [ -n "${2:-}" ] || { usage; exit 2; }
 	local src=$2 f n=0 rc=0
 	[ -e "$src" ] || { echo "connections.sh: no such file or folder: $src" >&2; exit 2; }

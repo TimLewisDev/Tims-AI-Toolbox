@@ -2,7 +2,8 @@
 # guide.sh: Tatty, the tt toolbox guide. Says hello, works out where the tt
 # documents in a folder stand and which command comes next, and prints README
 # sections on request. Needs bash and awk only. Writes nothing except what
-# init/refresh (the project cache) and update apply (pull, skill links) do.
+# init/refresh (the project cache), update apply (pull, skill links) and
+# pack save (a connection pack in the user-level folder) do.
 set -u
 
 usage() {
@@ -16,12 +17,15 @@ usage: guide.sh [hello]                    the greeting, then "where ."
        guide.sh refresh [dir]              rebuild the local project context/index cache
        guide.sh context [dir]              report whether the local project context cache is current
        guide.sh connections [dir]          which connections this project's pack needs and which are missing
+       guide.sh pack list                  the installed connection packs and what they match
+       guide.sh pack save <name> [--replace]
+                                           save the pack text on stdin as <name>.pack (exit 4: it exists)
        guide.sh update [check|apply]       pull latest from git and fix missing symlinks;
                                            check (default) previews only, apply makes the changes
        guide.sh quip                       one quip
 
 TT_GUIDE_ASCII=1 draws Tatty without box-drawing characters.
-Exit: 0 ok, 1 "about" found nothing, 2 usage error.
+Exit: 0 ok, 1 "about" found nothing, 2 usage error, 4 "pack save": that pack already exists.
 EOF
 }
 
@@ -301,6 +305,17 @@ connections() {
 	return "$rc"
 }
 
+# pack list | save <name> [--replace]: the installed connection packs, or save the
+# pack text on stdin as a machine-wide pack (tt-connections validates it)
+pack() {
+	[ -f "$CONNECTIONS" ] || { echo "No connection setup in this toolbox (tt-connections is missing)."; return 2; }
+	case ${1:-} in
+	list) bash "$CONNECTIONS" list ;;
+	save) shift; bash "$CONNECTIONS" pack save "$@" ;;
+	*) usage; exit 2 ;;
+	esac
+}
+
 cmd=${1:-hello}
 [ $# -gt 0 ] && shift
 case $cmd in
@@ -320,6 +335,7 @@ init) context init "${1:-.}" ;;
 refresh) context refresh "${1:-.}" ;;
 context) context status "${1:-.}" ;;
 connections) connections "${1:-.}" ;;
+pack) pack "$@" ;;
 quip) quip ;;
 -h | --help) usage ;;
 *) usage; exit 2 ;;

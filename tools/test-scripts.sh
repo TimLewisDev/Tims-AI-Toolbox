@@ -401,6 +401,36 @@ expect "guide connections: no pack is fine" 0 CNG connections "$T/conn/three"
 has "guide says no pack" "$T/out" "No connection pack for this project."
 expect "guide connections: no such folder" 2 CNG connections "$T/conn/missing"
 
+# pack save: a machine-wide pack written from text on stdin
+mkdir -p "$T/conn/four" && git -C "$T/conn/four" init -q
+git -C "$T/conn/four" remote add origin https://nowhere.test/q/r.git
+mkdir -p "$T/conn/bare" && git -C "$T/conn/bare" init -q
+printf '# match: *\ngit-email\tcmd\tGit email\tgit config user.email\tgit config --global user.email "<email>"\t-\n' >"$T/all.pack"
+expect "no pack for an unmatched remote before the save" 3 CN which "$T/conn/four"
+expect "pack save from stdin" 0 CN pack save personal <"$T/all.pack"
+has "save says where" "$T/out" "saved personal.pack"
+has "save adds the name line" "$T/connhome/packs/personal.pack" "# name: personal"
+has "list shows the saved pack" <(CN list) "personal"
+expect "a catch-all pack applies to an unmatched remote" 0 CN which "$T/conn/four"
+has "which names the catch-all" "$T/out" "personal"
+expect "a catch-all pack applies to a repo with no remote" 0 CN which "$T/conn/bare"
+expect "a specific pack still wins over the catch-all" 0 CN which "$T/conn/one"
+has "which names the specific pack" "$T/out" "example"
+hasnt "the catch-all does not shadow it" "$T/out" "personal"
+expect "pack save of an existing name" 4 CN pack save personal <"$T/all.pack"
+expect "pack save --replace" 0 CN pack save personal --replace <"$T/all.pack"
+expect "pack save: bad name" 2 CN pack save Bad/Name <"$T/all.pack"
+expect "pack save: no match line" 2 CN pack save nomatch <"$T/bad.pack"
+expect "pack save: short row" 2 CN pack save short <"$T/bad2.pack"
+printf '# match: *\nx\tcommand\tX\ttrue\t-\t-\n' >"$T/bad3.pack"
+expect "pack save: unknown kind" 2 CN pack save kind <"$T/bad3.pack"
+has "pack save names the kind problem" "$T/out" "kind is not mcp or cmd"
+[ ! -f "$T/connhome/packs/kind.pack" ] && ok "a refused pack is not written" || bad "a refused pack is not written"
+expect "guide pack save passes stdin through" 0 CNG pack save viaguide <"$T/all.pack"
+expect "guide pack list" 0 CNG pack list
+has "guide pack list shows it" "$T/out" "viaguide"
+expect "guide pack: unknown mode" 2 CNG pack nope
+
 echo "# workflow-state.sh"
 WS="$root/tt-common/scripts/workflow-state.sh"
 bash "$WS" --tsv "$G" >"$T/rows"

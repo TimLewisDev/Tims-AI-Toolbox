@@ -168,6 +168,7 @@ to the goal, the acceptance or a decision goes back through
 | initialize or refresh the project's selective context/index cache | `/tt-guide init [folder]` or `/tt-guide refresh [folder]` |
 | check whether the cached project context is current | `/tt-guide context [folder]` |
 | check and set up the project's MCP servers, logins and git settings | `/tt-connections [setup]` (also offered by `/tt-guide init`) |
+| say in plain English which connections you want, and save them as a pack | `/tt-guide connections [what to include]` |
 | explore how something in the codebase works | `/tt-familiarise <what you want to explore>` |
 | write up an exploration | `/tt-familiarisation-doc [focus log]` |
 | plan a feature from an idea, exploration, spec or ticket | `/tt-adversarial-plan [description, familiarisation doc, spec or ticket]` |
@@ -348,8 +349,16 @@ next, then answers questions about the toolbox.
   "where things stand" check and the README sections it answers from all come
   from `tt-guide/scripts/guide.sh` (`hello`, `where [folder]`, `start`,
   `about <skill or topic>`). The model only holds the conversation.
+- **Connections:** `/tt-guide connections` (optionally followed by what you
+  want) asks you, in plain English, which MCP servers, logins and git settings
+  you use. Tatty plays them back, and only when you say yes does
+  `guide.sh pack save` write a machine-wide [connection
+  pack](#tt-connections-set-up-a-projects-connections) for you. She never sets
+  anything up; `/tt-connections setup` does.
 - **Won't:** run other skills (the one exception is `tt-connections`, offered
-  after `init` and started only on your yes), edit documents, or touch git.
+  after `init` and started only on your yes), edit documents, or touch git. The
+  only file she writes besides the project cache is the connection pack, after
+  you confirm it.
 
 ### [`tt-connections`](tt-connections/SKILL.md): set up a project's connections
 
@@ -366,12 +375,16 @@ per machine. Each pack names the git remotes it applies to, so a different
 project gets a different list.
 
 - **Run it:** `/tt-connections` (status) or `/tt-connections setup`. It is also
-  offered at the end of `/tt-guide init`. `/tt-guide connections` reports only.
-- **Packs:** `pack install <file or folder>`, `list`, `which`, `link <pack>`
-  (use a pack whatever the remote), `unlink`. They live in
+  offered at the end of `/tt-guide init`. `/tt-guide connections` is for
+  writing a pack in plain English (the script `guide.sh connections` only
+  reports).
+- **Packs:** `pack install <file or folder>`, `pack save <name> [--replace]`
+  (the pack text on stdin; exit 4 if the name exists), `list`, `which`,
+  `link <pack>` (use a pack whatever the remote), `unlink`. They live in
   `~/.claude/tt-connections/packs/`, with links in `links.tsv` beside them.
 - **Pack format:** `# name:` and one or more `# match:` globs on the git remote
-  URL, then one row per connection: `id`, `kind`, `label`, `check`, `setup`,
+  URL (a bare `*` applies to every project, but only when no other pack
+  matches; a pack with a specific match always wins), then one row per connection: `id`, `kind`, `label`, `check`, `setup`,
   `next step` (tab-separated, `-` for empty). `kind` is `mcp` (check = the MCP
   server's name in `claude mcp list`) or `cmd` (check = a shell command that
   exits 0 when it works, e.g. `git config user.email` or `glab auth status`).
