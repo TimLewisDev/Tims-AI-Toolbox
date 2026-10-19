@@ -268,6 +268,7 @@ update() {
 		[ "$failures" -eq 0 ] || return 1
 		;;
 	*)
+		printf 'Restart your client (Claude Code, Copilot CLI or Codex CLI) to pick up new skills.\n'
 		printf 'guide.sh update: unknown mode "%s". Use: check | apply\n' "$mode" >&2
 		exit 2
 		;;

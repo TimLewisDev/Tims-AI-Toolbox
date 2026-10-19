@@ -10,6 +10,24 @@ usable with other agents that read the same format (Codex, GitHub Copilot).
 They are instructions and document templates, plus small bash scripts in
 `tt-common/scripts/` that do the routine copying and checking.
 
+## Quick start
+
+1. **Clone** this repo anywhere.
+2. **Run the setup** from the clone's top folder:
+   - Windows: double-click `initial-setup.cmd`.
+   - macOS / Linux: run `./initial-setup.sh`.
+
+   It shows what it will pull and link, asks before changing anything, then
+   links every skill into the Claude Code, Copilot CLI and Codex CLI skill
+   folders. Safe to run again. (Windows needs
+   [Git for Windows](https://git-scm.com/download/win), which Claude Code
+   already requires.)
+3. **Restart Claude Code** and type `/tt-guide` to meet Tatty, the toolbox's
+   guide.
+
+Later, `/tt-guide update` pulls the latest skills and links any new ones. To
+link the skills by hand instead, see [Setup](#setup-claude-code-copilot-cli-and-codex-cli).
+
 ## The skills
 
 | Skill | What it does |
@@ -694,8 +712,9 @@ These choices follow the [Claude Code skill documentation](https://code.claude.c
 [Copilot CLI skill documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills)
 and [Codex skill documentation](https://developers.openai.com/codex/skills).
 
-Clone the repo anywhere, then run the guide's updater to check or create links
-in all three supported personal locations:
+First time? Use the [Quick start](#quick-start): `initial-setup` links each skill
+folder into all three locations. Afterwards `/tt-guide update` keeps them
+current; outside an agent, the same updater is:
 
 ```sh
 bash "<clone path>/tt-guide/scripts/guide.sh" update check
@@ -725,12 +744,6 @@ up new skills.
 `../tt-common/` from their own folder. When a new skill folder appears after
 a pull, link it the same way. When one is renamed (`tt-implementation-agent`
 became `tt-coder`), remove the old link, which now points at nothing.
-
-To link one new skill on Windows, e.g. `tt-guide`:
-
-```powershell
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\tt-guide" -Target "<clone path>\tt-guide"
-```
 
 ### Testing the scripts
 
