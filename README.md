@@ -373,8 +373,11 @@ next, then answers questions about the toolbox.
 Works out which connections a project needs (an issue tracker or wiki MCP
 server, a source host, a design tool, CLI logins, git settings) and which are
 missing, then walks through the missing ones **one at a time**, asking yes or
-skip for each. On yes it runs the pack's `claude mcp add` (or fix) command and
-hands you the one step it can't do for you, such as signing in through `/mcp`.
+skip for each. On yes it runs the pack's `claude mcp add` (or fix) command, then
+walks you through the step it can't do for you, signing in through `/mcp`, and
+stays on that connection until it checks out as connected or you stop. A running
+session doesn't list servers added after it started, so it tells you to sign in
+from a second terminal or after restarting, and checks from where you left off.
 It never asks for a token in chat.
 
 The list is not in this repo or in the project's repo. It is a **connection

@@ -6,8 +6,8 @@ description: >
   up the missing ones one at a time, each with a yes or a skip. The list comes
   from a connection pack installed on the machine and matched to the project by
   its git remote, so each project can need different things and this skill
-  names none. Runs claude mcp add after a yes, then hands the sign-in step to
-  the user. Use after tt-guide init, or when asked to set up, check or fix a
+  names none. Runs claude mcp add after a yes, then walks the user through
+  signing in until it works. Use after tt-guide init, or when asked to set up, check or fix a
   project's MCP or tool connections.
 argument-hint: "[status | setup | pack install <file> | link <pack> | unlink | list]"
 allowed-tools: Bash, AskUserQuestion
@@ -50,16 +50,41 @@ Work through the gaps **one connection at a time**. Never batch them.
 4. **Yes**:
    - `state=missing` and `setup` is a command: if it has `<placeholders>`, ask
      the engineer for each value (never a token or password), then run it and
-     show its output. If `setup` is `-`, there is nothing to run; go to the hand-off.
+     show its output, then go to the sign-in loop. If `setup` is `-`, there is
+     nothing to run; go to the sign-in loop.
    - `state=auth` or `down`: the connection is already registered, so don't run
-     the add command again; go to the hand-off.
-   - Give the `handoff` step as the next thing for the engineer to do. When it is
-     a command that needs a secret or a browser sign-in, tell them to type it
-     themselves with the `!` prefix (or `/mcp` for an MCP sign-in) rather than
-     pasting the secret here.
-   - Run `connections.sh check <id>` and report the result. If it is still not
-     ok, say what is still needed and move on; don't loop on it.
+     the add command again; go to the sign-in loop.
+   - Then stay on this connection with the **sign-in loop** until it is
+     connected or the engineer stops. Never leave them at "the next step is yours".
 5. Go back to step 1.
+
+### Sign-in loop
+
+A running Claude Code session does not see MCP servers added after it started, so
+`/mcp` here shows nothing for a server just added: the sign-in has to happen in a
+new session. `connections.sh hint` says how; relay its steps in plain words and
+don't improvise them.
+
+1. Run `connections.sh hint <id>` and give the engineer its steps. If the
+   `handoff` step is a command that needs a secret or a browser sign-in, tell
+   them to type it themselves with the `!` prefix rather than pasting the secret here.
+2. Ask with AskUserQuestion: **I've signed in, check now**, **It isn't working,
+   help me**, **Stop for now**. (Other also means stop.)
+3. **Check now**: run `connections.sh check <id>`.
+   - `ok`: say it is connected and go back to the setup loop for the next one.
+   - `auth`: still not signed in. Say what usually causes it (the browser step
+     wasn't finished, the wrong workspace or account was chosen, or the server
+     didn't appear in `/mcp` in that session, so use the other route) and go to 1.
+   - `missing`: it isn't registered. Offer to run the pack's `setup` again; run
+     it only on a yes. Go to 1.
+   - `down`: run `claude mcp get <id>` and show it. If the URL looks wrong, ask
+     the engineer for the right one. Only on their explicit yes, run
+     `claude mcp remove <id>` with the scope `get` showed, then the corrected
+     `claude mcp add`. Go to 1.
+4. **Help**: run `claude mcp get <id>` and `claude mcp list`, explain in a line or
+   two what they show for this connection, then go to 1.
+5. **Stop**: say `/tt-connections setup` starts again at this connection, because
+   the state is checked afresh each run, and go to the final status.
 
 At the end run `connections.sh status` once and show it.
 
@@ -84,5 +109,6 @@ CLI, so it is Claude Code only.
   the engineer's own shell or browser.
 - Never edit `settings.json`, `.mcp.json` or `~/.claude.json` by hand; use the
   pack's `claude mcp add` command.
-- Run a pack's `setup` command only after the engineer's yes for that connection.
+- Run a pack's `setup` command, or `claude mcp remove`, only after the engineer's
+  yes for that connection.
 - Never touch git beyond what a pack's own `setup` command says; never commit.

@@ -11,6 +11,7 @@ usage() {
 usage: connections.sh status [dir]              the pack for dir's project and how each connection stands
        connections.sh next [dir] [--skip a,b]   the first connection still to set up, as key=value lines
        connections.sh check <id> [dir]          one connection's state (ok, missing, auth, down); exit 0 if ok
+       connections.sh hint <id> [dir]           what to do next to get one connection working; exit 0 if it already is
        connections.sh which [dir]               the pack that applies to dir's project
        connections.sh list                      installed packs and what they match
        connections.sh pack install <file|dir>   install a .pack file, or every .pack in a folder
@@ -218,6 +219,64 @@ check() {
 	return 2
 }
 
+# hint <id> [dir]: what the engineer does next to get one connection working, by
+# its state. A running Claude Code session does not see MCP servers added after
+# it started, so signing in happens in a second session; the steps say so.
+hint() {
+	local want=${1:-} dir id kind label chk setup nxt st
+	[ -n "$want" ] || { usage; exit 2; }
+	dir=$(need_dir "${2:-.}") || exit 2
+	need_pack "$dir" || return 3
+	prep "$pack"
+	while IFS=$'\t' read -r id kind label chk setup nxt; do
+		[ "$id" = "$want" ] || continue
+		st=$(state "$dir" "$kind" "$chk")
+		printf 'id=%s\nstate=%s\nlabel=%s\n' "$id" "$st" "$label"
+		case $kind:$st in
+		*:ok) echo "Connected. Nothing to do."; return 0 ;;
+		mcp:auth)
+			cat <<EOF
+$label is registered but not signed in. A session that was already running when
+the server was added does not list it in /mcp, which shows "No MCP servers
+configured". Sign in from a new session, by either route:
+Route A (this session stays open):
+  1. Open a second terminal (in the project folder, unless the server was added at user scope).
+  2. Run: claude
+  3. Type /mcp, choose "$chk", choose Authenticate, and finish in the browser.
+  4. Close that session and come back here.
+Route B (restart this session):
+  1. Type /exit here, then run: claude --continue
+  2. Type /mcp, choose "$chk", choose Authenticate, and finish in the browser.
+  3. Run /tt-connections setup again; it carries on from this connection.
+EOF
+			;;
+		mcp:down)
+			cat <<EOF
+$label is registered but not reachable. Likely causes: the URL is wrong, the
+network or a proxy is blocking it, or the service is down. Run
+"claude mcp get $chk" to see the URL and the error, and say if the URL is wrong.
+EOF
+			;;
+		mcp:*)
+			cat <<EOF
+$label is not registered here. The add command may not have run, or it went into
+another scope or folder (check with: claude mcp list). To add it:
+  ${setup}
+EOF
+			;;
+		*)
+			printf '%s is not working yet.\n' "$label"
+			[ "$setup" != "-" ] && printf 'To fix it, run:\n  %s\n' "$setup"
+			[ "$nxt" != "-" ] && printf 'Then: %s\n' "$nxt"
+			echo 'If a step needs a password, token or browser sign-in, type the command yourself in this prompt with the ! prefix.'
+			;;
+		esac
+		return 1
+	done < <(rows "$pack")
+	echo "connections.sh: no connection \"$want\" in $(pack_name "$pack")" >&2
+	return 2
+}
+
 which_pack() {
 	local dir pack
 	dir=$(need_dir "${1:-.}") || exit 2
@@ -303,6 +362,7 @@ case $cmd in
 status) status "$@" ;;
 next) next "$@" ;;
 check) check "$@" ;;
+hint) hint "$@" ;;
 which) which_pack "$@" ;;
 list) list ;;
 pack) pack_cmd "$@" ;;

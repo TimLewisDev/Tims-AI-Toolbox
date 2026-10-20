@@ -95,7 +95,8 @@ CLI logins, git settings.)
 1. **Understand.** Turn what they said into one row per connection: `id` (short,
    lower-case), `kind` (`mcp` or `cmd`), `label`, `check`, `setup`, `next step`.
    - `mcp`: `check` is the server name; `setup` is
-     `claude mcp add --transport http <name> <url>`; the next step is
+     `claude mcp add --scope user --transport http <name> <url>` (user scope, so
+     one sign-in works in every project); the next step is
      `Run /mcp and sign in`.
    - `cmd`: `check` is a shell command that exits 0 when it works (for example
      `git config user.email` or `<tool> auth status`); `setup` is the command that
