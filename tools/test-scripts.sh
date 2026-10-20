@@ -1007,3 +1007,71 @@ unset TT_EVENTS_HOME
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]
+echo "# ids.sh gloss, anchor, linkify"
+ID="$root/tools/fixtures/ids"; IDS="$S/ids.sh"
+mkdir -p "$T/idsv/.obsidian" "$T/idsm"
+cp "$ID"/*.md "$T/idsv/"; cp "$ID"/*.md "$T/idsm/"
+IP="$T/idsv/Ids - Comprehensive Tech Plan.md"; IC="$T/idsv/Ids - Challenges.md"; IR="$T/idsv/Ids - Tech Proposals.md"
+expect "gloss the plain items" 0 bash "$IDS" gloss "$IP" R1 R2 A1 S1 C1 CD1 NB1
+has "gloss R1 stops at the sentence" "$T/out" "R1	Settings are kept between runs"
+has "gloss R2 stops at the semicolon" "$T/out" "R2	The loader runs once at start, never twice"
+has "gloss drops the proposal cite" "$T/out" "A1	Store settings in one file per profile"
+has "gloss S1" "$T/out" "S1	Not a settings editor"
+has "gloss CD1 is the decision cell" "$T/out" "CD1	Where settings live"
+has "gloss NB1 is the item cell" "$T/out" "NB1	File name casing"
+expect "gloss a wrapped item and a removed one" 0 bash "$IDS" gloss "$IP" R3 R4 R5
+has "gloss keeps e.g. inside a sentence and cuts long text" "$T/out" "R3	The save path is e.g. the user data folder, whatever the platform calls it, and…"
+has "gloss marks a removed item" "$T/out" "R4	(removed) Loader retries"
+has "gloss strips links and bold from R5" "$T/out" "R5	The greeting is shown"
+expect "gloss an undefined ID" 1 bash "$IDS" gloss "$IP" R1 R9
+has "undefined ID prints a question mark" "$T/out" "R9	?"
+expect "gloss expands a range" 0 bash "$IDS" gloss "$IP" R1–R3
+has "range gives R2" "$T/out" "R2	The loader"
+expect "gloss with no ID" 2 bash "$IDS" gloss "$IP" nothing
+expect "gloss a Challenges heading beats its glance row" 0 bash "$IDS" gloss "$IC" CH1
+has "CH1 is its heading title" "$T/out" "CH1	Loader may run twice on resume"
+expect "gloss a proposal heading" 0 bash "$IDS" gloss "$IR" P1
+has "P1 is its question" "$T/out" "P1	Where should settings be stored?"
+expect "gloss --link in a vault" 0 bash "$IDS" gloss --link "$IP" R1 C1 CD1 §1
+has "link to a block id" "$T/out" "[[Ids - Comprehensive Tech Plan#^r1|R1]]"
+has "link to the section when there is no block id" "$T/out" "[[Ids - Comprehensive Tech Plan#Constraints|C1]]"
+has "link to the table's section" "$T/out" "#Resolved Critical Decisions|CD1]]"
+has "link to a step heading" "$T/out" "#§1. Settings store|§1]]"
+expect "gloss --link outside a vault" 0 bash "$IDS" gloss --link "$T/idsm/Ids - Comprehensive Tech Plan.md" R1
+has "relative Markdown link" "$T/out" "[R1](<Ids - Comprehensive Tech Plan.md#requirements>)"
+expect "defined gives the same words" 0 bash "$IDS" defined "$IP"
+has "defined excerpt is the gloss" "$T/out" "R1	8	Settings are kept between runs."
+expect "anchor reports what is missing" 1 bash "$IDS" anchor "$IP"
+has "missing block id" "$T/out" "MISSING	C1	27"
+has "different block id" "$T/out" "MISMATCH	C2	28	^c9"
+expect "anchor --fix leaves a mismatch" 1 bash "$IDS" anchor --fix "$IP"
+has "fixed the missing one" "$IP" "- **C1:** Saving takes under 50 ms on the reference device. ^c1"
+has "mismatch left alone" "$IP" "- **C2:** No new third-party packages. ^c9"
+has "wrapped item anchored on its last line" "$IP" "must exist before the first write is attempted by any caller. ^r3"
+cp "$IP" "$T/idsv/before.txt"
+bash "$IDS" anchor --fix "$IP" >/dev/null 2>&1; cmp -s "$IP" "$T/idsv/before.txt" && ok "anchor --fix again changes nothing" || bad "anchor --fix again changes nothing"
+printf 'x\r\n- **R1:** A thing.\r\n' >"$T/idsv/crlf.md"
+bash "$IDS" anchor --fix "$T/idsv/crlf.md" >/dev/null 2>&1
+[ "$(tr -cd '\015' <"$T/idsv/crlf.md" | wc -c)" = 2 ] && has "crlf file keeps its line end" "$T/idsv/crlf.md" "- **R1:** A thing. ^r1" || bad "crlf file keeps its line end"
+expect "linkify the challenges" 0 bash "$IDS" linkify --def "$IP" --def "$IR" "$IC"
+has "target linked" "$IC" "**Target:** [[Ids - Comprehensive Tech Plan#^r2|R2]]"
+has "step linked" "$IC" "[[Ids - Comprehensive Tech Plan#§1. Settings store|§1]]"
+has "table cell link has an escaped bar" "$IC" "[[Ids - Comprehensive Tech Plan#^c1\\|C1]]"
+has "range left bare" "$IC" "The loader (R1–R3) is assumed once"
+has "code left bare" "$IC" '`R9`'
+has "fence left bare" "$IC" "R1 stays in code"
+has "own heading left bare" "$IC" "### CH1 — Loader may run twice on resume"
+has "own glance row left bare" "$IC" "| CH1 | R2 | Accepted |"
+cp "$IC" "$T/idsv/before.txt"
+bash "$IDS" linkify --def "$IP" --def "$IR" "$IC" >/dev/null 2>&1; cmp -s "$IC" "$T/idsv/before.txt" && ok "linkify again changes nothing" || bad "linkify again changes nothing"
+expect "linkify proposals" 0 bash "$IDS" linkify --def "$IP" "$IR"
+has "decides line linked" "$IR" "**Decides:** [[Ids - Comprehensive Tech Plan#^a1|A1]], [[Ids - Comprehensive Tech Plan#Resolved Critical Decisions|CD1]]"
+expect "a linked document still cites the same IDs" 0 bash "$IDS" cited "$IR"
+has "linked cite A1 still seen" "$T/out" "A1	"
+has "linked cite CD1 still seen" "$T/out" "CD1	"
+expect "linkify needs a definition document" 2 bash "$IDS" linkify "$IC"
+expect "style inside a vault" 0 bash "$IDS" style "$IP"
+has "vault style" "$T/out" "obsidian"
+expect "style outside a vault" 0 bash "$IDS" style "$T/idsm/Ids - Comprehensive Tech Plan.md"
+has "plain folder style" "$T/out" "md"
+

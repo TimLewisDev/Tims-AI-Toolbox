@@ -108,7 +108,12 @@ rest), and in Update mode edit only the affected lines.
      decisions**;
    - nothing is stated that the comprehensive plan doesn't say;
    - it's within the length target.
-5. Report the path and the revision it mirrors.
+5. Link the cites, last, so the checks above ran on the plain text:
+   `bash "<common>/scripts/ids.sh" linkify --def "<comprehensive plan>" --def "<proposals>" "<tech plan>"`
+   (skip `--def "<proposals>"` if there is no Tech Proposals doc). Ranges stay
+   as written. Running it again changes nothing, so a regenerated or amended
+   Tech Plan can be linked the same way.
+6. Report the path and the revision it mirrors.
 
 ## Template
 

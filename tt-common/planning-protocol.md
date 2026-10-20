@@ -92,6 +92,28 @@ renumbered or reused.
 | `CH` | Challenges in the Challenges doc |
 | `§N` | Implementation Plan step N |
 
+**Saying what an ID means.** A bare `R12` tells the engineer nothing without
+the plan open, so:
+
+- **In chat**, write an ID as `R12 (settings are kept between runs)` the first
+  time it appears in a message, bare afterwards. The words come from
+  `ids.sh gloss "<doc>" R12 C16` (several IDs and ranges at once; it prints
+  `?` for an ID the document does not define). Never write them from memory.
+  Wiki-links do not render in chat; name the document by path if it helps.
+- **In documents**, `ids.sh linkify --def "<plan>" [--def …] "<doc>"` turns the
+  bare single-ID cites into links (run it on a document after writing it;
+  running it again changes nothing). Do not hand-write the links: a link
+  inside a table needs an escaped bar, which the script knows. Never run it on
+  the Comprehensive Plan or a Task Breakdown: their text is compared verbatim
+  (`donewhen.sh`, drift checks). It is for the Challenges, Tech Proposals and
+  Tech Plan documents.
+- **In the plan, in an Obsidian vault** (`ids.sh style "<plan>"` prints
+  `obsidian`), each `R`, `A`, `S` and `C` bullet ends with its ID in lowercase
+  as a block id, ` ^r12`, so a link can land on the bullet. A bullet that
+  wraps takes it on its last line. Write it with the bullet; `ids.sh anchor
+  "<plan>"` lists any bullet without one and `--fix` adds them (use that on a
+  plan written before block ids). Outside a vault write no block ids.
+
 **Sync.** The comprehensive plan carries a `Revision` number and a Change Log.
 The Tech Plan records which revision it mirrors (`Mirrors revision N`), and
 every line of it cites the IDs it summarises. `tt-tech-plan-review` relies on
@@ -121,7 +143,8 @@ soon as it's agreed. Keep the Status line's `Stage` and `Next`, and the Stages
 table, current as you go, so a resumed session knows where it was.
 
 **In chat, show only what changed**, in at most five lines, with the path:
-"Ledger: +R7, ~R3 (reworded) · <path>". Show a whole section only when the
+"Ledger: +R7 (the greeting is shown), ~R3 (reworded) · <path>". Gloss each ID as
+above. Show a whole section only when the
 engineer asks, one section per turn. Keep the Ledger in mind for contradiction
 checks; re-read the draft (`md-section.sh get`) rather than re-displaying it.
 
@@ -191,7 +214,8 @@ the engineer can change the session's model. Carry on either way.
 4. **Work** the stage's procedure, writing each agreed item as a small Edit and
    keeping `Next` current after every agreed item.
 5. **Stage exit.** When the stage's sections feel complete to you, show their
-   IDs (one line each, or the section on request) and ask the engineer to
+   IDs, one line each with the ID's words from `ids.sh gloss` (or the section
+   on request), and ask the engineer to
    confirm *this stage's* sections are complete. This is not the whole-plan
    sign-off, but the same rule applies: "looks fine" or silence isn't
    confirmation, and any hesitation is another answer.
@@ -306,9 +330,13 @@ conversation; the adversary never talks to the engineer.
    it from `tt-adversarial-plan/templates/challenges.md` the first time) with
    `assemble.sh append`, add its rows to the doc's **At a glance**, and link
    the section from the Stages table. `CH` numbers run across the whole doc:
-   the orchestrator gives the adversary the next free number.
+   the orchestrator gives the adversary the next free number. Then run
+   `ids.sh linkify --def "<plan>" --def "<proposals>" "<challenges>"` so the
+   targets and evidence cites link to what they name.
 2. **Blocking and significant challenges, one at a time.** State the challenge
-   in plain words, with its evidence. Give your honest take: concede it, or
+   in plain words, with its evidence, and say what the entry it targets says
+   (`ids.sh gloss "<plan>" <Target IDs>`; the adversary writes bare IDs because
+   it never sees the conversation). Give your honest take: concede it, or
    counter it with evidence (`path:line`, a Ledger quote). Then ask with
    `AskUserQuestion`: **Accept & change** · **Rebut** (the plan stands; record
    why) · **Defer** (to Future Iterations or Open Items).

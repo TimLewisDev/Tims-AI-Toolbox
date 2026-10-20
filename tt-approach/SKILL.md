@@ -86,8 +86,8 @@ is a contradiction: follow the protocol's Contradiction handling.
 
 ## Stage exit
 
-When the approach and its sub-choices are settled, show the `A` IDs, the
-Rejected Alternatives (one line each) and the proposals decided in this stage
+When the approach and its sub-choices are settled, show the `A` IDs (with the words from
+`ids.sh gloss`), the Rejected Alternatives (one line each) and the proposals decided in this stage
 with their statuses, and ask the engineer to confirm that the Approach is
 complete. No `Blocking decision` proposal from this stage may still be `Open`.
 Then hand over (Stage contract step 6).

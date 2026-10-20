@@ -100,6 +100,12 @@ Markdown link to the file that names the ID, e.g.
 `[P3](<Login Flow - Tech Proposals.md>)` (the angle brackets allow the spaces
 in the file name).
 
+**Linking what a proposal names.** The **Decides** line and the option text cite
+plan IDs (`A1`, `CD3`). After writing or changing proposals, run
+`bash "<common>/scripts/ids.sh" linkify --def "<plan>" "<doc>"` so those cites
+link to the plan entry. The script never links a `P` defined in this doc, and
+running it again changes nothing.
+
 ## Readability rules
 
 - **Lead with the question**, phrased as a question in plain words. Then the

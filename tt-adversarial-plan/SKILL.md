@@ -157,8 +157,9 @@ After each stage is `Closed`, take a **Break point**.
 
 After a stage closes:
 
-1. Summarise in at most five lines: what the stage settled (IDs), the
-   challenges by outcome, and what comes next.
+1. Summarise in at most five lines: what the stage settled (IDs, each with
+   its words from `ids.sh gloss`), the challenges by outcome (each `CH` with its
+   title), and what comes next.
 2. Give the resume command: `/tt-adversarial-plan resume <plan>`.
 3. Ask with `AskUserQuestion`: **Continue now** · **Continue in a new session**
    · **Stop here** (everything is on disk). Recommend a new session once this

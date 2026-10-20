@@ -146,7 +146,9 @@ change; never write those three by hand.
 
 Present the Work Units (ID, outcome, tasks, validated by, depends on) and the
 Task Map (ID, title, executor, dependencies, unit), plus any Critical Decisions
-and Plan Verification Notes. Point at `parts/10-work-units.md` and
+and Plan Verification Notes. Wherever you name a plan ID the task traces to,
+say what it says (`ids.sh gloss "<plan>" R1 C2 …`, per the planning protocol).
+Point at `parts/10-work-units.md` and
 `parts/20-task-map.md` rather than re-typing them. Show a step's tasks or a
 unit's checks in full only on request, one at a time. Iterate on splits,
 merges, grouping and ordering; edit the skeleton in place, then re-run step 7.

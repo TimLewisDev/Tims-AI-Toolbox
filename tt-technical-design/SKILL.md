@@ -102,6 +102,6 @@ the plan later.
 
 When the facts are in, every Critical Decision is resolved and the outline is
 written, show: the Repo Facts areas, the `CD` and `NB` IDs with their outcomes
-(one line each), and the outline's step titles. Ask the engineer to confirm
+(one line each, glossed with `ids.sh gloss`), and the outline's step titles. Ask the engineer to confirm
 that the Technical Design is complete. No `Blocking decision` proposal may
 still be `Open`. Then hand over (Stage contract step 6).

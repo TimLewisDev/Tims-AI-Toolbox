@@ -60,7 +60,7 @@ Before ending:
   glance**), and no blocking challenge is unresolved (check the Challenges
   doc's rows).
 - Present a sign-off summary: the count of entries in each Ledger section with
-  their IDs, every entry added or changed since the engineer last saw it (in
+  their IDs and the words from `ids.sh gloss`, every entry added or changed since the engineer last saw it (in
   full), the proposals with their statuses, the challenges by outcome
   (accepted, rebutted, deferred, dismissed), and the draft plan's path, where
   the whole Ledger can be read. Offer to show any section in full, one per

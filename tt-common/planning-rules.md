@@ -31,6 +31,16 @@ examples.
   must be recorded.
 - Every real alternative and its outcome is recorded in Tech Proposals.
 
+## Citing IDs
+
+- In chat, write a plan ID the first time it appears in a message as
+  `R12 (what it says)`, bare afterwards. Take the words from
+  `ids.sh gloss "<doc>" R12 C16`; never write them from memory. An ID it prints
+  `?` for is not defined: say so, do not guess.
+- In a document, `ids.sh linkify` makes the cites links; do not hand-write them.
+- In a vault, `R`, `A`, `S` and `C` bullets end with their lowercase ID as a
+  block id (` ^r12`); `ids.sh anchor` checks them. See `planning-protocol.md`.
+
 ## Safety
 
 - Do not write production code.

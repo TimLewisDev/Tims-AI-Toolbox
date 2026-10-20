@@ -95,7 +95,8 @@ agrees they are. Before asking (protocol, Stage contract step 5):
 - List any Familiarisation **Open questions** that no `R` answers. For each,
   the engineer chooses: answer it now, carry it to Scope & Constraints, or drop
   it (recorded in `fi-notes.md` if it's excluded work).
-- Show the requirement IDs with one line each, and ask for confirmation that
-  the Requirements are complete.
+- Show the requirement IDs with one line each (the words from `ids.sh gloss`,
+  per the planning protocol), and ask for confirmation that the Requirements
+  are complete.
 
 Then hand over (Stage contract step 6).

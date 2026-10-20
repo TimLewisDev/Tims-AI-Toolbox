@@ -44,6 +44,7 @@ Stages table is deleted.
 - **Ticket:** <issue key; omit this line if there isn't one>
 - **Base branch:** `<base>` · **Verified against:** `<base>` @ `<short sha>` on <YYYY-MM-DD>
 - **ID key:** `R` Requirements · `A` Chosen Approach · `S` Scope / Non-Goals · `C` Constraints · `CD` Resolved Critical Decisions · `NB` Non-Blocking Review Items · `P` Tech Proposals · `CH` Challenges · `§N` Implementation Plan step N
+- In an Obsidian vault, each `R`, `A`, `S` and `C` bullet ends with its lowercase ID as a block id (` ^r1`) so other documents can link to it; `ids.sh anchor` checks and adds them.
 
 **Context.** <What is being built, for whom, and why now. Links to parent docs,
 including the Familiarisation doc. What earlier material is, and is not, a
@@ -53,10 +54,10 @@ source of truth.>
 
 ## Requirements
 ### <short group heading>
-- **R1:** <agreed statement>
+- **R1:** <agreed statement> ^r1
 
 ## Chosen Approach
-- **A1:** <agreed statement> (P1)
+- **A1:** <agreed statement> (P1) ^a1
 
 **Implied consequences, agreed:** <if any>
 
@@ -68,12 +69,12 @@ source of truth.>
 **In scope:** <IDs, with a one-line summary>
 
 **Not in scope:**
-- **S1:** <statement>
+- **S1:** <statement> ^s1
   - Why: <reason>
 
 ## Constraints
 ### <short group heading>
-- **C1:** <statement>
+- **C1:** <statement> ^c1
 
 ## Repo Facts Verified
 Checked on `<base>` @ `<short sha>` on <YYYY-MM-DD>. Paths are relative to the repo root.

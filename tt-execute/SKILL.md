@@ -111,6 +111,11 @@ printed), plus:
 - the next action: the next task in the current unit, or the next unit (ID,
   outcome, plain-English summary, who validates it).
 
+Wherever you name a plan ID (a unit's or task's `Traces to`, a requirement a
+check proves), write it with its words the first time, from
+`ids.sh gloss "<plan>" R12 C16` in `<common>/scripts` (the plan path is in the
+breakdown's header). The engineer has not got the plan open.
+
 With `status`, stop here.
 
 ## 4. Choose the next work

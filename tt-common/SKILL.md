@@ -54,7 +54,7 @@ Support files for the `tt-*` skills. Nothing here runs on its own.
 | `check-planning-ids.sh` | Find planning IDs (task, unit, plan, decision IDs) in code or in a card's code blocks |
 | `assemble.sh` | Build a document from part files; report which parts are missing or incomplete; append or insert parts |
 | `md-section.sh` | Index a markdown doc's headings; print one section by heading |
-| `ids.sh` | List the IDs a plan defines or a doc cites; cross-check one against another |
+| `ids.sh` | List the IDs a plan defines or a doc cites; cross-check one against another; say in words what an ID means (`gloss`), link cites to what they name (`linkify`), keep block ids on plan bullets (`anchor`, `style`) |
 | `status-boards.sh` | Build a new Task Status's boards from a Task Breakdown's tables |
 | `status-counts.sh` | Recompute a Task Status's derived header fields from its boards; flag inconsistencies |
 | `status-set.sh` | Set a task's or unit's status; the unit, tasks, Step Log, header and Resume Here follow |

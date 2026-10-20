@@ -7,7 +7,7 @@
 Blocking Decision | Non-Blocking Review Item
 
 ### Tasks / Units Affected
-<IDs>
+<IDs, each with its words: plan IDs from `ids.sh gloss`, task and unit IDs from the breakdown>
 
 ### Problem
 Clear explanation, in the context of the repository and the plan.

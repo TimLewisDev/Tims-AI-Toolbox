@@ -57,7 +57,8 @@ everywhere it applies, and nothing else.
 - **Short turns, one question at a time.** Never dump a whole section or
   document into the chat.
 - **Plain words, with IDs in parentheses**: "the 5 s default (R17)". Quote the
-  exact line you're discussing.
+  exact line you're discussing. Where you can only name an ID, gloss it first
+  with `ids.sh gloss "<plan>" R17` (see the planning protocol).
 - **Offer detail; don't push it.** Lead with the Tech Plan's line. Bring in the
   comprehensive plan's detail behind it when the engineer asks, or when a change
   needs it.
