@@ -336,7 +336,7 @@ next, then answers questions about the toolbox.
   plan?". For the greeting and the next command with no model tokens at all,
   type `! bash "<tt-guide folder>/scripts/guide.sh"` in Claude Code.
 - **Scripted:** the greeting, the quip (from `tt-common/quips.txt`), the
-  "where things stand" check and the README sections it answers from all come
+  "where things stand" check and the catalogue sections it answers from all come
   from `tt-guide/scripts/guide.sh` (`hello`, `where [folder]`, `start`,
   `about <skill or topic>`). The model only holds the conversation.
 - **Connections:** `/tt-guide connections` (optionally followed by what you
