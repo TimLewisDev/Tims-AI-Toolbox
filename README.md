@@ -5,13 +5,31 @@ engineer keeps control: every consequential decision is theirs, every plan
 change is confirmed, and git is never touched. A separate skill reviews GitLab
 merge requests.
 
-The toolbox is a set of Claude Code plugins, split by discipline so each person
-installs only what they use. Each skill is a `SKILL.md` file in its own folder,
-written for Claude Code and usable with other agents that read the same format
-(Codex, GitHub Copilot). They are instructions and document templates, plus
-small bash scripts that do the routine copying and checking.
+Each skill is a `SKILL.md` file in its own folder, written for Claude Code and
+usable with other agents that read the same format (Codex, GitHub Copilot).
+They are instructions and document templates, plus small bash scripts that do
+the routine copying and checking. In Claude Code the toolbox is a set of
+plugins, split by discipline so each person installs only what they use.
 
-## Quick start (Claude Code)
+## Install
+
+Pick your client. Claude Code installs the toolbox as plugins. GitHub Copilot
+CLI and Codex CLI install it by linking the skill folders from a clone, and get
+every skill.
+
+| Client | How | Split by discipline |
+|---|---|---|
+| [Claude Code](#claude-code) | `/plugin install` from the marketplace | Yes: `core` plus the plugins you need |
+| [GitHub Copilot CLI](#github-copilot-cli) | clone, then run `link-copilot-codex` | No: all skills |
+| [Codex CLI](#codex-cli) | clone, then run `link-copilot-codex` | No: all skills |
+
+The skills are written for Claude Code. They call each other through the Skill
+tool, ask questions with `AskUserQuestion` and spawn subagents with the Agent
+tool, so another client needs equivalents or does that work itself (see
+[Requirements](#requirements)). All of them need bash and git; on Windows that
+is Git for Windows (Git Bash).
+
+### Claude Code
 
 1. **Add the marketplace**, in Claude Code:
 
@@ -29,16 +47,22 @@ small bash scripts that do the routine copying and checking.
    ```
 
 3. **Restart Claude Code** (or run `/reload-plugins`) and type `/tt-guide` to
-   meet Tatty, the toolbox's guide.
+   meet Tatty, the toolbox's guide. Each plugin's `SessionStart` hook runs at
+   session start, so a plugin installed mid-session isn't fully wired up until
+   then.
 
-Update from inside Claude Code with `/plugin marketplace update tims-ai-toolbox`
-and `/plugin update`, or turn on auto-update for the marketplace in `/plugin`.
+Plugin skills also answer to their full name, `/<plugin>:<skill>` (for example
+`/core:tt-guide` or `/engineering:tt-workflow`). Use it if a bare `/tt-guide`
+is ambiguous because another skill has the same name.
 
-## Which plugins to install
+Claude Code clones the marketplace with your own git credentials, so you need
+`git` access to this repository.
+
+**Which plugins to install**
 
 | You are | Install | What you get |
 |---|---|---|
-| An engineer | `core` + `engineering` | Everything below: explore, plan, break down, build, debug, review MRs. |
+| An engineer | `core` + `engineering` | Everything: explore, plan, break down, build, debug, review MRs. |
 | A designer | `core` + `design` | The shared base. `design` has no skills yet; it is the place to build them. |
 | A producer | `core` + `production` | The shared base. `production` has no skills yet; it is the place to build them. |
 | Anyone | `core` alone | Tatty (`tt-guide`), `tt-config` (models and effort), `tt-connections` (MCP servers and logins), `tt-metrics` (token log). |
@@ -47,18 +71,21 @@ You can install any combination. The plugins find each other through a pointer
 folder, `~/.claude/tt-plugins/`, that a `SessionStart` hook in each plugin keeps
 up to date, so `engineering` needs `core` installed and a restarted session.
 
-## The skills
+**Updating.** From inside Claude Code:
 
-The catalogue, how the skills fit together, the ideas behind them and a
-reference for each skill are in
-[`plugins/core/skills/tt-guide/toolbox.md`](plugins/core/skills/tt-guide/toolbox.md).
-Or ask Tatty: `/tt-guide about <skill or topic>`.
+```
+/plugin marketplace update tims-ai-toolbox
+/plugin update core@tims-ai-toolbox
+/plugin update engineering@tims-ai-toolbox
+```
 
-## Setting up a team
+then `/reload-plugins`, or turn on auto-update for the marketplace in `/plugin`.
+A plugin only updates when its `version` in `.claude-plugin/plugin.json` has
+been bumped.
 
-To have everyone offered the toolbox when they open a project, commit this to
-the project's `.claude/settings.json`; people then install the plugins they
-need with `/plugin install`:
+**Setting up a team.** To have everyone offered the toolbox when they open a
+project, commit this to the project's `.claude/settings.json`; people then
+install the plugins they need with `/plugin install`:
 
 ```json
 {
@@ -72,39 +99,72 @@ need with `/plugin install`:
 }
 ```
 
-## Coming from the old install
-
-Before the plugins, the skills were linked one by one into `~/.claude/skills`
-by `initial-setup`. Those links load every skill a second time next to the
-plugins, and the metrics hook in `settings.json` would log each session twice.
-After installing the plugins, ask Tatty to clean up:
+**Coming from the old install.** Before the plugins, the skills were linked one
+by one into `~/.claude/skills` by the old `initial-setup` script. Those links
+load every skill a second time next to the plugins, and the metrics hook in
+`settings.json` would log each session twice. After installing the plugins, ask
+Tatty to clean up. Use the full name, because the old `tt-guide` link doesn't
+know `migrate` and a bare `/tt-guide` may still reach it:
 
 ```
-/tt-guide migrate
+/core:tt-guide migrate
 ```
 
 It lists the old `tt-*` links and the old hook entry, and removes the links only
 after you say yes. Nothing else of yours is touched: connection packs, modes,
 feature links and the token log all live outside the skills and carry over.
 
-## GitHub Copilot CLI and Codex CLI
+### GitHub Copilot CLI
 
-Those clients have no plugin install from this repo yet, so they keep the
-older route: clone the repo and link the skills into their personal skill
-folders. Windows: double-click `link-copilot-codex.cmd`. macOS / Linux: run
-`./link-copilot-codex.sh`. It shows what it will pull and link, asks before
-changing anything, and is safe to run again; `/tt-guide update` does the same
-later. The skill folders are `plugins/*/skills/tt-*`, and the skills find
-`tt-common` in the folder they are linked into.
+Copilot CLI has no install from this repository yet, so it uses the skill
+folders directly. It reads personal skills from `~/.copilot/skills/<skill-name>/SKILL.md`
+and from `~/.agents/skills/<skill-name>/SKILL.md`; the link script fills both.
 
-The personal skill locations are:
+1. **Clone** this repo anywhere:
 
-- GitHub Copilot CLI: `~/.copilot/skills/<skill-name>/SKILL.md` or
-  `~/.agents/skills/<skill-name>/SKILL.md`
-- Codex CLI: `~/.agents/skills/<skill-name>/SKILL.md`
+   ```sh
+   git clone https://github.com/TimLewisDev/Tims-AI-Toolbox.git
+   ```
 
-These follow the [Copilot CLI skill documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills)
-and [Codex skill documentation](https://developers.openai.com/codex/skills).
+2. **Run the link script** from the clone's top folder:
+   - Windows: double-click `link-copilot-codex.cmd`.
+   - macOS / Linux: run `./link-copilot-codex.sh`.
+
+   It shows what it will pull and link, asks before changing anything, then
+   links every `plugins/*/skills/tt-*` folder into the two locations above
+   (directory junctions on Windows, no admin rights needed; symlinks elsewhere).
+   It is safe to run again.
+
+3. **Restart Copilot CLI.** The skills are then available as `tt-guide`,
+   `tt-workflow` and so on; ask for `tt-guide` to meet Tatty.
+
+To update, run the link script again: it pulls the latest and links any new
+skills. See the [Copilot CLI skill documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills).
+
+### Codex CLI
+
+Codex CLI reads personal skills from `~/.agents/skills/<skill-name>/SKILL.md`
+(the older `~/.codex/skills` isn't managed by the link script). The steps are
+the same as for Copilot CLI:
+
+1. Clone the repo (`git clone https://github.com/TimLewisDev/Tims-AI-Toolbox.git`).
+2. Run `link-copilot-codex.cmd` (Windows) or `./link-copilot-codex.sh`
+   (macOS / Linux) from the clone's top folder and say yes when it asks.
+3. Restart Codex CLI and ask for `tt-guide`.
+
+To update, run the link script again. See the [Codex skill documentation](https://developers.openai.com/codex/skills).
+
+Both scripts call `plugins/core/skills/tt-guide/scripts/guide.sh update` (`check`
+previews, `apply` makes the changes), so you can also run that by hand. In
+these two clients the skills find `tt-common` in the folder they are linked
+into; the plugin pointer folder isn't used.
+
+## The skills
+
+The catalogue, how the skills fit together, the ideas behind them and a
+reference for each skill are in
+[`plugins/core/skills/tt-guide/toolbox.md`](plugins/core/skills/tt-guide/toolbox.md).
+Or ask Tatty: `/tt-guide about <skill or topic>`.
 
 ## Requirements
 
@@ -125,8 +185,8 @@ and [Codex skill documentation](https://developers.openai.com/codex/skills).
   one the skill has nothing to check) and the `claude` CLI for MCP setup.
 - **For `tt-mr-review`:** GitLab, with `glab` or a GitLab MCP server. An
   issue-tracker integration is optional and used to read the linked issue.
-- **Optional, for the token log:** nothing to install; `/tt-metrics on` turns on
-  the `SessionEnd` hook that `core` already ships.
+- **Optional, for the token log (Claude Code):** nothing to install;
+  `/tt-metrics on` turns on the `SessionEnd` hook that `core` already ships.
 
 ## Working on the toolbox
 
@@ -143,6 +203,14 @@ Try your changes without installing anything, from the repo root:
 
 ```sh
 claude --plugin-dir plugins/core --plugin-dir plugins/engineering
+```
+
+Or install from your clone like anyone else would, so edits show up after
+`/reload-plugins`:
+
+```
+/plugin marketplace add <path to your clone>
+/plugin install engineering@tims-ai-toolbox
 ```
 
 Validate the manifests with `claude plugin validate .` (and each `plugins/*`).
@@ -164,7 +232,8 @@ Rules for skills that live in different plugins:
 execute and status scripts against the fixtures in `tools/fixtures/`
 (`demo/`: a plan, a breakdown and a Task Status; `demo-draft/`: a skeleton;
 `lite/`: a Lite Brief and a Debug Log) in
-a throwaway git repo, including a CRLF copy, and checks the plugin layout:
+a throwaway git repo, including a CRLF copy, and checks the plugin layout and
+the linked-into-one-folder install used by Copilot CLI and Codex CLI:
 
 ```sh
 bash tools/test-scripts.sh

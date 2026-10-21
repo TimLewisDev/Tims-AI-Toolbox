@@ -328,6 +328,19 @@ has "core-only guide names the missing plugin" "$T/hello" "engineering, which is
 TT_PLUGINS_HOME="$T/no-pointers" expect "core-only about an engineering skill" 0 bash "$core/tt-guide/scripts/guide.sh" about tt-execute
 has "core-only about says how to get it" "$T/out" "isn't installed here"
 
+# skills linked into one folder (the Copilot CLI and Codex CLI install) find each
+# other and tt-common with no pointer folder at all
+FL="$T/flat-skills"; mkdir -p "$FL" "$T/flat-work"
+for d in "$root"/plugins/*/skills/tt-*/; do MSYS=winsymlinks:nativestrict ln -s "${d%/}" "$FL/$(basename "$d")"; done
+(cd "$T/flat-work" && TT_PLUGINS_HOME="$T/no-pointers" TT_WORKFLOW_HOME="$T/flat-wf" bash "$FL/tt-workflow-lite/scripts/lite.sh" start) >"$T/flat-lite" 2>&1
+hasnt "flat: lite.sh finds workflow.sh and tt-common" "$T/flat-lite" "not found"
+(cd "$T/flat-work" && TT_PLUGINS_HOME="$T/no-pointers" TT_WORKFLOW_HOME="$T/flat-wf" bash "$FL/tt-workflow/scripts/workflow.sh" start) >"$T/flat-wf.out" 2>&1
+hasnt "flat: workflow.sh finds tt-common" "$T/flat-wf.out" "not found"
+(cd "$T/flat-work" && TT_PLUGINS_HOME="$T/no-pointers" bash "$FL/tt-guide/scripts/guide.sh" hello) >"$T/flat-hello" 2>&1
+hasnt "flat: the guide sees the engineering skills" "$T/flat-hello" "isn't installed"
+TT_PLUGINS_HOME="$T/no-pointers" expect "flat: handoff.sh finds its template" 2 bash "$FL/tt-common/scripts/handoff.sh" "$T/load-bd.md" "$T/load-status.md" T99 --run "$T/run" --base-sha abc123
+hasnt "flat: handoff.sh found the template" "$T/out" "is tt-engineering installed"
+
 # every skill folder's SKILL.md names itself
 badname=""
 for f in "$root"/plugins/*/skills/tt-*/SKILL.md; do

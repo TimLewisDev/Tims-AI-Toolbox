@@ -28,7 +28,11 @@ _tt_add() {
 }
 _tt_add "$(readlink -f "$_tt_src/../.." 2>/dev/null || (cd -P "$_tt_src/../.." && pwd -P))"
 _tt_add "$(cd "$_tt_src/../.." 2>/dev/null && pwd)"
-unset _tt_src
+# The script that sourced this one, by the path it was started with: when it
+# resolved its own folder to the real one, this still has the linked folder.
+_tt_caller=$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)
+[ -d "$_tt_caller/tt-common" ] && _tt_add "$_tt_caller"
+unset _tt_src _tt_caller
 
 # tt_find <skill folder name>: print the folder, or return 1 if it isn't installed
 tt_find() {

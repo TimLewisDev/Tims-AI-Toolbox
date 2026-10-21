@@ -6,7 +6,10 @@
 # lite task here, not tt-adversarial-plan.
 set -u
 here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
-wf="$(dirname "$(dirname "$here")")/tt-workflow/scripts/workflow.sh"
+# Start workflow.sh by the path this script was started with when the skills are
+# linked into one folder, so it can find tt-common beside it; else by the real path.
+wf="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)/tt-workflow/scripts/workflow.sh"
+[ -f "$wf" ] || wf="$(dirname "$(dirname "$here")")/tt-workflow/scripts/workflow.sh"
 [ -f "$wf" ] || { echo "lite.sh: tt-workflow is not installed beside tt-workflow-lite ($wf)" >&2; exit 2; }
 export TT_WORKFLOW_LINKS=lite-links.tsv
 out=$(bash "$wf" "$@"); rc=$?
