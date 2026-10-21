@@ -41,9 +41,9 @@ done
 here=$(cd "$(dirname "$0")" && pwd)
 common=$(cd "$here/.." && { pwd -W 2>/dev/null || pwd; })
 . "$here/tt-path.sh"
-tpl="$(tt_find tt-execute)/templates/handoff.md"
-result_tpl="$(tt_find tt-coder)/templates/result.md"
-result_tpl=$(cd "$(dirname "$result_tpl")" 2>/dev/null && { pwd -W 2>/dev/null || pwd; })/result.md
+tpl="$(tt_find tt-execute || true)/templates/handoff.md"
+result_tpl="$(tt_find tt-coder || true)/templates/result.md"
+[ -f "$result_tpl" ] && result_tpl=$(cd "$(dirname "$result_tpl")" && { pwd -W 2>/dev/null || pwd; })/result.md
 [ -f "$tpl" ] || die "no handoff template (is engineering installed?): $tpl"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

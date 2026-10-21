@@ -339,7 +339,13 @@ hasnt "flat: workflow.sh finds tt-common" "$T/flat-wf.out" "not found"
 (cd "$T/flat-work" && TT_PLUGINS_HOME="$T/no-pointers" bash "$FL/tt-guide/scripts/guide.sh" hello) >"$T/flat-hello" 2>&1
 hasnt "flat: the guide sees the engineering skills" "$T/flat-hello" "isn't installed"
 TT_PLUGINS_HOME="$T/no-pointers" expect "flat: handoff.sh finds its template" 2 bash "$FL/tt-common/scripts/handoff.sh" "$T/load-bd.md" "$T/load-status.md" T99 --run "$T/run" --base-sha abc123
-hasnt "flat: handoff.sh found the template" "$T/out" "is tt-engineering installed"
+hasnt "flat: handoff.sh found the template" "$T/out" "is engineering installed"
+# without engineering, the scripts that read its templates say so instead of dying quietly
+CL="$T/core-links"; mkdir -p "$CL"; MSYS=winsymlinks:nativestrict ln -s "$core/tt-common" "$CL/tt-common"
+TT_PLUGINS_HOME="$T/no-pointers" expect "no engineering: handoff.sh says so" 2 bash "$CL/tt-common/scripts/handoff.sh" "$T/load-bd.md" "$T/load-status.md" T01 --run "$T/run" --base-sha abc123
+has "no engineering: handoff.sh names the plugin" "$T/out" "is engineering installed"
+TT_PLUGINS_HOME="$T/no-pointers" expect "no engineering: fix-card.sh says so" 2 bash "$CL/tt-common/scripts/fix-card.sh" "$T/load-bd.md" WU1 --check 2
+has "no engineering: fix-card.sh names the plugin" "$T/out" "is engineering installed"
 
 # every skill folder's SKILL.md names itself
 badname=""

@@ -43,7 +43,7 @@ case "$ex" in Agent | Engineer) ;; *) die "executor must be Agent or Engineer" ;
 [ -f "$bd" ] || die "no such file: $bd"
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/tt-path.sh"
-tpl="$(tt_find tt-task-breakdown)/templates/task-card.md"
+tpl="$(tt_find tt-task-breakdown || true)/templates/task-card.md"
 [ -f "$tpl" ] || die "no task-card template (is engineering installed?): $tpl"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
