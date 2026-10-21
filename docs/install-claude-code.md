@@ -59,7 +59,22 @@ date, so `engineering` needs `core` installed and a restarted session.
 
 ## Updating
 
-From inside Claude Code:
+Third-party marketplaces don't auto-update by default. Turn it on once and the
+plugins keep themselves current:
+
+```
+/tt-guide update
+```
+
+Tatty reports whether auto-update is on and, after you say yes, adds
+`"autoUpdate": true` to the `tims-ai-toolbox` entry in your user
+`settings.json`. The same switch is in `/plugin`, under **Marketplaces**, then
+`tims-ai-toolbox`. It applies from the next session. After that, Claude Code
+refreshes the marketplace once your first message of a session is sent (after a
+delay of up to ten minutes) and updates the plugins whose `version` was bumped.
+A running session keeps its old copy until you run `/reload-plugins`.
+
+To update right now instead:
 
 ```
 /plugin marketplace update tims-ai-toolbox
@@ -67,9 +82,8 @@ From inside Claude Code:
 /plugin update engineering@tims-ai-toolbox
 ```
 
-then `/reload-plugins`, or turn on auto-update for the marketplace in `/plugin`.
-A plugin only updates when its `version` in `.claude-plugin/plugin.json` has
-been bumped.
+then `/reload-plugins`. A plugin only updates when its `version` in
+`.claude-plugin/plugin.json` has been bumped.
 
 ## Setting up a team
 

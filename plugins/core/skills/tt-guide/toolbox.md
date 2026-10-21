@@ -345,10 +345,15 @@ next, then answers questions about the toolbox.
   `guide.sh pack save` write a machine-wide [connection
   pack](#tt-connections-set-up-a-projects-connections) for you. She never sets
   anything up; `/tt-connections setup` does.
+- **Updates:** `/tt-guide update` says whether the toolbox plugins auto-update
+  and, on your yes, turns it on by adding `"autoUpdate": true` to the
+  `tims-ai-toolbox` entry in your `settings.json`. It also lists how to update
+  right now. `/tt-guide migrate` removes the old `~/.claude/skills` links.
 - **Won't:** run other skills (the one exception is `tt-connections`, offered
-  after `init` and started only on your yes), edit documents, or touch git. The
-  only file she writes besides the project cache is the connection pack, after
-  you confirm it.
+  after `init` and started only on your yes), edit documents, or touch git.
+  Besides the project cache, the only things she changes are the connection pack
+  and the auto-update switch in `settings.json`, and the old skill links that
+  `migrate` removes, each after you confirm it.
 
 ### [`tt-connections`](../tt-connections/SKILL.md): set up a project's connections
 

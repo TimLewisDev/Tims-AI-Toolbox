@@ -35,15 +35,36 @@ If the argument is `update`, run the check script:
 bash "<skill folder>/scripts/guide.sh" update check
 ```
 
-The toolbox is installed as Claude Code plugins, and Claude Code updates those
-itself: pass on the `/plugin marketplace update` and `/plugin update` lines the
-script prints, and say plugin changes apply after `/reload-plugins` or a
-restart. If the script mentions old skill links, offer **Migrate** below.
+The toolbox is installed as Claude Code plugins, and `update` means keeping
+them current by turning on **auto-update** for the toolbox marketplace. Read the
+`Auto-update:` line in the output:
+
+- **`on`:** say so in one line. Claude Code refreshes the marketplace after the
+  first message of a session (after a delay of up to ten minutes) and updates
+  the plugins whose `version` was bumped; a running session keeps its old copy
+  until `/reload-plugins`. Nothing to change. If they want it right now, give
+  the three "update right now" commands the script printed.
+- **`off` or `unset`:** ask "Turn on auto-update for the toolbox plugins?" and
+  wait for an explicit yes. On yes, add `"autoUpdate": true` to the
+  `tims-ai-toolbox` entry under `extraKnownMarketplaces` in
+  `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) with Edit,
+  changing nothing else; if the entry already has `"autoUpdate": false`, change
+  that value. Stop and ask if the file isn't valid JSON. Tell them it applies
+  from the next Claude Code session, and that the same switch is in `/plugin`
+  under **Marketplaces**, then **tims-ai-toolbox**. Offer the "update right now"
+  commands for this session. If they say no, confirm nothing was changed.
+- **`absent`:** the marketplace isn't declared in their user settings, so don't
+  edit anything; point them to the `/plugin` switch above.
+
+Auto-update only moves a plugin when its `version` changes, which the toolbox
+bumps on each release.
+
+If the script mentions old skill links, offer **Migrate** below.
 
 If the output also has a "Clone for Copilot CLI and Codex CLI" part, the
-toolbox is cloned and linked into those clients. Tell the user what will
-happen: how many commits will be pulled (list them), and which links are
-missing or broken. Keep it brief and concrete.
+toolbox is cloned and linked into those clients, and that part is not covered by
+auto-update. Tell the user what will happen: how many commits will be pulled
+(list them), and which links are missing or broken. Keep it brief and concrete.
 Ask: "Happy for me to go ahead?" — wait for an explicit yes before continuing.
 If they say no, confirm nothing was changed and stop.
 
@@ -56,7 +77,8 @@ bash "<skill folder>/scripts/guide.sh" update apply
 Show the output. Then offer: "Want a quick overview of what changed?" If yes,
 briefly summarise the commit messages in a sentence or two — no deep detail.
 
-**Never run `apply` without the user's explicit confirmation.**
+**Never run `apply` without the user's explicit confirmation, and never edit
+`settings.json` without their yes.**
 
 ## Migrate
 

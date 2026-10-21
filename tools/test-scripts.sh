@@ -420,6 +420,25 @@ has "update checks Copilot skills" "$T/update-check" "Link check ($H/.copilot/sk
 has "update checks Codex skills" "$T/update-check" "Link check ($H/.agents/skills):"
 has "update reports a broken link" "$T/update-check" "BROKEN    tt-alpha"
 has "update points at migrate" "$T/update-check" "guide.sh migrate"
+has "update reports auto-update absent" "$T/update-check" "Auto-update: absent"
+# auto-update state, read from settings.json and the runtime registry
+au() { env -u CLAUDE_CONFIG_DIR HOME="$H" TT_PLUGINS_HOME="$H/tt-plugins" bash "$UG" update check 2>&1 | sed -n 's/^Auto-update: //p'; }
+printf '{\n  "extraKnownMarketplaces": {\n    "tims-ai-toolbox": {\n      "source": { "source": "github", "repo": "x/y" }\n    }\n  }\n}\n' >"$H/.claude/settings.json"
+[ "$(au)" = unset ] && ok "auto-update unset when the entry has no key" || bad "auto-update unset when the entry has no key" "$(au)"
+printf '{"extraKnownMarketplaces":{"other":{"autoUpdate":true},"tims-ai-toolbox":{"source":{"a":1}}}}' >"$H/.claude/settings.json"
+[ "$(au)" = unset ] && ok "another marketplace's auto-update is not ours" || bad "another marketplace's auto-update is not ours" "$(au)"
+printf '{"extraKnownMarketplaces":{"tims-ai-toolbox":{"source":{"a":1},"autoUpdate":false}}}\r\n' >"$H/.claude/settings.json"
+[ "$(au)" = off ] && ok "auto-update off" || bad "auto-update off" "$(au)"
+printf '{\r\n  "extraKnownMarketplaces": {\r\n    "tims-ai-toolbox": { "source": { "a": 1 }, "autoUpdate": true }\r\n  }\r\n}\r\n' >"$H/.claude/settings.json"
+[ "$(au)" = on ] && ok "auto-update on (CRLF settings)" || bad "auto-update on (CRLF settings)" "$(au)"
+printf '{"enabledPlugins":{"core@tims-ai-toolbox":true}}' >"$H/.claude/settings.json"
+[ "$(au)" = absent ] && ok "an enabled plugin alone is not the marketplace" || bad "an enabled plugin alone is not the marketplace" "$(au)"
+mkdir -p "$H/.claude/plugins"; printf '{"tims-ai-toolbox":{"source":{"a":1},"autoUpdate":true}}' >"$H/.claude/plugins/known_marketplaces.json"
+[ "$(au)" = on ] && ok "auto-update on in the runtime registry" || bad "auto-update on in the runtime registry" "$(au)"
+rm -rf "$H/.claude/plugins" "$H/.claude/settings.json"
+H2="$T/copilot-only-home"; mkdir -p "$H2"
+env -u CLAUDE_CONFIG_DIR HOME="$H2" bash "$UG" update check >"$T/update-co" 2>&1
+hasnt "no Claude Code block without a Claude folder" "$T/update-co" "Auto-update"
 expect "update applies Copilot and Codex locations" 0 env -u CLAUDE_CONFIG_DIR HOME="$H" TT_PLUGINS_HOME="$H/tt-plugins" bash "$UG" update apply
 [ "$(cd "$H/.copilot/skills/tt-beta" && pwd -P)" = "$(cd "$U/plugins/engineering/skills/tt-beta" && pwd -P)" ] && ok "update links an engineering skill for Copilot" || bad "update links an engineering skill for Copilot"
 [ "$(cd "$H/.copilot/skills/tt-alpha" && pwd -P)" = "$(cd "$U/plugins/core/skills/tt-alpha" && pwd -P)" ] && ok "update repairs Copilot link" || bad "update repairs Copilot link"

@@ -21,7 +21,7 @@ usage: guide.sh [hello]                    the greeting, then "where ."
        guide.sh pack list                  the installed connection packs and what they match
        guide.sh pack save <name> [--replace]
                                            save the pack text on stdin as <name>.pack (exit 4: it exists)
-       guide.sh update [check|apply]       how to update the plugins; for a clone linked into Copilot CLI or
+       guide.sh update [check|apply]       whether the Claude Code plugins auto-update; for a clone linked into Copilot CLI or
                                            Codex CLI, pull and fix missing links (check previews, apply changes)
        guide.sh migrate [check|apply]      old ~/.claude/skills/tt-* links (from before the plugins) and an old
                                            metrics hook entry; check lists them, apply removes the links
@@ -185,6 +185,44 @@ legacy_hook() {
 	[ -f "$s" ] && grep -n 'record-session\.sh' "$s" | head -1
 }
 
+# marketplace_autoupdate <json file>: the toolbox marketplace's "autoUpdate" in
+# that file: on, off, unset (the entry has no such key) or absent (no entry).
+# Claude Code keeps it in the marketplace entry of settings.json
+# (extraKnownMarketplaces) and in plugins/known_marketplaces.json. Reads the
+# entry's braces to find its end; fine for the plain objects these files hold.
+marketplace_autoupdate() {
+	[ -s "$1" ] || { echo absent; return; }
+	tr -d '\r\n' <"$1" | awk '
+		{
+			k = index($0, "\"tims-ai-toolbox\"")
+			if (!k) { print "absent"; exit }
+			s = substr($0, k + 17); o = index(s, "{")
+			if (!o) { print "absent"; exit }
+			depth = 0; body = ""
+			for (i = o; i <= length(s); i++) {
+				c = substr(s, i, 1)
+				if (c == "{") depth++
+				if (c == "}") { depth--; if (depth == 0) break }
+				body = body c
+			}
+			if (body ~ /"autoUpdate"[ \t]*:[ \t]*true/) print "on"
+			else if (body ~ /"autoUpdate"[ \t]*:[ \t]*false/) print "off"
+			else print "unset"
+		}'
+}
+
+# autoupdate_state: on if either file says on, else off if either says off,
+# else unset if the marketplace is known, else absent
+autoupdate_state() {
+	local cfg=${CLAUDE_CONFIG_DIR:-$HOME/.claude} a b
+	a=$(marketplace_autoupdate "$cfg/settings.json")
+	b=$(marketplace_autoupdate "$cfg/plugins/known_marketplaces.json")
+	for s in on off unset; do
+		if [ "$a" = "$s" ] || [ "$b" = "$s" ]; then echo "$s"; return; fi
+	done
+	echo absent
+}
+
 migrate() {
 	local mode=${1:-check} kind path n=0 removed=0 hook
 	case $mode in
@@ -330,14 +368,24 @@ update() {
 		;;
 	esac
 
-	printf '=== Claude Code ===\n'
-	printf 'The plugins are updated from inside Claude Code, not by this script:\n'
-	printf '  /plugin marketplace update tims-ai-toolbox\n'
-	printf '  /plugin update core@tims-ai-toolbox       (and engineering@tims-ai-toolbox, ...)\n'
-	printf '  /reload-plugins\n'
-	if [ -n "$(legacy_links)" ]; then
-		printf '\nOld skill links from before the plugins are still in ~/.claude/skills.\n'
-		printf 'Run: guide.sh migrate\n'
+	if [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ]; then
+		printf '=== Claude Code ===\n'
+		printf 'Auto-update: %s\n' "$(autoupdate_state)"
+		case $(autoupdate_state) in
+		on) printf 'Claude Code refreshes the toolbox marketplace after your first message of a session and updates\n'
+			printf 'the plugins whose version was bumped. A running session keeps the old copy until /reload-plugins.\n' ;;
+		absent) printf 'The toolbox marketplace is not declared in your user settings (added for a project, or not added).\n'
+			printf 'Turn auto-update on in /plugin: Marketplaces, tims-ai-toolbox, Enable auto-update.\n' ;;
+		*) printf 'Off or unset: the plugins only change when you update them yourself.\n' ;;
+		esac
+		printf 'To update right now:\n'
+		printf '  /plugin marketplace update tims-ai-toolbox\n'
+		printf '  /plugin update core@tims-ai-toolbox       (and engineering@tims-ai-toolbox, ...)\n'
+		printf '  /reload-plugins\n'
+		if [ -n "$(legacy_links)" ]; then
+			printf '\nOld skill links from before the plugins are still in ~/.claude/skills.\n'
+			printf 'Run: guide.sh migrate\n'
+		fi
 	fi
 
 	[ -n "$repo" ] || return 0
