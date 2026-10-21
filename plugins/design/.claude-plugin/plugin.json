@@ -1,0 +1,9 @@
+{
+  "name": "design",
+  "displayName": "TT Design",
+  "version": "0.1.0",
+  "description": "Placeholder for the design discipline's skills.",
+  "author": { "name": "Tim Lewis" },
+  "license": "MIT",
+  "dependencies": ["core"]
+}

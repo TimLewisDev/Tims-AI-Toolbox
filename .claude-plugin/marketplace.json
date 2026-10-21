@@ -1,0 +1,29 @@
+{
+  "name": "tims-ai-toolbox",
+  "owner": { "name": "Tim Lewis" },
+  "metadata": {
+    "description": "Skills for planning and building a feature with an AI coding agent while the engineer keeps control, split by discipline."
+  },
+  "plugins": [
+    {
+      "name": "core",
+      "source": "./plugins/core",
+      "description": "The shared base every discipline installs: Tatty the guide, model and effort modes, connection setup, token metrics, and the shared rules, templates and scripts the other plugins use."
+    },
+    {
+      "name": "engineering",
+      "source": "./plugins/engineering",
+      "description": "Plan, build, debug and review code with the engineer in control: familiarise, adversarial planning, task breakdown, execute, lite route, debug and MR review. Needs core."
+    },
+    {
+      "name": "design",
+      "source": "./plugins/design",
+      "description": "Placeholder for the design discipline's skills. Needs core."
+    },
+    {
+      "name": "production",
+      "source": "./plugins/production",
+      "description": "Placeholder for the production discipline's skills. Needs core."
+    }
+  ]
+}

@@ -11,7 +11,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# Personal token log written by tools/metrics/record-session.sh
+# Personal token log, from before it moved to ~/.claude/tt-metrics/
 tools/metrics/token-log.md
 
 # IDE and editor settings

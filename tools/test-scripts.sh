@@ -5,12 +5,19 @@
 set -u
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-S="$root/tt-common/scripts"
+core="$root/plugins/core/skills"; eng="$root/plugins/engineering/skills"
+S="$core/tt-common/scripts"
 F="$root/tools/fixtures/demo"
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 # Keep the tests' stage-completion events out of the real ledger.
 export TT_EVENTS_HOME="$T/events"
+# Register the plugins the way their SessionStart hooks do, in a pointer folder of
+# our own: skills in one plugin reach tt-common and each other through it.
+export TT_PLUGINS_HOME="$T/tt-plugins"
+for p in core engineering design production; do
+	CLAUDE_PLUGIN_ROOT="$root/plugins/$p" bash "$root/plugins/$p/hooks/register.sh" "$p"
+done
 pass=0; fail=0
 
 ok() { pass=$((pass + 1)); echo "ok    $1"; }
@@ -283,8 +290,66 @@ expect "set on a CRLF document" 0 bash "$S/status-set.sh" "$T/crlf.md" T01 "In P
 [ "$(grep -c $'\r$' "$T/crlf.md")" = "$(wc -l <"$T/crlf.md" | tr -d ' ')" ] && ok "CRLF kept on every line" || bad "CRLF kept on every line"
 ls -a "$T" | grep -q '^\.status-' && bad "temp files left behind" || ok "no temp files left behind"
 
+echo "# plugin layout, register.sh, tt-path.sh"
+# Registering into a fresh pointer folder (the global one was filled at the top).
+RH="$T/reg-home"
+for p in core engineering design production; do
+	TT_PLUGINS_HOME="$RH" CLAUDE_PLUGIN_ROOT="$root/plugins/$p" expect "register.sh $p" 0 bash "$root/plugins/$p/hooks/register.sh" "$p"
+	[ "$(readlink -f "$RH/$p")" = "$(readlink -f "$root/plugins/$p")" ] && ok "pointer $p reaches the plugin" || bad "pointer $p reaches the plugin" "$(readlink -f "$RH/$p")"
+	cmp -s "$root/plugins/core/hooks/register.sh" "$root/plugins/$p/hooks/register.sh" && ok "register.sh in $p matches core" || bad "register.sh in $p matches core"
+	grep -q "register.sh.. $p\"" "$root/plugins/$p/hooks/hooks.json" && ok "hooks.json of $p registers itself" || bad "hooks.json of $p registers itself"
+	grep -q "\"name\": \"$p\"" "$root/plugins/$p/.claude-plugin/plugin.json" && ok "plugin.json names $p" || bad "plugin.json names $p"
+	grep -q "\"source\": \"./plugins/$p\"" "$root/.claude-plugin/marketplace.json" && ok "marketplace lists $p" || bad "marketplace lists $p"
+done
+# a second run changes nothing; a pointer to somewhere else is replaced
+mkdir "$T/elsewhere"
+TT_PLUGINS_HOME="$RH" CLAUDE_PLUGIN_ROOT="$root/plugins/core" expect "register.sh twice" 0 bash "$root/plugins/core/hooks/register.sh" core
+cmd //c rmdir "$(cygpath -w "$RH/design")" >/dev/null 2>&1 || rm -f "$RH/design"
+MSYS=winsymlinks:nativestrict ln -s "$T/elsewhere" "$RH/design"
+TT_PLUGINS_HOME="$RH" CLAUDE_PLUGIN_ROOT="$root/plugins/design" bash "$root/plugins/design/hooks/register.sh" design
+[ "$(readlink -f "$RH/design")" = "$(readlink -f "$root/plugins/design")" ] && ok "register.sh replaces a stale pointer" || bad "register.sh replaces a stale pointer"
+[ -d "$T/elsewhere" ] && ok "register.sh leaves the old target alone" || bad "register.sh leaves the old target alone"
+TT_PLUGINS_HOME="$RH" expect "register.sh with no name" 0 bash "$root/plugins/core/hooks/register.sh"
+
+TP=$(bash -c ". '$S/tt-path.sh'; tt_find tt-workflow")
+[ "$(readlink -f "$TP")" = "$(readlink -f "$eng/tt-workflow")" ] && ok "tt_find reaches another plugin through the pointer" || bad "tt_find reaches another plugin through the pointer" "$TP"
+TP=$(bash -c ". '$S/tt-path.sh'; tt_find tt-common")
+[ "$(readlink -f "$TP")" = "$(readlink -f "$S/..")" ] && ok "tt_find finds a sibling first" || bad "tt_find finds a sibling first" "$TP"
+bash -c ". '$S/tt-path.sh'; tt_find tt-nothing" >/dev/null && bad "tt_find says no for a missing skill" || ok "tt_find says no for a missing skill"
+bash -c ". '$S/tt-path.sh'; tt_skills" >"$T/skills"
+has "tt_skills lists core" "$T/skills" "tt-guide"
+has "tt_skills lists engineering" "$T/skills" "tt-execute"
+[ "$(sort "$T/skills" | uniq -d | wc -l | tr -d ' ')" = 0 ] && ok "tt_skills lists each skill once" || bad "tt_skills lists each skill once"
+
+# core works without engineering: its guide says where the rest comes from
+mkdir "$T/core-only"
+(cd "$T/core-only" && TT_PLUGINS_HOME="$T/no-pointers" bash "$core/tt-guide/scripts/guide.sh" hello) >"$T/hello" 2>&1
+has "core-only guide names the missing plugin" "$T/hello" "engineering, which isn't installed"
+TT_PLUGINS_HOME="$T/no-pointers" expect "core-only about an engineering skill" 0 bash "$core/tt-guide/scripts/guide.sh" about tt-execute
+has "core-only about says how to get it" "$T/out" "isn't installed here"
+
+# every skill folder's SKILL.md names itself
+badname=""
+for f in "$root"/plugins/*/skills/tt-*/SKILL.md; do
+	d=$(basename "$(dirname "$f")")
+	[ "$(sed -n 's/^name: *//p' "$f" | head -1 | tr -d '\r')" = "$d" ] || badname="$badname $d"
+done
+[ -z "$badname" ] && ok "every SKILL.md name matches its folder" || bad "every SKILL.md name matches its folder" "$badname"
+# a skill in one plugin never reaches the shared folder by ".." (plugins are installed apart);
+# the linked-into-one-folder fallback is allowed where the text says so
+unrel=""
+for f in $(find "$root/plugins/engineering" "$root/plugins/design" "$root/plugins/production" -name '*.md'); do
+	# lines joined, so a sentence wrapped after the path still counts
+	bare=$(tr '\n' ' ' <"$f" | grep -oE '\.\./tt-common.{0,90}' | grep -v 'one folder' || true)
+	[ -z "$bare" ] || unrel="$unrel$f: $bare"$'\n'
+done
+[ -z "$unrel" ] && ok "no engineering text reaches tt-common by .." || bad "no engineering text reaches tt-common by .." "$unrel"
+# core never depends on a file in an engineering skill by path
+deps=$(grep -rnE '(\.\./|/)tt-(workflow|workflow-lite|familiarise|familiarisation-doc|adversarial-plan|requirements|scope|approach|technical-design|plan-signoff|tech-proposals|tech-plan|tech-plan-review|task-breakdown|task-status|execute|execute-lite|coder|lite-brief|debug|debug-doc|mr-review)/' "$root/plugins/core" --include=*.sh --include=*.tsv --include=*.txt || true)
+[ -z "$deps" ] && ok "core scripts don't name engineering folders" || bad "core scripts don't name engineering folders" "$deps"
+
 echo "# guide.sh"
-GD="$root/tt-guide/scripts/guide.sh"
+GD="$core/tt-guide/scripts/guide.sh"
 bash "$GD" quip >"$T/quip"
 [ "$(wc -l <"$T/quip" | tr -d ' ')" = 1 ] && ! grep -q '^#' "$T/quip" && ok "one quip, not a comment" || bad "one quip, not a comment" "$(cat "$T/quip")"
 bash "$GD" start >"$T/start"
@@ -312,26 +377,50 @@ bash "$GD" where "$G/empty" >"$T/where"
 has "empty folder" "$T/where" "No tt documents in"
 expect "no such folder" 2 bash "$GD" where "$G/missing"
 
-# update checks and repairs each supported personal skill location without
-# fetching the real toolbox repository.
-U="$T/update-toolbox"; mkdir -p "$U/tt-guide/scripts" "$U/tt-alpha" "$U/tt-beta"
-cp "$GD" "$U/tt-guide/scripts/guide.sh"
+# update and migrate, against a fake toolbox clone and a fake home, without
+# fetching the real toolbox repository. Claude Code's plugins are updated by
+# Claude Code itself, so update only prints how and links Copilot CLI and Codex
+# CLI; migrate removes the old ~/.claude/skills links.
+U="$T/update-toolbox"
+mkdir -p "$U/plugins/core/skills/tt-guide/scripts" "$U/plugins/core/skills/tt-common/scripts" \
+	"$U/plugins/core/skills/tt-alpha" "$U/plugins/engineering/skills/tt-beta"
+cp "$GD" "$U/plugins/core/skills/tt-guide/scripts/guide.sh"
+cp "$S/tt-path.sh" "$U/plugins/core/skills/tt-common/scripts/tt-path.sh"
+printf '| [`tt-beta`](x) | The engineering skill |\n| [`tt-alpha`](x) | A core skill |\n' >"$U/plugins/core/skills/tt-guide/toolbox.md"
 git init -q "$U"
+UG="$U/plugins/core/skills/tt-guide/scripts/guide.sh"
 H="$T/update-home"; mkdir -p "$H/.claude/skills" "$H/.copilot/skills"
 mkdir "$T/not-alpha"; MSYS=winsymlinks:nativestrict ln -s "$T/not-alpha" "$H/.copilot/skills/tt-alpha"; rmdir "$T/not-alpha"
-HOME="$H" bash "$U/tt-guide/scripts/guide.sh" update check >"$T/update-check" 2>&1
-has "update checks Claude skills" "$T/update-check" "Symlink check ($H/.claude/skills):"
-has "update checks Copilot skills" "$T/update-check" "Symlink check ($H/.copilot/skills):"
-has "update checks Codex skills" "$T/update-check" "Symlink check ($H/.agents/skills):"
+# An old Claude Code link (from before the plugins) to an engineering skill, and a real folder.
+MSYS=winsymlinks:nativestrict ln -s "$U/plugins/engineering/skills/tt-beta" "$H/.claude/skills/tt-beta"
+mkdir "$H/.claude/skills/tt-guide"
+env -u CLAUDE_CONFIG_DIR HOME="$H" TT_PLUGINS_HOME="$H/tt-plugins" bash "$UG" update check >"$T/update-check" 2>&1
+has "update says how Claude Code updates" "$T/update-check" "/plugin marketplace update tims-ai-toolbox"
+hasnt "update does not link Claude Code" "$T/update-check" "Link check ($H/.claude/skills)"
+has "update checks Copilot skills" "$T/update-check" "Link check ($H/.copilot/skills):"
+has "update checks Codex skills" "$T/update-check" "Link check ($H/.agents/skills):"
 has "update reports a broken link" "$T/update-check" "BROKEN    tt-alpha"
-expect "update applies all skill locations" 0 env HOME="$H" bash "$U/tt-guide/scripts/guide.sh" update apply
-[ "$(cd "$H/.claude/skills/tt-beta" && pwd -P)" = "$(cd "$U/tt-beta" && pwd -P)" ] && ok "update creates Claude link" || bad "update creates Claude link"
-[ "$(cd "$H/.copilot/skills/tt-alpha" && pwd -P)" = "$(cd "$U/tt-alpha" && pwd -P)" ] && ok "update repairs Copilot link" || bad "update repairs Copilot link"
-[ "$(cd "$H/.agents/skills/tt-guide" && pwd -P)" = "$(cd "$U/tt-guide" && pwd -P)" ] && ok "update creates Codex link" || bad "update creates Codex link"
-
+has "update points at migrate" "$T/update-check" "guide.sh migrate"
+expect "update applies Copilot and Codex locations" 0 env -u CLAUDE_CONFIG_DIR HOME="$H" TT_PLUGINS_HOME="$H/tt-plugins" bash "$UG" update apply
+[ "$(cd "$H/.copilot/skills/tt-beta" && pwd -P)" = "$(cd "$U/plugins/engineering/skills/tt-beta" && pwd -P)" ] && ok "update links an engineering skill for Copilot" || bad "update links an engineering skill for Copilot"
+[ "$(cd "$H/.copilot/skills/tt-alpha" && pwd -P)" = "$(cd "$U/plugins/core/skills/tt-alpha" && pwd -P)" ] && ok "update repairs Copilot link" || bad "update repairs Copilot link"
+[ "$(cd "$H/.agents/skills/tt-guide" && pwd -P)" = "$(cd "$U/plugins/core/skills/tt-guide" && pwd -P)" ] && ok "update creates Codex link" || bad "update creates Codex link"
+[ ! -e "$H/.claude/skills/tt-alpha" ] && ok "update leaves ~/.claude/skills alone" || bad "update leaves ~/.claude/skills alone"
+env -u CLAUDE_CONFIG_DIR HOME="$H" TT_PLUGINS_HOME="$H/tt-plugins" bash "$UG" migrate check >"$T/migrate" 2>&1
+has "migrate check lists an old link" "$T/migrate" "LINK      $H/.claude/skills/tt-beta"
+has "migrate check keeps a real folder" "$T/migrate" "KEEP      $H/.claude/skills/tt-guide"
+[ -L "$H/.claude/skills/tt-beta" ] || [ -d "$H/.claude/skills/tt-beta" ] && ok "migrate check removes nothing" || bad "migrate check removes nothing"
+printf '{ "hooks": { "SessionEnd": [ { "hooks": [ { "type": "command", "command": "bash old/record-session.sh" } ] } ] } }\n' >"$H/.claude/settings.json"
+env -u CLAUDE_CONFIG_DIR HOME="$H" TT_PLUGINS_HOME="$H/tt-plugins" bash "$UG" migrate apply >"$T/migrate" 2>&1
+has "migrate apply removes the link" "$T/migrate" "Removed   $H/.claude/skills/tt-beta"
+has "migrate reports the old metrics hook" "$T/migrate" "record-session.sh"
+[ ! -e "$H/.claude/skills/tt-beta" ] && [ ! -L "$H/.claude/skills/tt-beta" ] && ok "the old link is gone" || bad "the old link is gone"
+[ -d "$U/plugins/engineering/skills/tt-beta" ] && ok "migrate leaves the link's target alone" || bad "migrate leaves the link's target alone"
+[ -d "$H/.claude/skills/tt-guide" ] && ok "migrate leaves a real folder alone" || bad "migrate leaves a real folder alone"
+expect "migrate unknown mode" 2 bash "$GD" migrate nope
 
 echo "# connections.sh"
-CS="$root/tt-connections/scripts/connections.sh"
+CS="$core/tt-connections/scripts/connections.sh"
 CF="$root/tools/fixtures/connections"
 # The packs, links and `claude mcp list` all stay inside the temp folder.
 CN() { TT_CONNECTIONS_HOME="$T/connhome" TT_CLAUDE_BIN="$CF/fake-claude.sh" FAKE_CLAUDE_LIST="$T/mcplist" FAKE_CLAUDE_CALLS="$T/mcpcalls" bash "$CS" "$@"; }
@@ -447,7 +536,7 @@ has "guide pack list shows it" "$T/out" "viaguide"
 expect "guide pack: unknown mode" 2 CNG pack nope
 
 echo "# workflow-state.sh"
-WS="$root/tt-common/scripts/workflow-state.sh"
+WS="$core/tt-common/scripts/workflow-state.sh"
 bash "$WS" --tsv "$G" >"$T/rows"
 has "building row" "$T/rows" "Demo	primary	building	tt-execute		$G/Demo - Task Status.md	"
 has "planning row" "$T/rows" "Draft	primary	planning	tt-adversarial-plan	resume	$G/Draft - Comprehensive Tech Plan.md	"
@@ -478,7 +567,7 @@ expect "bad folder is exit 2" 2 bash "$WS" "$G/missing"
 expect "no folder is exit 2" 2 bash "$WS"
 
 echo "# tatty.sh"
-TY="$root/tt-common/scripts/tatty.sh"
+TY="$core/tt-common/scripts/tatty.sh"
 bash "$TY" quip >"$T/quip"
 [ "$(wc -l <"$T/quip" | tr -d ' ')" = 1 ] && ! grep -q '^#' "$T/quip" && ok "one quip, not a comment" || bad "one quip, not a comment" "$(cat "$T/quip")"
 TT_GUIDE_ASCII=1 bash "$TY" banner >"$T/banner"
@@ -491,7 +580,7 @@ has "celebrate has confetti" "$T/celebrate" "* . *"
 grep -q '[^ -~]' "$T/celebrate" && bad "ASCII celebrate has no box characters" || ok "ASCII celebrate has no box characters"
 
 echo "# workflow.sh"
-WF="$root/tt-workflow/scripts/workflow.sh"
+WF="$eng/tt-workflow/scripts/workflow.sh"
 export TT_WORKFLOW_HOME="$T/wfhome"
 mkdir -p "$T/wf proj/feature a" "$T/other"
 (cd "$T/wf proj" && git init -q)
@@ -532,7 +621,7 @@ has "stale link message" "$T/out" "linked folder is missing"
 expect "unlink" 0 wf unlink
 expect "unlink again" 1 wf unlink
 echo "# lite.sh (its own link)"
-LITE="$root/tt-workflow-lite/scripts/lite.sh"
+LITE="$eng/tt-workflow-lite/scripts/lite.sh"
 lw() { (cd "$T/wf proj" && bash "$LITE" "$@"); }
 expect "lite: nothing linked, whatever tt-workflow links" 1 lw state
 wf link "$T/wf proj/feature a" >/dev/null
@@ -902,11 +991,11 @@ has "bedrock warning" "$T/out" "warning: this looks like Bedrock"
 CLAUDE_CODE_USE_BEDROCK=1 ANTHROPIC_DEFAULT_OPUS_MODEL=x HOME="$T/nohome" expect "status with the alias set" 0 MC status
 hasnt "no warning when set" "$T/out" "warning"
 # every role is wired into a skill, and every wired role exists
-roles=$(awk -F'\t' '$1 !~ /^#/ && $2 == "sub" { print $1 }' "$root/tt-common/model-roles.tsv")
-used=$(grep -rhoE 'model-config\.sh get [a-z][a-z-]*' "$root"/tt-*/ --include=*.md | awk '{ print $3 }' | sort -u)
+roles=$(awk -F'\t' '$1 !~ /^#/ && $2 == "sub" { print $1 }' "$core/tt-common/model-roles.tsv")
+used=$(grep -rhoE 'model-config\.sh get [a-z][a-z-]*' "$root"/plugins/*/skills/tt-*/ --include=*.md | awk '{ print $3 }' | sort -u)
 for r in $roles; do printf '%s\n' "$used" | grep -qx "$r" && ok "role $r is used by a skill" || bad "role $r is used by a skill" "no 'model-config.sh get $r' in any skill"; done
 for r in $used; do printf '%s\n' "$roles" | grep -qx "$r" && ok "skill role $r is registered" || bad "skill role $r is registered"; done
-hardcoded=$(grep -rln 'model: sonnet' "$root"/tt-*/ --include=*.md || true)
+hardcoded=$(grep -rln 'model: sonnet' "$root"/plugins/*/skills/tt-*/ --include=*.md || true)
 [ -z "$hardcoded" ] && ok "no skill hard-codes a model" || bad "no skill hard-codes a model" "$hardcoded"
 unset TT_CONFIG_DIR
 
@@ -1014,14 +1103,11 @@ has "root cause confirmed" "$LG" '"event":"debug.root_cause_confirmed"'
 has "debug route" "$LG" '"route":"debug"'
 # workflow.sh state reconciles, and still prints the same state
 export TT_EVENTS_HOME="$T/ev-wf"; LG="$TT_EVENTS_HOME/events.jsonl"
-TT_WORKFLOW_HOME="$T/wfhome" expect "workflow.sh state" 0 bash "$root/tt-workflow/scripts/workflow.sh" state "$T/evset"
+TT_WORKFLOW_HOME="$T/wfhome" expect "workflow.sh state" 0 bash "$WF" state "$T/evset"
 has "state still prints" "$T/out" "built and validated"
 has "state reconciled the ledger" "$LG" '"event":"build.complete"'
 unset TT_EVENTS_HOME
 
-echo
-echo "$pass passed, $fail failed"
-[ "$fail" = 0 ]
 echo "# ids.sh gloss, anchor, linkify"
 ID="$root/tools/fixtures/ids"; IDS="$S/ids.sh"
 mkdir -p "$T/idsv/.obsidian" "$T/idsm"
@@ -1090,3 +1176,6 @@ has "vault style" "$T/out" "obsidian"
 expect "style outside a vault" 0 bash "$IDS" style "$T/idsm/Ids - Comprehensive Tech Plan.md"
 has "plain folder style" "$T/out" "md"
 
+echo
+echo "$pass passed, $fail failed"
+[ "$fail" = 0 ]

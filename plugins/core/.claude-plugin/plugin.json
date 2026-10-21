@@ -1,0 +1,8 @@
+{
+  "name": "core",
+  "displayName": "TT Core",
+  "version": "0.1.0",
+  "description": "The shared base every discipline installs: Tatty the guide, model and effort modes, connection setup, token metrics, and the shared rules, templates and scripts the other plugins use.",
+  "author": { "name": "Tim Lewis" },
+  "license": "MIT"
+}
