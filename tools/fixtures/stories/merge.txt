@@ -1,0 +1,10 @@
+title: Pick up items
+group: Inventory
+origin: Merge of US-01, US-02
+source: § Pickup
+as: player
+want: to pick up items I walk over
+so_that: I keep what I find
+criteria:
+  - Given a free slot, when I walk over an item, then it goes in my bag
+  - Given a full bag, when I walk over an item, then it stays where it is

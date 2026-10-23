@@ -1,0 +1,8 @@
+title: Grab items from the floor
+group: Inventory
+source: § Pickup
+as: player
+want: to grab items from the floor
+so_that: I keep what I find
+criteria:
+  - Given a free slot, when I touch an item, then it goes in my bag

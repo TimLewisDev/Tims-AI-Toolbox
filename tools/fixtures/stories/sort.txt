@@ -1,0 +1,14 @@
+title: Sort the bag
+group: Inventory
+origin: Suggested
+source: § Sorting
+as: artist
+want: to sort my bag | by rarity
+so_that: I find the best items first
+details:
+  Suggested: the design names sorting but not the default order.
+  ```
+  rarity: common < rare
+  ```
+criteria:
+  - Given a mixed bag, when I sort by rarity, then the rarest come first

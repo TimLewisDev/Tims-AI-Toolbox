@@ -1237,6 +1237,138 @@ mkdir -p "$T/idse"
 expect "index an empty folder" 1 bash "$IDS" index "$T/idse"
 expect "index needs a folder" 2 bash "$IDS" index "$T/idse/none"
 
+echo "# stories.sh"
+US="$root/plugins/design/skills/tt-user-stories/scripts/stories.sh"
+SF="$root/tools/fixtures/stories"
+SD="$T/stories"; mkdir -p "$SD"; cp "$SF/Bag - Design.md" "$SD/"
+DOC="$SD/Bag - User Stories.md"
+bash "$US" init "$SF/Bag - Design.md" "$SD/stdin.md" >/dev/null
+us() { bash "$US" "$@"; }
+expect "init" 0 us init "$SD/Bag - Design.md" "$DOC"
+has "init: title from the prefix" "$DOC" "# Bag - User Stories"
+has "init: wiki link to a design doc beside it" "$DOC" "- **Source:** [[Bag - Design]]"
+has "init: Drafting" "$DOC" "- **Status:** Drafting "
+expect "init refuses an existing document" 2 us init "$SD/Bag - Design.md" "$DOC"
+expect "group add" 0 us group add "$DOC" Inventory "Carrying | holding"
+has "a pipe in a cell is escaped" "$DOC" "| Inventory | Carrying \| holding |"
+expect "group add: a case-insensitive duplicate" 1 us group add "$DOC" inventory
+expect "group add: no pipes in names" 1 us group add "$DOC" "a|b"
+expect "group add: Ungrouped is not a group" 1 us group add "$DOC" Ungrouped
+expect "add" 0 us add "$DOC" "$SF/pickup.txt"
+has "add prints the ID" "$T/out" "US-01"
+expect "add a second, proposed" 0 us add "$DOC" "$SF/grab.txt" --proposed
+has "next ID" "$T/out" "US-02"
+# the rendered story is the template, filled
+sed -n '/^```$/,/^```$/p' "$root/plugins/design/skills/tt-user-stories/templates/story.md" | sed '1d;$d' |
+	sed -e 's/<id>/US-01/; s/<title>/Pick up an item/; s/<group>/Inventory/; s/<status>/Accepted/; s/<origin>/Design doc/' \
+		-e '/<altered>/d; s/<source>/§ Pickup/; s/<article>/a/; s/<as>/player/; s/<want>/to pick up items I walk over/; s/<so_that>/I can use them later/' \
+		-e 's/<details>/Walking over an item puts it in the bag.\n\nThe design doesn'"'"'t say how many slots there are./' \
+		-e 's/<criteria>/- Given a free slot, when I walk over an item, then it goes in my bag\n- Given a full bag, when I walk over an item, then it stays where it is/' >"$T/us01.want"
+awk '/^### US-01:/ { p = 1 } /^### US-02:/ { exit } p' "$DOC" | awk '{ l[NR] = $0 } END { n = NR; while (n > 0 && l[n] == "") n--; for (i = 1; i <= n; i++) print l[i] }' >"$T/us01.got"
+cmp -s "$T/us01.want" "$T/us01.got" && ok "the story is the template, filled" || bad "the story is the template, filled" "$(diff "$T/us01.want" "$T/us01.got" | head -5)"
+has "group name follows the Groups table's case" "$DOC" "- **Group:** Inventory"
+has "proposed" "$DOC" "- **Status:** Proposed"
+expect "add: an article in the spec is kept" 0 us add "$DOC" "$SF/sort.txt" --proposed
+has "an artist" "$DOC" "**As an** artist, **I want** to sort my bag | by rarity"
+has "a balanced fence in the details is kept" "$DOC" "rarity: common < rare"
+expect "check a written document" 0 us check "$DOC"
+# refused specs
+printf 'title: X\nas: p\nwant: w\nso_that: s\ndetails:\n  # a heading\ncriteria:\n  - c\n' >"$T/s1"
+expect "spec: a details line starting with #" 1 us add "$DOC" "$T/s1"
+printf 'title: X\nas: p\nwant: w\nso_that: s\ndetails:\n  ```\ncriteria:\n  - c\n' >"$T/s2"
+expect "spec: an unclosed fence" 1 us add "$DOC" "$T/s2"
+printf 'title: X\nas: p\nwant: w\nso_that: s\ndetails:\n  - **Status:** Accepted\ncriteria:\n  - c\n' >"$T/s3"
+expect "spec: a details line like a field" 1 us add "$DOC" "$T/s3"
+printf 'title: X\nas: p\nwant: **w**\nso_that: s\ncriteria:\n  - c\n' >"$T/s4"
+expect "spec: ** in the story line" 1 us add "$DOC" "$T/s4"
+printf 'title: X\nas: p\nwant: w\nso_that: s\ncriteria:\n' >"$T/s5"
+expect "spec: no criteria" 1 us add "$DOC" "$T/s5"
+printf 'title: X\n' >"$T/s6"
+expect "add: required fields" 1 us add "$DOC" "$T/s6"; has "names them" "$T/out" "needs: as want so_that criteria"
+printf 'title: X\nas: p\nwant: w\nso_that: s\ngroup: Nope\ncriteria:\n  - c\n' >"$T/s7"
+expect "add: an unknown group" 1 us add "$DOC" "$T/s7"
+printf 'title: X\ncolour: red\n' >"$T/s8"
+expect "spec: an unknown key" 1 us add "$DOC" "$T/s8"
+hasnt "nothing refused was written" "$DOC" "### US-04"
+printf 'title: From stdin
+as: p
+want: w
+so_that: s
+criteria:
+  - c
+' >"$T/stdin.spec"
+expect "a spec on stdin" 0 bash -c 'bash "$1" add "$2" - --proposed <"$3"' _ "$US" "$SD/stdin.md" "$T/stdin.spec"
+has "the stdin spec was written" "$SD/stdin.md" "### US-01: From stdin"
+# hashes and edits
+h=$(us show "$DOC" US-02 --tsv | awk -F'\t' '{ print $NF }')
+printf 'title: Grab items\n' >"$T/e1"
+expect "edit with a stale hash" 3 us edit "$DOC" US-02 "$T/e1" --if 12345
+expect "edit with the current hash" 0 us edit "$DOC" US-02 "$T/e1" --altered --if "$h"
+has "edit changed the title" "$DOC" "### US-02: Grab items"
+has "an alteration is counted" "$DOC" "- **Altered:** 1"
+has "the rest of the story is kept" "$DOC" "**I want** to grab items from the floor"
+expect "set a title" 0 us set "$DOC" US-02 title "Grab items off the floor"
+has "set" "$DOC" "### US-02: Grab items off the floor"
+expect "set refuses a newline" 1 us set "$DOC" US-02 title $'a\nb'
+# merges, accept, reject
+expect "add a merge" 0 us add "$DOC" "$SF/merge.txt" --proposed
+has "merge ID" "$T/out" "US-04"
+printf 'title: X\norigin: Merge of US-01, US-99\nas: p\nwant: w\nso_that: s\ncriteria:\n  - c\n' >"$T/s9"
+expect "add: a merge of a story that isn't there" 1 us add "$DOC" "$T/s9"
+expect "accept the merge" 0 us accept "$DOC" US-04
+has "merged stories are retired" "$DOC" "| US-01 | Pick up an item | Merged into US-04 |"
+has "both of them" "$DOC" "| US-02 | Grab items off the floor | Merged into US-04 |"
+hasnt "and gone from Stories" "$DOC" "### US-01:"
+expect "accept a retired story" 1 us accept "$DOC" US-01
+has "says it is retired" "$T/out" "US-01 is retired (Merged into US-04)"
+expect "reject" 0 us reject "$DOC" US-03 "Out | of scope"
+has "rejected stories are retired" "$DOC" "| US-03 | Sort the bag | Rejected: Out \| of scope |"
+expect "an accepted merge is still valid" 0 us check "$DOC"
+expect "IDs are never reused" 0 us add "$DOC" "$SF/grab.txt"
+has "next after the retired" "$T/out" "US-05"
+# groups
+expect "group rename" 0 us group rename "$DOC" Inventory Bag
+has "rename moves the stories" "$DOC" "- **Group:** Bag"
+hasnt "no story keeps the old name" "$DOC" "- **Group:** Inventory"
+expect "group add" 0 us group add "$DOC" Combat
+expect "set a group (any case)" 0 us set "$DOC" US-05 group combat
+has "set group" "$DOC" "- **Group:** Combat"
+expect "group remove --to" 0 us group remove "$DOC" Combat --to Bag
+hasnt "the group is gone" "$DOC" "| Combat |"
+hasnt "its stories moved" "$DOC" "- **Group:** Combat"
+expect "group remove to Ungrouped" 0 us group remove "$DOC" Bag
+has "stories go to Ungrouped" "$DOC" "- **Group:** Ungrouped"
+expect "status" 0 us status "$DOC" Ready
+has "status line" "$DOC" "- **Status:** Ready "
+# list --tsv
+expect "list" 0 us list "$DOC" --tsv
+has "list: next ID" "$T/out" "meta	next	US-06"
+has "list: escaped newlines" "$T/out" "it stays where it is	"
+grep -q $'^retired\tUS-03\tSort the bag\tRejected: Out | of scope$' "$T/out" && ok "list: retired rows unescaped" || bad "list: retired rows unescaped"
+# US-03 vs US-030
+cp "$DOC" "$SD/many.md"
+printf 'title: More\nas: p\nwant: w\nso_that: s\ncriteria:\n  - c\n' >"$T/more"
+for _ in $(seq 1 26); do bash "$US" add "$SD/many.md" "$T/more" >/dev/null; done
+expect "show US-30" 0 us show "$SD/many.md" US-30 --tsv
+expect "US-030 is not US-03 or US-30" 1 us show "$SD/many.md" US-030 --tsv
+# CRLF and hand edits
+sed 's/$/\r/' "$DOC" >"$SD/crlf.md"
+expect "write a CRLF document" 0 us status "$SD/crlf.md" Updated
+[ "$(tr -dc '\r' <"$SD/crlf.md" | wc -c | tr -d ' ')" = "$(wc -l <"$SD/crlf.md" | tr -d ' ')" ] && ok "CRLF kept on every line" || bad "CRLF kept on every line"
+expect "check a CRLF document" 0 us check "$SD/crlf.md"
+sed 's/^- \*\*Status:\*\* Accepted/- **Status:** Maybe/' "$DOC" >"$SD/broken.md"
+expect "check a hand-broken story" 1 us check "$SD/broken.md"; has "names the problem" "$T/out" "Status is Accepted or Proposed"
+expect "a write refuses a document with problems" 1 us set "$SD/broken.md" US-04 title Z
+awk '/^- \*\*Origin:\*\*/ && !d { o = $0; d = 1; next } /^- \*\*Source:\*\*/ && o != "" { print; print o; o = ""; next } { print }' "$DOC" >"$SD/order.md"
+expect "check: a field out of order" 1 us check "$SD/order.md"; has "says tidy" "$T/out" "stories.sh tidy"
+expect "tidy" 0 us tidy "$SD/order.md"
+expect "tidy lays it out again" 0 us check "$SD/order.md"
+{ cat "$DOC"; printf '\n## Notes\n\nKeep this.\n'; } >"$SD/notes.md"
+expect "a section of its own is fine" 0 us check "$SD/notes.md"
+expect "write with a section of its own" 0 us status "$SD/notes.md" Ready
+has "the section is kept" "$SD/notes.md" "Keep this."
+ls -a "$SD" | grep -qE '^\..*(lock|[0-9]+)$' && bad "no lock or temp files left" || ok "no lock or temp files left"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -16,7 +16,8 @@
 .claude-plugin/marketplace.json     the marketplace: lists the four plugins
 plugins/core/                       core: tt-guide, tt-config, tt-connections, tt-metrics, tt-common
 plugins/engineering/                engineering: the planning, build, debug and review skills
-plugins/design/, plugins/production/   placeholders, ready for skills
+plugins/design/                     design: tt-user-stories
+plugins/production/                 a placeholder, ready for skills
 link-copilot-codex.*                links the skills into Copilot CLI and Codex CLI
 tools/                              the script tests and their fixtures (not shipped)
 docs/                               these pages, patch notes and the script-workflow summary

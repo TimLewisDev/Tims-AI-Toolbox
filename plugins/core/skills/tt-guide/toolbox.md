@@ -5,10 +5,10 @@ and the ideas behind them. `tt-guide` reads this file to answer "how do I…",
 so keep its headings; the install and update steps are in the repository's
 top-level `README.md`.
 
-Skills come in two plugins today: **core** (`tt-guide`, `tt-config`,
-`tt-connections`, `tt-metrics`, and the shared `tt-common`) and
-**engineering** (everything else). Core is needed by every discipline;
-engineering skills need it to run.
+Skills come in three plugins today: **core** (`tt-guide`, `tt-config`,
+`tt-connections`, `tt-metrics`, and the shared `tt-common`), **design**
+(`tt-user-stories`) and **engineering** (everything else). Core is needed by
+every discipline; the design and engineering skills need it to run.
 
 ## The skills
 
@@ -37,6 +37,7 @@ engineering skills need it to run.
 | [`tt-debug`](../../../engineering/skills/tt-debug/SKILL.md) | A pair-programming debugging companion: you drive, it navigates, hunting the root cause. |
 | [`tt-debug-doc`](../../../engineering/skills/tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
 | [`tt-mr-review`](../../../engineering/skills/tt-mr-review/SKILL.md) | Reviews a GitLab merge request and posts only the comments you approve. |
+| [`tt-user-stories`](../../../design/skills/tt-user-stories/SKILL.md) | Design: turns a design document into grouped user stories, proposes merges and missed stories for you to accept, reject or alter, and writes every story from one template by script. |
 | [`tt-config`](../tt-config/SKILL.md) | Chooses the model and thinking effort for each stage, ranked by where a stronger model pays off, and saves the choices as modes you can swap. |
 | [`tt-connections`](../tt-connections/SKILL.md) | Checks the MCP servers, logins and git settings a project needs, from a connection pack kept outside the repo, and sets up the missing ones one at a time (yes or skip). |
 | [`tt-common`](../tt-common/SKILL.md) | Not run directly: the shared rules for long runs and for planning, shared templates, and the helper scripts the other skills call. |
@@ -168,6 +169,7 @@ to the goal, the acceptance or a decision goes back through
 | rebuild the brief Tech Plan | `/tt-tech-plan <comprehensive tech plan>` |
 | tidy a proposals doc, or create one for an existing plan | `/tt-tech-proposals <proposals doc or comprehensive tech plan>` |
 | review a GitLab MR | `/tt-mr-review [MR number or branch]` |
+| write user stories from a design document, or review the proposed ones | `/tt-user-stories <design doc> [stories doc]` or `/tt-user-stories resume <stories doc>` |
 
 `[…]` is optional and `<…>` is required. If you're new to these skills, start with
 `/tt-guide`, or go straight to `tt-adversarial-plan`; it offers to explore the
@@ -213,6 +215,7 @@ elsewhere.
 | Task Status | `<Prefix> - Task Status.md` | `tt-task-status` | Progress, logs, decisions and validation results. A new session reads this first. |
 | Lite Brief | `<Prefix> - Lite Brief.md` | `tt-lite-brief` | The lite route's plan and task breakdown in one: goal, acceptance, decisions, one work unit with its checks, and the task cards. `tt-execute-lite` builds from it; its Task Status sits beside it. |
 | Debug Report | `<Prefix> - Debug Report.md` | `tt-debug-doc`, from the Debug Log in `.tt/<Prefix> - Debug/` | What was wrong, how the root cause was found, what was ruled out and why, and the fix direction. |
+| User Stories | `<Prefix> - User Stories.md` | `tt-user-stories`, only through its `stories.sh` | A design's user stories, in groups: each with its story line, details and acceptance criteria, Accepted or Proposed, and the Retired (rejected or merged) ones. |
 
 ### IDs and revisions
 
@@ -727,6 +730,30 @@ A line-by-line review meant to stand in for a senior engineer's review.
   inline comments and summary you approve (partial approvals work); flags only
   issues the MR introduced or made worse.
 - **Won't:** approve or merge the MR.
+
+### [`tt-user-stories`](../../../design/skills/tt-user-stories/SKILL.md): user stories from a design
+
+Part of the **design** plugin.
+
+- **Run it:** `/tt-user-stories <design doc> [stories doc]`. It reads the
+  design, proposes the groups, writes a story for each need the design states,
+  then proposes merged stories where two overlap and stories the design seems to
+  have missed. You take the proposals one at a time: **Accept**, **Reject** or
+  **Alter** (say what to change; it rewrites the story and asks again).
+  `resume <stories doc>` carries on with what is still Proposed. Run it again on
+  a changed design to add only what's new.
+- **Unattended:** `draft <design doc> <stories doc>` writes everything and asks
+  nothing (the proposals wait as Proposed), and `alter <stories doc> <US-id>
+  <note file>` rewrites one Proposed story. Both are for tools that show the
+  stories elsewhere, such as a board.
+- **Key rules:** `stories.sh` (in the skill's `scripts/`) is the only writer of
+  the document and renders every story from `templates/story.md`, so they always
+  read the same; IDs (`US-01`…) are never reused, and rejected or merged
+  stories move to **Retired** instead of being deleted. The script refuses a
+  document edited out of its layout (`stories.sh check` lists why; `tidy` lays
+  it out again).
+- **Won't:** invent rules or numbers the design doesn't give, accept or reject
+  a proposal for you, or touch git.
 
 
 ### Stage-completion events

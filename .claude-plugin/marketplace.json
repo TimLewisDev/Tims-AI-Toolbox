@@ -18,7 +18,7 @@
     {
       "name": "design",
       "source": "./plugins/design",
-      "description": "Placeholder for the design discipline's skills. Needs core."
+      "description": "The design discipline's skills: user stories from a design document. Needs core."
     },
     {
       "name": "production",

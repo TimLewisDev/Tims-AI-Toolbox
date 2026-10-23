@@ -56,6 +56,7 @@ field() { awk -v re="$2" '{ sub(/\r$/, "") } $0 ~ re { print; exit }' "$1"; }
 plugin_hint() {
 	case $1 in
 	tt-guide | tt-common | tt-config | tt-connections | tt-metrics) echo "It is part of core: /plugin install core@tims-ai-toolbox" ;;
+	tt-user-stories) echo "It is part of design: /plugin install design@tims-ai-toolbox, then restart Claude Code" ;;
 	*) echo "It is part of engineering: /plugin install engineering@tims-ai-toolbox, then restart Claude Code" ;;
 	esac
 }
@@ -88,6 +89,7 @@ need_readme() {
   chase a bug ............. /tt-debug <symptom>
   build a lite brief ...... /tt-execute-lite <lite brief>
   review an MR ............ /tt-mr-review [MR or branch]
+  user stories from a design /tt-user-stories <design doc>
 EOF
 	return 1
 }

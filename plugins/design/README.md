@@ -1,8 +1,10 @@
 # design
 
-Placeholder for the design discipline's skills. It has no skills yet; it exists so
-the plugin can be installed, versioned and built out without changing how the
-toolbox is split.
+The design discipline's skills. Needs **core**.
+
+| Skill | What it does |
+|---|---|
+| [`tt-user-stories`](skills/tt-user-stories/SKILL.md) | Turns a design document into a `<Prefix> - User Stories.md` of grouped user stories; proposes merges and missed stories for the designer to accept, reject or alter; writes every story from one template by script (`scripts/stories.sh`). |
 
 Install it next to the shared base:
 
@@ -22,5 +24,7 @@ Install it next to the shared base:
 3. Keep the `hooks/` folder (`hooks.json` and `register.sh`, an identical copy of
    the one in `plugins/engineering/hooks/` with this plugin's name) so the other
    plugins can find this one.
-4. Add a row to the catalogue in `plugins/core/skills/tt-guide/toolbox.md` and
-   bump `version` in `.claude-plugin/plugin.json` when you release.
+4. Add a row to the catalogue in `plugins/core/skills/tt-guide/toolbox.md`, a
+   row to the table above, a case to `plugin_hint` in
+   `plugins/core/skills/tt-guide/scripts/guide.sh`, and bump `version` in
+   `.claude-plugin/plugin.json` when you release.
