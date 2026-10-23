@@ -12,15 +12,17 @@ usage: ids.sh defined <doc.md>
        ids.sh anchor [--fix] <plan.md>
        ids.sh style <doc.md>
        ids.sh linkify [--style obsidian|md] --def <defining.md> [--def ...] <doc.md>
+       ids.sh index <feature-folder>
 
 IDs are R A S C P T (with digits, e.g. R12, T07a), CD CH NB WU (CD3, CH2, NB7, WU2)
 and plan steps §N. Text inside code fences and inline code is ignored.
 
-defined  ID<TAB>line<TAB>gloss for every definition: "**R12:**", "**S3**," or
-         "**R12 (removed …):**", a table row whose first cell is the ID
-         ("| CD3 |", "| CH2 |"), or a heading that starts with the ID ("### §3.",
-         "## P4 —", "### T07 —", "## WU1 —"). The gloss is the item's statement
-         cut to a short phrase (see gloss).
+defined  ID<TAB>line<TAB>gloss for every definition: "**R12:**", "**S3**,",
+         "**R12 (removed …):**" or a bullet opening "- **A1** ", a table row
+         whose first cell is the ID ("| CD3 |", "| CH2 |", and the Debug Log's
+         "| H1 |" and Task Status's "| D1 |"), or a heading that starts with the
+         ID ("### §3.", "## P4 —", "### T07 —", "## WU1 —"). The gloss is the
+         item's statement cut to a short phrase (see gloss).
 cited    ID<TAB>count<TAB>first line, for every ID mentioned. Ranges such as
          "R3–R6", "R3-6" and "§1–§4" cite every ID in between.
 xref     UNDEFINED<TAB>ID<TAB>line: cited in <citing> but defined in none of
@@ -34,7 +36,8 @@ gloss    ID<TAB>words for each ID (ranges expand): what the item says, in a
          [[Doc#^r12|R12]] to a block id, a heading link, or a section link;
          otherwise a relative Markdown link.
 style    Print obsidian when a .obsidian folder sits above <doc.md> (a vault), else md.
-         Tells a stage whether to write block ids (see anchor).
+         Tells a stage which link style to write; block ids are written in
+         either (see anchor).
 anchor   Report the R/A/S/C items without an Obsidian block id (" ^r12" at the
          end of the item, lowercase): MISSING<TAB>ID<TAB>line, or
          MISMATCH<TAB>ID<TAB>line<TAB>^found. --fix appends the missing ones
@@ -43,6 +46,15 @@ linkify  Rewrite the bare single-ID cites in <doc> as links to the item in the
          --def documents (first definition wins). Code, existing links,
          headings, ranges, front matter and the document's own definitions are
          left alone. Safe to run again.
+index    ID<TAB>file<TAB>line<TAB>form<TAB>gloss for every ID a feature folder's
+         documents define, one row per ID, taken from the document that owns
+         its prefix: R S C CD NB § the Comprehensive Tech Plan; A the plan, or
+         the Lite Brief when there is no plan; P the Tech Proposals; CH the
+         Challenges; T WU the Task Breakdown, or the Lite Brief; H the Debug
+         Log (.tt/<Prefix> - Debug/debug-log.md); D the Task Status. file is
+         relative to the folder; form is heading, item or row, and a heading
+         or item beats a row (an "at a glance" table) in the same document.
+         Sorted by file, then line.
 
 Exit: 0 clean (or IDs found, for defined / cited), 1 xref found gaps, a gloss ID
 is undefined, an anchor is missing or nothing was found, 2 usage error.
@@ -95,12 +107,17 @@ function scan(l, ln,   rest, pos, tok, before, after, pfx, num, m, n2, k, tail) 
 		}
 	}
 }
-# Returns the ID a line defines, or "".
+# Returns the ID a line defines, or "". A table row may also define a Debug Log
+# hypothesis (H) or a Task Status decision (D); those are never cited in prose.
 function definition(l,   t) {
 	if (match(l, /\*\*(CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?(:| \(|\*\*[:,])/)) {
 		t = substr(l, RSTART + 2, RLENGTH - 2); sub(/(:| \(|\*\*[:,])$/, "", t); return t
 	}
-	if (match(l, /^\|[ \t]*(\*\*)?(CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?(\*\*)?[ \t]*\|/)) {
+	# a bullet that opens with the bold ID and no colon: "- **A1** text"
+	if (match(l, /^[ \t]*([-*+]|[0-9]+\.)[ \t]+\*\*(CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?\*\*[ \t]/)) {
+		t = substr(l, RSTART, RLENGTH); sub(/^[^*]*\*\*/, "", t); sub(/\*\*[ \t]$/, "", t); return t
+	}
+	if (match(l, /^\|[ \t]*(\*\*)?(CD|CH|NB|WU|[RASCPTHD])[0-9]+[a-z]?(\*\*)?[ \t]*\|/)) {
 		t = substr(l, RSTART, RLENGTH); gsub(/[| \t*]/, "", t); return t
 	}
 	if (match(l, /^#+[ \t]+((CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?|§[0-9]+[a-z]?)([.:]|[ \t]|$)/)) {
@@ -135,7 +152,7 @@ function gloss(t,   n, cells, i, c, rest, removed, best, keep, tmp, off, p, pre,
 		for (i = 3; i <= n; i++) { c = trim(cells[i]); if (c != "") { t = c; break } }
 	} else if (t ~ /^#+[ \t]/) {
 		sub(/^#+[ \t]+/, "", t); sub(/^[^ \t]+/, "", t); sub(/^([ \t]|\.|:|—|–|-)+/, "", t)
-	} else if (match(t, /\*\*(CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?(:| \(|\*\*[:,])/)) {
+	} else if (match(t, /\*\*(CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?(:| \(|\*\*[:,]|\*\*[ \t])/)) {
 		rest = substr(t, RSTART + 2)
 		sub(/^(CD|CH|NB|WU|[RASCPT])[0-9]+[a-z]?/, "", rest)
 		if (rest ~ /^ \(/) { removed = (rest ~ /^ \(removed/); sub(/^ \([^)]*\)/, "", rest) }
@@ -238,6 +255,10 @@ case "$cmd" in
 		need_file "$1"
 		;;
 	xref | gloss | anchor | linkify) ;;
+	index)
+		[ $# -eq 1 ] || usage
+		[ -d "$1" ] || { echo "ids.sh: no such folder: $1" >&2; exit 2; }
+		;;
 	style)
 		[ $# -eq 1 ] || usage
 		need_file "$1"
@@ -420,5 +441,52 @@ case "$cmd" in
 		END { end_file(); printf "# %d cites linked\n", nlinked + 0 }' ${files[@]+"${files[@]}"} "$doc"
 		cmp -s "$tmp" "$doc" || cat "$tmp" >"$doc"
 		rm -f "$tmp"
+		;;
+	index)
+		dir=${1%/}
+		files=()
+		for f in "$dir"/*.md; do [ -f "$f" ] && files+=("$f"); done
+		while IFS= read -r f; do files+=("$f"); done < <(find "$dir/.tt" -mindepth 2 -maxdepth 2 -path '* - Debug/debug-log.md' 2>/dev/null | LC_ALL=C sort)
+		[ ${#files[@]} -gt 0 ] || exit 1
+		tmp=$(mktemp)
+		rc=0
+		awk -v DIR="$dir" -v OUT="$tmp" "$LIB"'
+		# The kinds of document that own each prefix, best first.
+		function owners(p) {
+			if (p == "A") return "Comprehensive Tech Plan|Lite Brief"
+			if (p == "T" || p == "WU") return "Task Breakdown|Lite Brief"
+			if (p == "P") return "Tech Proposals"
+			if (p == "CH") return "Challenges"
+			if (p == "H") return "Debug Log"
+			if (p == "D") return "Task Status"
+			return "Comprehensive Tech Plan"
+		}
+		# The part of a document name after its last " - ", e.g. "Challenges".
+		function kindof(f,   n) {
+			n = docname(f)
+			if (n == "debug-log") return "Debug Log"
+			if (!index(n, " - ")) return ""
+			while (match(n, / - /)) n = substr(n, RSTART + 3)
+			return n
+		}
+		function rank(p, k,   n, o, i) { n = split(owners(p), o, "|"); for (i = 1; i <= n; i++) if (o[i] == k) return i; return 0 }
+		function end_file(   k, rel, id, p, r) {
+			delete gl; delete docof; delete secof; delete defline; delete kind; delete head; delete anc
+			defs_file(docname(FILE_))
+			k = kindof(FILE_); rel = FILE_
+			if (index(rel, DIR "/") == 1) rel = substr(rel, length(DIR) + 2)
+			for (id in gl) {
+				p = id; sub(/[0-9]+[a-z]?$/, "", p)
+				r = rank(p, k)
+				if (!r || ((id in best) && best[id] <= r)) continue
+				best[id] = r; row[id] = id "\t" rel "\t" defline[id] "\t" kind[id] "\t" gl[id]
+			}
+		}
+		FNR == 1 { if (NR > 1) end_file(); reset_doc(); FILE_ = FILENAME }
+		{ load_line($0) }
+		END { if (NR > 0) end_file(); for (id in row) { print row[id] > OUT; n++ }; exit (n > 0 ? 0 : 1) }' "${files[@]}" || rc=$?
+		LC_ALL=C sort -t "$(printf '\t')" -k2,2 -k3,3n "$tmp"
+		rm -f "$tmp"
+		exit "$rc"
 		;;
 esac

@@ -44,7 +44,7 @@ Stages table is deleted.
 - **Ticket:** <issue key; omit this line if there isn't one>
 - **Base branch:** `<base>` · **Verified against:** `<base>` @ `<short sha>` on <YYYY-MM-DD>
 - **ID key:** `R` Requirements · `A` Chosen Approach · `S` Scope / Non-Goals · `C` Constraints · `CD` Resolved Critical Decisions · `NB` Non-Blocking Review Items · `P` Tech Proposals · `CH` Challenges · `§N` Implementation Plan step N
-- In an Obsidian vault, each `R`, `A`, `S` and `C` bullet ends with its lowercase ID as a block id (` ^r1`) so other documents can link to it; `ids.sh anchor` checks and adds them.
+- Each `R`, `A`, `S` and `C` bullet ends with its lowercase ID as a block id (` ^r1`), in a vault or not, so other documents can link to it; `ids.sh anchor` checks and adds them.
 
 **Context.** <What is being built, for whom, and why now. Links to parent docs,
 including the Familiarisation doc. What earlier material is, and is not, a

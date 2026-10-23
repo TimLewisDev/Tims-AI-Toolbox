@@ -226,9 +226,12 @@ A bare `R12` means nothing without the plan open, so the skills say what an ID
 means. In chat, the first mention in a message reads `R12 (settings are kept
 between runs)`, with the words taken from the plan by `ids.sh gloss`, never from
 memory. In the Challenges, Tech Proposals and Tech Plan documents, `ids.sh
-linkify` turns the cites into links. In an Obsidian vault the `R`, `A`, `S` and
-`C` bullets of the plan end in a block id (`^r12`) so a link lands on the bullet;
-`ids.sh anchor --fix` adds them to a plan written before they existed.
+linkify` turns the cites into links. The `R`, `A`, `S` and `C` bullets of the
+plan end in a block id (`^r12`), in a vault or not, so a link lands on the
+bullet; `ids.sh anchor --fix` adds them to a plan written before they existed.
+Every ID is defined once, in the document that owns it, and `ids.sh index
+"<folder>"` lists them all with their document and line, for any tool that
+wants to look one up.
 
 The comprehensive plan has a `Revision` and a Change Log. Each review session
 that changes its meaning bumps the revision once, and every change leaves an

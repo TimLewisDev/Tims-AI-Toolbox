@@ -38,8 +38,10 @@ examples.
   `ids.sh gloss "<doc>" R12 C16`; never write them from memory. An ID it prints
   `?` for is not defined: say so, do not guess.
 - In a document, `ids.sh linkify` makes the cites links; do not hand-write them.
-- In a vault, `R`, `A`, `S` and `C` bullets end with their lowercase ID as a
-  block id (` ^r12`); `ids.sh anchor` checks them. See `planning-protocol.md`.
+- In every folder, vault or not, `R`, `A`, `S` and `C` bullets end with their
+  lowercase ID as a block id (` ^r12`); `ids.sh anchor` checks them. Each ID is
+  defined once, in the document that owns it, as a heading, an item or a table
+  row (the Anchors rule in `planning-protocol.md`).
 
 ## Safety
 

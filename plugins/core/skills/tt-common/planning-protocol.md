@@ -80,17 +80,33 @@ documents' conventions: header or tag block, and link style (Obsidian
 **IDs.** Every agreed item gets a stable ID when it's agreed. IDs are never
 renumbered or reused.
 
-| Prefix | Meaning |
-|---|---|
-| `R` | Requirements |
-| `A` | Chosen Approach |
-| `S` | Scope / Non-Goals |
-| `C` | Constraints |
-| `CD` | Resolved Critical Decisions (Blocking) |
-| `NB` | Non-Blocking Review Items |
-| `P` | Proposals in the Tech Proposals doc |
-| `CH` | Challenges in the Challenges doc |
-| `§N` | Implementation Plan step N |
+| Prefix | Meaning | Owned by | Written as |
+|---|---|---|---|
+| `R` | Requirements | Comprehensive Tech Plan | item |
+| `A` | Chosen Approach (a Lite Brief's acceptance items when there is no plan) | Comprehensive Tech Plan, or Lite Brief | item |
+| `S` | Scope / Non-Goals | Comprehensive Tech Plan | item |
+| `C` | Constraints | Comprehensive Tech Plan | item |
+| `CD` | Resolved Critical Decisions (Blocking) | Comprehensive Tech Plan | row |
+| `NB` | Non-Blocking Review Items | Comprehensive Tech Plan | row |
+| `P` | Proposals in the Tech Proposals doc | Tech Proposals | heading |
+| `CH` | Challenges in the Challenges doc | Challenges | heading |
+| `§N` | Implementation Plan step N | Comprehensive Tech Plan | heading |
+| `WU`, `T` | Work units and tasks | Task Breakdown, or Lite Brief | heading |
+| `H` | Debug hypotheses | Debug Log | row |
+| `D` | Decisions taken while building | Task Status | row |
+
+**Anchors.** An ID is defined in the document that owns it, in exactly one of
+three forms, so a reader or a link can always find it:
+
+- **heading:** a heading that starts with the ID (`### CH5 — <title>`,
+  `## P3 — <question>`, `### §4. <title>`, `### T07 — <title>`);
+- **item:** a bullet that opens with the bold ID and ends with the ID in
+  lowercase as a block id (`- **R12:** <statement> ^r12`);
+- **row:** a table row whose first cell is the ID (`| CD2 | … |`).
+
+The same ID in another document (an "at a glance" row, the Tech Plan's
+summary) is a copy, never the definition. `ids.sh index "<folder>"` lists every
+ID a feature folder defines, with its owning document, line and form.
 
 **Saying what an ID means.** A bare `R12` tells the engineer nothing without
 the plan open, so:
@@ -107,12 +123,13 @@ the plan open, so:
   the Comprehensive Plan or a Task Breakdown: their text is compared verbatim
   (`donewhen.sh`, drift checks). It is for the Challenges, Tech Proposals and
   Tech Plan documents.
-- **In the plan, in an Obsidian vault** (`ids.sh style "<plan>"` prints
-  `obsidian`), each `R`, `A`, `S` and `C` bullet ends with its ID in lowercase
-  as a block id, ` ^r12`, so a link can land on the bullet. A bullet that
-  wraps takes it on its last line. Write it with the bullet; `ids.sh anchor
-  "<plan>"` lists any bullet without one and `--fix` adds them (use that on a
-  plan written before block ids). Outside a vault write no block ids.
+- **In the plan**, in any folder (a vault or not), each `R`, `A`, `S` and `C`
+  bullet ends with its ID in lowercase as a block id, ` ^r12`, so a link can
+  land on the bullet. A bullet that wraps takes it on its last line. Write it
+  with the bullet; `ids.sh anchor "<plan>"` lists any bullet without one and
+  `--fix` adds them (use that on a plan written before block ids). The same
+  goes for a Lite Brief's acceptance items (`- **A1** <text> ^a1`). Only the
+  links follow the folder's style; the block ids do not.
 
 **Sync.** The comprehensive plan carries a `Revision` number and a Change Log.
 The Tech Plan records which revision it mirrors (`Mirrors revision N`), and

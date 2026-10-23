@@ -112,12 +112,15 @@ in `manifest.txt`, then build:
 ```
 bash "<scripts>/assemble.sh" build "<brief>" "<draft>/manifest.txt"
 bash "<scripts>/lite-index.sh" "<brief>"
+bash "<scripts>/ids.sh" anchor --fix "<brief>"
 ```
 
 Parts, in this order: header + Goal + Acceptance; How it works today + The
 change + Not in scope + Open items; the unit block; one part per card. Follow
 the template's order and rules exactly, including `Revision: 1`. Match sibling
-documents' header or tag block and link style.
+documents' header or tag block and link style. Each Acceptance item ends with
+its lowercase ID as a block id (`- **A1** <text> ^a1`), in a vault or not;
+`ids.sh anchor --fix` adds any that are missing.
 
 ### 5. Verify (one response)
 

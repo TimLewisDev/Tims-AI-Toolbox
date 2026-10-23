@@ -24,8 +24,8 @@ come from the engineer, and the cards only slice the change.
 <Plain English, 2–4 sentences: what changes for whom, and why. No code names.>
 
 ## Acceptance
-- **A1** <an observable "done when", in the engineer's words>
-- **A2** …
+- **A1** <an observable "done when", in the engineer's words> ^a1
+- **A2** … ^a2
 
 ## How it works today
 <Only the parts the change touches, cited `path:line` at the commit. Short
@@ -115,7 +115,8 @@ the engineer"). A decision the code settles says so ("the existing pattern at
   snippets, gotchas, precedent file and line); no planning IDs in code
   snippets; a **Confirm** step instead of a guess.
 - **Acceptance IDs (`A1`…) are cited by Validation items** as `(A1)`, so no
-  acceptance item goes unchecked. `lite-check.sh` enforces it.
+  acceptance item goes unchecked. `lite-check.sh` enforces it. Each one ends
+  with its lowercase ID as a block id (` ^a1`) so a link can land on it.
 - **The checks block** holds one line per Validation item the agent checks with
   a command: `<n>` is the item's position in the list (from 1), `ok` passes on
   exit 0, `empty` when nothing is printed, `nonempty` when something is. Use
