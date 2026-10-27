@@ -36,7 +36,7 @@ every discipline; the design and engineering skills need it to run.
 | [`tt-execute-lite`](../../../engineering/skills/tt-execute-lite/SKILL.md) | Lite route: builds the brief the way `tt-execute` builds a breakdown, with no plan to drift from. |
 | [`tt-debug`](../../../engineering/skills/tt-debug/SKILL.md) | A pair-programming debugging companion: you drive, it navigates, hunting the root cause. |
 | [`tt-debug-doc`](../../../engineering/skills/tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
-| [`tt-mr-review`](../../../engineering/skills/tt-mr-review/SKILL.md) | Reviews a GitLab merge request and posts only the comments you approve. |
+| [`tt-branch-review`](../../../engineering/skills/tt-branch-review/SKILL.md) | Reviews a git branch locally, in any repository, and writes the findings to a report. Posts nothing. |
 | [`tt-user-stories`](../../../design/skills/tt-user-stories/SKILL.md) | Design: turns a design document into grouped user stories, proposes merges and missed stories for you to accept, reject or alter, and writes every story from one template by script. |
 | [`tt-config`](../tt-config/SKILL.md) | Chooses the model and thinking effort for each stage, ranked by where a stronger model pays off, and saves the choices as modes you can swap. |
 | [`tt-connections`](../tt-connections/SKILL.md) | Checks the MCP servers, logins and git settings a project needs, from a connection pack kept outside the repo, and sets up the missing ones one at a time (yes or skip). |
@@ -79,7 +79,7 @@ tt-execute, one work unit at a time:
   ├─ Engineer tasks ──► a checklist for you
   └─ validate the unit, then stop and report
 
-tt-mr-review stands apart: run it on any open GitLab MR.
+tt-branch-review stands apart: run it on any git branch.
 ```
 
 `tt-workflow` sits over the whole chain: it picks the stage from the documents
@@ -108,7 +108,7 @@ In order:
    Task Status, does the unit's tasks, then validates the whole unit. It stops
    after each unit.
 6. **Commit and publish yourself.** No skill stages, commits, pushes or creates
-   branches. Once there's an MR, `tt-mr-review` can review it.
+   branches. Once the work is on a branch, `tt-branch-review` can review it.
 
 ### The lite route (small features and bugs)
 
@@ -168,7 +168,7 @@ to the goal, the acceptance or a decision goes back through
 | build a Lite Brief | `/tt-execute-lite <lite brief>` |
 | rebuild the brief Tech Plan | `/tt-tech-plan <comprehensive tech plan>` |
 | tidy a proposals doc, or create one for an existing plan | `/tt-tech-proposals <proposals doc or comprehensive tech plan>` |
-| review a GitLab MR | `/tt-mr-review [MR number or branch]` |
+| review a git branch | `/tt-branch-review [branch] [against <base>]` |
 | write user stories from a design document, or review the proposed ones | `/tt-user-stories <design doc> [stories doc]` or `/tt-user-stories resume <stories doc>` |
 
 `[…]` is optional and `<…>` is required. If you're new to these skills, start with
@@ -723,14 +723,18 @@ for and against each.
   that isn't finished and lists what's missing; the skill then checks the
   references and applies your corrections.
 
-### [`tt-mr-review`](../../../engineering/skills/tt-mr-review/SKILL.md): review a GitLab MR
+### [`tt-branch-review`](../../../engineering/skills/tt-branch-review/SKILL.md): review a git branch
 
-A line-by-line review meant to stand in for a senior engineer's review.
+A line-by-line review meant to stand in for a senior engineer's review. It works
+on a branch in any git repository (GitLab, GitHub, Bitbucket, Azure DevOps or
+none) and reviews locally.
 
-- **Run it:** `/tt-mr-review [MR number or branch]`. With no argument, it
-  uses the MR for the current branch.
-- **Needs:** `glab` (authenticated) or a GitLab MCP server; ideally the repo
-  checked out, otherwise it reviews from the diff alone.
+- **Run it:** `/tt-branch-review [branch] [against <base>]`. With no branch, it
+  reviews the checked-out one. The base is the remote's default branch, else the
+  only one of `main`, `master`, `develop` and `trunk`; it tells you which and asks
+  you to confirm, or asks if it can't tell. `against <base>` sets it yourself.
+- **Needs:** git and the repo on disk. No hosting service, `glab`, `gh` or login.
+  It reviews what is committed on the branch, not uncommitted changes.
 - **Checks:** correctness, security, performance, style (the repo's rules and
   `.editorconfig` are the source of truth), test coverage, and stack-specific
   checks from `references/` when the repo uses that stack (Unity and C#
@@ -738,10 +742,10 @@ A line-by-line review meant to stand in for a senior engineer's review.
   major finding is challenged by a separate subagent before it's shown. Each
   finding has a file, line, severity and suggested fix. Binary and generated
   files are skipped.
-- **Key rules:** shows every finding before posting anything; posts only the
-  inline comments and summary you approve (partial approvals work); flags only
-  issues the MR introduced or made worse.
-- **Won't:** approve or merge the MR.
+- **Key rules:** shows every finding in the chat and writes the same to a
+  `Review.md` in a scratch folder outside the repo; flags only issues the branch
+  introduced or made worse.
+- **Won't:** post comments anywhere, change the repo, or approve or merge.
 
 ### [`tt-user-stories`](../../../design/skills/tt-user-stories/SKILL.md): user stories from a design
 
@@ -800,7 +804,7 @@ skill.
 ```
 
 - **Modes** are saved sets of choices. Shipped: `recommended` (Opus on the
-  adversary and the MR refute pass, Sonnet elsewhere), `economy` (all Sonnet)
+  adversary and the branch-review refute pass, Sonnet elsewhere), `economy` (all Sonnet)
   and `thorough` (recommended, plus Opus on the gates before code). Your own
   modes and edits live in `~/.claude/tt-config/`, outside every repo.
 - **Models come from the connected LLM tools** (`/tt-connections llms`): the

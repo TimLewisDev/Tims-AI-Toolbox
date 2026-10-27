@@ -2,8 +2,8 @@
 
 Skills for planning and building a feature with an AI coding agent while the
 engineer keeps control: every consequential decision is theirs, every plan
-change is confirmed, and git is never touched. A separate skill reviews GitLab
-merge requests.
+change is confirmed, and git is never touched. A separate skill reviews a git branch
+locally, in any repository.
 
 Each skill is a `SKILL.md` file in its own folder, written for Claude Code and
 usable with other agents that read the same format (Codex, GitHub Copilot).

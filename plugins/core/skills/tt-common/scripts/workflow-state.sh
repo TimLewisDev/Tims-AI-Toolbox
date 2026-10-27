@@ -107,8 +107,8 @@ else
 			prog=$(field "$st" '^- Progress:'); prog=${prog#- Progress: }
 			next=$(field "$st" '^4[.] Next action:'); next=${next#4. Next action: }
 			if [ "$state" = Complete ]; then
-				row "$p" primary complete - "" "" "built and validated ($prog). Commit it yourself, then review the MR."
-				row "$p" alt complete tt-mr-review "" "" "review the MR:" "[MR number or branch]"
+				row "$p" primary complete - "" "" "built and validated ($prog). Commit it yourself, then review the branch."
+				row "$p" alt complete tt-branch-review "" "" "review the branch:" "[branch]"
 			else
 				if [ -f "$lb" ]; then ex=tt-execute-lite; exa=$(rel "$lb"); else ex=tt-execute; exa=$(rel "$st"); fi
 				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"

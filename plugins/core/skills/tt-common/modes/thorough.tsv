@@ -2,4 +2,4 @@
 plan-audit	opus	high
 coverage-audit	opus	high
 brief-check	opus	high
-mr-review-group	opus	-
+branch-review-group	opus	-

@@ -23,8 +23,9 @@
   list models from other LLM tools (`/tt-connections llms`), the `copilot` or
   `codex` CLI on the PATH; they are listed only, and subagents still run on
   Claude models.
-- **For `tt-mr-review`:** GitLab, with `glab` or a GitLab MCP server. An
-  issue-tracker integration is optional and used to read the linked issue.
+- **For `tt-branch-review`:** git and the repo on disk. It works in any git
+  repository and needs no hosting service. An issue-tracker integration is
+  optional and used to read a ticket named in the commits.
 - **Optional, for the token log (Claude Code):** nothing to install;
   `/tt-metrics on` turns on the `SessionEnd` hook that the `core` plugin already
   ships.

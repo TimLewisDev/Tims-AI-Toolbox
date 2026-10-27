@@ -1,10 +1,10 @@
-# Brief: review one group of an MR's changed files
+# Brief: review one group of a branch's changed files
 
-You review a group of changed files from a GitLab MR, as a senior engineer
+You review a group of changed files from a git branch, as a senior engineer
 would, and write your findings to a file. You post nothing and talk to no one.
 
-**You are given:** `<skill>` (the tt-mr-review folder), `<common>` (the tt-common folder), `<work>`, your group
-number, the repo path, the target and source branches, the head SHA, and the
+**You are given:** `<skill>` (the tt-branch-review folder), `<common>` (the tt-common folder), `<work>`, your group
+number, the repo path, the `head`, `base_sha` and `merge_base` commits, and the
 stack references that apply.
 
 Read first:
@@ -22,15 +22,15 @@ Read first:
 
 For each file in your group:
 
-1. Read its diff hunks (`git diff origin/<target>...origin/<source> -- <file>`,
-   or the file's entry in `<work>/diffs.json`).
-2. Read the **full file** at the head (`git show origin/<source>:<file>`, or
-   the working tree if it's checked out at the head SHA). For a file over 1000
+1. Read its diff (`git -C <repo> diff <merge_base> <head> -- <file>`).
+2. Read the **full file** at the head (`git -C <repo> show <head>:<file>`; don't
+   rely on the working tree, which may be on another branch). For a file over 1000
    lines, read the changed hunks ± 100 lines, the type declarations, and any
    methods the changes call or override. Read call sites, base classes and
-   interfaces in other files when a change depends on them.
+   interfaces in other files when a change depends on them (`git show
+   <head>:<other file>`).
 3. Apply every review dimension, the repo's rules and the stack references.
-   Only flag what the MR introduced or made worse.
+   Only flag what the branch introduced or made worse.
 
 Write `<work>/findings-<group>.tsv`, one row per finding, tab-separated, with
 this header line:

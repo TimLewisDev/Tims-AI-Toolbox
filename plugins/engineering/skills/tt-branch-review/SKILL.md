@@ -1,39 +1,39 @@
 ---
-name: tt-mr-review
+name: tt-branch-review
 description: >
-  Comprehensive code review of a GitLab MR. Fetches the diff, reads changed
-  files for context, then reviews in parallel subagents for correctness, logic,
-  security, performance, code style, test coverage and the repo's own
-  conventions (plus stack-specific checks, e.g. Unity/C#, when the repo uses
-  that stack), and has every serious finding independently challenged before
-  it's reported. Posts inline comments on specific lines and a summary comment.
-  Gated: presents findings for approval before posting anything.
+  Comprehensive local code review of a git branch, in any repository (GitLab,
+  GitHub, Bitbucket, Azure DevOps or none). Needs only git: compares the branch
+  with its base, reads the changed files for context, then reviews in parallel
+  subagents for correctness, logic, security, performance, code style, test
+  coverage and the repo's own conventions (plus stack-specific checks, e.g.
+  Unity/C#, when the repo uses that stack), and has every serious finding
+  independently challenged before it's reported. Shows the findings and writes a
+  report file. Posts nothing anywhere.
 metadata:
-  version: "1.0"
+  version: "2.0"
 ---
 
-# tt-mr-review
+# tt-branch-review
 
-Perform a comprehensive, line-level code review of a GitLab Merge Request and
-(with approval) post the findings as inline comments.
+Perform a comprehensive, line-level code review of a git branch, locally. The
+result is a findings list in the chat and a report file; nothing is posted to
+any hosting service.
 
 ## Overview
 
-1. Resolve the target MR and gather its diff and context.
-2. Split the changed files into groups and review the groups in parallel
+1. Resolve the branch and the base it is compared with.
+2. Gather its diff and intent.
+3. Split the changed files into groups and review the groups in parallel
    subagents, each reading the full changed files.
-3. Have each critical or major finding challenged by a separate subagent; drop
+4. Have each critical or major finding challenged by a separate subagent; drop
    the ones that don't survive.
-4. Present all findings to the user for approval.
-5. Post approved findings as GitLab inline comments, plus an overall summary.
-
-> All comment posting is **gated on explicit user approval**. Nothing is posted
-> without confirmation.
+5. Present the findings and write the report.
 
 `<skill>` is this skill's folder (`${CLAUDE_SKILL_DIR}`), `<common>` is
 `~/.claude/tt-plugins/core/skills/tt-common` (or `<skill>/../tt-common` when the skills are linked into one folder). Read `<common>/orchestration.md` first: its output
 budget, subagent and concurrency rules apply. `<work>` is a scratch folder
-outside the repo: `${TMPDIR:-/tmp}/tt-mr-review/<mr>/`.
+outside the repo: `${TMPDIR:-/tmp}/tt-branch-review/<slug>/`, where `<slug>` comes
+from Step 1.
 
 Before loading stack-specific references, use
 `<common>/scripts/knowledge.sh get` against the initialized project index.
@@ -44,49 +44,62 @@ directly and say that routing fell back to the authoritative file.
 ### Usage
 
 ```
-/tt-mr-review [mr]
+/tt-branch-review [branch] [against <base>]
 ```
 
-**MR** (optional): an **MR number** (e.g. `8421`) or a **source branch** (e.g.
-`feature/add-login-screen`). If omitted, resolves from the **current branch**.
-If the match is ambiguous, ask the user.
+**branch** (optional): a local or remote branch name (`feature/add-login-screen`),
+or any other ref. If omitted, the **checked-out** branch is reviewed.
+
+**against `<base>`** (optional): the branch to compare with. If omitted, the base
+is found as described in Step 1.
 
 ## Preconditions
 
-1. **GitLab auth** — `glab auth status` or GitLab MCP must be available. **FAIL** if not.
-2. **MR resolvable** — a single open (or recently merged) MR can be found. **FAIL** if none or ambiguous — ask the user.
-3. **Repo is present** — the working tree must exist so changed files can be
-   read for full context (not just the diff). If the repo is absent, reviewers
-   work from the diff only; note this limitation.
+1. **A git repository** with the branch in it. The review is local: no hosting
+   service, `glab`, `gh` or login is needed, and no network call is made.
+2. **A base and a diff** — Step 1 stops with a message if the base can't be
+   decided, the branch shares no history with it, or nothing changed.
+3. **The working tree is the repo** — changed files are read from the branch's
+   commit (`git show`), so the branch need not be checked out. If the repo
+   isn't on disk, ask for the path.
 
 ## Steps
 
-### 1. Resolve the MR
+### 1. Resolve the branch and the base
 
 ```bash
-glab mr view <mr>                                                   # by number
-glab mr list --source-branch "$(git rev-parse --abbrev-ref HEAD)"   # by current branch
+bash "<skill>/scripts/resolve-branch.sh" [--repo <path>] [--against <base>] [<branch>]
 ```
 
-Record the **MR number**, **project path** (URL-encoded, e.g.
-`my-group%2Fmy-project`), **title**, **description**, **source** and **target
-branch**, **head SHA** and **author**. `git fetch` once so `origin/<source>`
-and `origin/<target>` are current.
+It prints `branch`, `slug`, `head`, `base`, `base_how`, `base_sha`, `merge_base`,
+`commits`, `files`, `diff_lines` and `dirty`. Without `--against`, the base is the
+remote's default branch (`origin/HEAD`), else the only one of `main`, `master`,
+`develop` and `trunk` that exists. Exit 1 prints why it can't go on:
 
-### 2. Fetch the diff
+- **Several candidate bases, or none:** ask the user which branch to compare with
+  and run it again with `--against`.
+- **Unknown ref, no common ancestor, or nothing changed:** tell the user and stop.
 
-Prefer the GitLab API, so the review targets exactly what GitLab shows, and
-page through it all:
+Tell the user the branch, the base and how it was chosen (`base_how`), in one
+line. When the base was found rather than given (`origin-head` or
+`only-candidate`), ask them to confirm it before continuing. When `dirty=yes`,
+say that uncommitted changes are not part of the review.
+
+The diff is `git diff <merge_base> <head>`: what the branch changed, not what the
+base has gained since. Use the `head` and `base_sha` SHAs from here on, so the
+review can't drift if a branch moves.
+
+### 2. Gather the diff
 
 ```bash
-glab api --paginate "projects/<url-encoded-path>/merge_requests/<mr>/diffs?per_page=100" > "<work>/diffs.json"
-# or, with the branch available locally:
-git diff origin/<target>...origin/<source> > "<work>/mr.diff"
+git -C <repo> diff --no-color --name-status <merge_base> <head>   # status per file
+git -C <repo> diff --no-color --numstat <merge_base> <head>       # diff lines per file
+git -C <repo> diff --no-color <merge_base> <head> -- <file>       # one file's hunks
 ```
 
-For each file record the **path**, **old/new SHA**, **diff hunks** (with line
-numbers), **diff line count**, and whether it's **new**, **deleted** or
-**modified**.
+For each file record the **path**, whether it's **new**, **deleted**, **modified**
+or **renamed** (and the old path), and its **diff line count**. Don't write the
+whole diff to disk; reviewers read it per file.
 
 ### 3. Rules, exclusions and intent (main)
 
@@ -101,24 +114,26 @@ numbers), **diff line count**, and whether it's **new**, **deleted** or
   auto-generated in their header, or listed as generated or tool-managed in the
   repo's rules), lock files, vendored third-party code, and anything the stack
   reference lists.
-- **Intent:** the MR description, and the linked issue if the MR references one
-  and an issue-tracker integration (a Jira MCP, `glab issue`) is available. Write
-  a 3–5 line intent summary to `<work>/intent.md` for the reviewers.
+- **Intent:** the commit subjects and bodies (`git log <base_sha>..<head>`) and
+  the branch name. If they name a ticket and an issue-tracker integration (a
+  Jira MCP, say) is already available, you may read it; never require one. Write
+  a 3–5 line intent summary to `<work>/intent.md` for the reviewers. If the
+  intent is unclear, say so there rather than guessing.
 
 ### 4. Group the files
 
 Split the remaining files into review groups of about 400 diff lines each,
 keeping files of the same module or folder together; a file larger than that
 is a group on its own. Write `<work>/groups.tsv` (`group`, `file`, `diff lines`).
-An MR under about 400 diff lines in total is one group.
+A branch under about 400 diff lines in total is one group.
 
 ### 5. Review the groups (subagents, in parallel)
 
 One subagent per group, at most 4 at a time (model and effort from
-`model-config.sh get mr-review-group`: correctness matters here),
+`model-config.sh get branch-review-group`: correctness matters here),
 brief `<skill>/briefs/review-group.md`. Give each:
-the brief path, `<skill>`, `<common>` (absolute), `<work>`, its group number, the repo path, the
-target and source branches, the head SHA, and which stack references apply.
+the brief path, `<skill>`, `<common>` (absolute), `<work>`, its group number, the repo path,
+the `head`, `base_sha` and `merge_base` SHAs, and which stack references apply.
 Each writes `<work>/findings-<group>.tsv` and returns a summary.
 
 With one group, you may do the review yourself following the same brief.
@@ -126,9 +141,9 @@ With one group, you may do the review yourself following the same brief.
 ### 6. Challenge serious findings (subagents, in parallel)
 
 For each `critical` or `major` finding, one subagent (model and effort from
-`model-config.sh get mr-refute`, at most 4
-at a time) following `<skill>/briefs/refute.md`, given the finding row, `<common>` (absolute) and
-`<work>`. It tries to prove the finding wrong. Then:
+`model-config.sh get branch-refute`, at most 4
+at a time) following `<skill>/briefs/refute.md`, given the finding row, `<common>` (absolute),
+`<work>`, the repo path and the `head`, `base_sha` and `merge_base` SHAs. It tries to prove the finding wrong. Then:
 
 - **refuted:** drop the finding (keep a note in `<work>/dropped.tsv`);
 - **confirmed:** keep it;
@@ -144,20 +159,19 @@ at a time) following `<skill>/briefs/refute.md`, given the finding row, `<common
    it.
 4. **Write an overall summary**: 2–5 sentences covering the nature of the
    change, your overall assessment, the most important issues, and whether you
-   recommend approving, approving with minor fixes, or requesting changes.
+   recommend merging, merging with minor fixes, or changes first.
 
 Write the final list to `<work>/final.tsv` (`n`, `file`, `line`, `severity`,
-`dimension`, `summary`) and each finding's comment body to
-`<work>/bodies/<n>.md`.
+`dimension`, `summary`) and each finding's detail to `<work>/details/<n>.md`.
 
-### 8. Present findings for approval
+### 8. Present the review and write the report
 
-Present the full review **before posting anything**:
+Write `<work>/Review.md` with this content, and show the same in the chat:
 
-```
-## MR !<number> — Review: <title>
+````
+## Branch <branch> vs <base> — Review
 
-**Overall:** <approve / approve with minor fixes / request changes>
+**Overall:** <merge / merge with minor fixes / changes first>
 
 <overall summary>
 
@@ -174,64 +188,29 @@ Present the full review **before posting anything**:
 
 Detail paragraph.
 
-```suggestion
-// proposed fix
 ```
+// proposed fix, if applicable
 ```
+````
 
 For a long review, show the table first and the details in batches of about
-ten, one batch per response. Then ask:
+ten, one batch per response; the report file always holds everything.
 
-- "Post all findings as inline comments? (y / n / list numbers to skip)"
-- "Post the overall summary comment? (y / n)"
+A suggested fix is a plain fenced block showing the replacement, and only when
+the fix is mechanical and unambiguous.
 
-Respect partial approvals (e.g. "post 1, 3, 5 but skip the nits").
+### 9. Report
 
-### 9. Post approved findings
-
-Comment bodies use GitLab-flavoured Markdown:
-
-```markdown
-**[<severity>] <dimension>**
-
-<detail paragraph>
-
-```suggestion
-<replacement code, if applicable>
-```
-```
-
-A **suggestion block** must be a drop-in replacement for the line(s) it anchors
-to — GitLab renders it as a one-click apply. Only use one when the fix is
-mechanical and unambiguous.
-
-Post with the script, which uses the merge base, source head and target head as
-the position SHAs, and falls back to a general note when an inline note fails:
-
-```bash
-bash "<skill>/scripts/post-notes.sh" --project <url-encoded-path> --mr <mr> \
-  --target <target> --source <source> [--summary "<work>/summary.md"] \
-  "<work>/approved.tsv" "<work>/bodies"
-```
-
-`approved.tsv` holds the approved rows of `final.tsv`. The script prints one
-line per finding: posted inline, posted as a general note (fallback), or
-failed with the error.
-
-### 10. Report
-
-- How many findings were posted vs. skipped
-- Any findings that failed to post (with error), and any that fell back to a
-  general note
-- The MR URL so the user can see the comments in context
-- A reminder that approving the MR is a separate step in the GitLab UI
+- How many findings, by severity, and how many the challenge step dropped
+- The path of `Review.md`
+- A reminder that nothing was posted and no files in the repo were changed
 
 ## Review dimensions
 
 Apply **all** of these to every changed file, plus the repo's rules and any
 stack reference. Be thorough: this is meant to replace a senior engineer's
 manual review, not rubber-stamp the code. Every finding records **file**,
-**line** (in the **new** file, for inline posting), **severity**
+**line** (in the **new** file), **severity**
 (`critical` / `major` / `minor` / `nit`), **dimension**, **summary** (one
 sentence), **detail** (why it matters, a concrete scenario where it breaks or
 degrades) and **suggestion** (a specific fix, with a snippet where helpful).
@@ -262,8 +241,8 @@ degrades) and **suggestion** (a specific fix, with a snippet where helpful).
 
 ## General rules
 
-- **Never post without approval.** All inline comments and the summary note are
-  gated on Step 8 confirmation. Honour partial approvals.
+- **Read-only.** Change nothing in the repo, and post nothing anywhere. The only
+  files written are in `<work>`.
 - **Be concrete.** Every finding must have a specific file + line, a clear
   failure scenario, and a suggested fix. Vague "consider refactoring this"
   comments without an actionable suggestion are not acceptable.
@@ -271,14 +250,12 @@ degrades) and **suggestion** (a specific fix, with a snippet where helpful).
   intentional design, say so in the finding detail and mark the severity `minor`
   or `nit` rather than `critical`/`major`. Do not manufacture issues to appear
   thorough.
-- **Respect scope.** Only flag issues introduced or clearly worsened by this MR.
-  Pre-existing problems in unchanged code are out of scope unless the MR made
-  them worse.
+- **Respect scope.** Only flag issues introduced or clearly worsened by this
+  branch. Pre-existing problems in unchanged code are out of scope unless the
+  branch made them worse.
 - **Match the project style.** The repo's rules and `.editorconfig` are the
   style source of truth. Don't impose external style preferences that conflict
   with them.
 - **Excluded files** — skip entirely; never comment on them.
-- **Don't re-review** findings the user explicitly skips — if they decline to
-  post a finding, treat it as accepted and move on.
 - If you can't spawn subagents, review the groups yourself one per response,
   and challenge each serious finding yourself before keeping it.

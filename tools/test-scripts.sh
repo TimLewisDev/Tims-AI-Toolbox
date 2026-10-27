@@ -366,7 +366,7 @@ for f in $(find "$root/plugins/engineering" "$root/plugins/design" "$root/plugin
 done
 [ -z "$unrel" ] && ok "no engineering text reaches tt-common by .." || bad "no engineering text reaches tt-common by .." "$unrel"
 # core never depends on a file in an engineering skill by path
-deps=$(grep -rnE '(\.\./|/)tt-(workflow|workflow-lite|familiarise|familiarisation-doc|adversarial-plan|requirements|scope|approach|technical-design|plan-signoff|tech-proposals|tech-plan|tech-plan-review|task-breakdown|task-status|execute|execute-lite|coder|lite-brief|debug|debug-doc|mr-review)/' "$root/plugins/core" --include=*.sh --include=*.tsv --include=*.txt || true)
+deps=$(grep -rnE '(\.\./|/)tt-(workflow|workflow-lite|familiarise|familiarisation-doc|adversarial-plan|requirements|scope|approach|technical-design|plan-signoff|tech-proposals|tech-plan|tech-plan-review|task-breakdown|task-status|execute|execute-lite|coder|lite-brief|debug|debug-doc|branch-review)/' "$root/plugins/core" --include=*.sh --include=*.tsv --include=*.txt || true)
 [ -z "$deps" ] && ok "core scripts don't name engineering folders" || bad "core scripts don't name engineering folders" "$deps"
 
 echo "# guide.sh"
@@ -600,7 +600,7 @@ has "ready to break down" "$T/rows" "Fresh	primary	signed-off	tt-task-breakdown"
 has "explored" "$T/rows" "Fam	primary	explored	tt-adversarial-plan"
 has "orphan breakdown" "$T/rows" "Orph	primary	breakdown-orphan	tt-task-status"
 has "complete has no skill" "$T/rows" "Fin	primary	complete	-"
-has "complete offers MR review" "$T/rows" "Fin	alt	complete	tt-mr-review"
+has "complete offers branch review" "$T/rows" "Fin	alt	complete	tt-branch-review"
 expect "empty folder is exit 1" 1 bash "$WS" "$G/empty"
 has "empty folder row" "$T/out" "/tt-adversarial-plan <idea, spec or ticket>"
 expect "bad folder is exit 2" 2 bash "$WS" "$G/missing"
@@ -1491,6 +1491,42 @@ expect "a section of its own is fine" 0 us check "$SD/notes.md"
 expect "write with a section of its own" 0 us status "$SD/notes.md" Ready
 has "the section is kept" "$SD/notes.md" "Keep this."
 ls -a "$SD" | grep -qE '^\..*(lock|[0-9]+)$' && bad "no lock or temp files left" || ok "no lock or temp files left"
+
+echo "# resolve-branch.sh"
+RB="$eng/tt-branch-review/scripts/resolve-branch.sh"
+BR="$T/branches"; mkdir -p "$BR"
+(cd "$BR" && git init -q -b main . && git config user.email t@t && git config user.name t && git config core.autocrlf false &&
+echo a >a && git add a && git commit -qm one && git checkout -q -b feature/x && echo b >b && git add b && git commit -qm two &&
+git checkout -q main) >/dev/null 2>&1
+rb() { bash "$RB" --repo "$BR" "$@"; }
+expect "a branch against the only candidate base" 0 rb feature/x
+has "names the branch" "$T/out" "branch=feature/x"; has "names the base" "$T/out" "base=main"
+has "says how it chose" "$T/out" "base_how=only-candidate"; has "counts the commits" "$T/out" "commits=1"
+has "counts the files" "$T/out" "files=1"; has "makes a folder-safe slug" "$T/out" "slug=feature-x"
+has "no uncommitted changes" "$T/out" "dirty=no"
+expect "the checked-out branch is the default" 0 bash -c "git -C '$BR' checkout -q feature/x && bash '$RB' --repo '$BR'"
+has "default is the checked-out branch" "$T/out" "branch=feature/x"
+(cd "$BR" && echo c >>b)
+expect "uncommitted changes are flagged" 0 rb --against main; has "dirty" "$T/out" "dirty=yes"
+(cd "$BR" && git checkout -q -- b && git checkout -q main && git branch develop main)
+expect "two candidate bases is an exit 1" 1 rb feature/x; has "asks for --against" "$T/out" "Pass --against"
+expect "--against settles it" 0 rb feature/x --against develop; has "base is as given" "$T/out" "base_how=given"
+expect "main has no other base to compare with" 1 rb main
+expect "an unknown branch is an exit 1" 1 rb nope; has "names the missing ref" "$T/out" "no such branch or commit: nope"
+expect "an unknown base is an exit 1" 1 rb feature/x --against nope
+expect "a branch at its base has nothing to review" 1 rb develop --against main; has "says so" "$T/out" "nothing to review"
+(cd "$BR" && git checkout -q --orphan lone && git commit -q --allow-empty -m lone && git checkout -q main) >/dev/null 2>&1
+expect "no common ancestor is an exit 1" 1 rb lone --against main; has "says no common ancestor" "$T/out" "no common ancestor"
+(cd "$BR" && git checkout -q -b same main && echo z >z && git add z && git commit -qm z && git rm -q z && git commit -qm unz && git checkout -q main) >/dev/null 2>&1
+expect "changes that cancel out have no diff" 1 rb same --against main; has "says no file changes" "$T/out" "no file changes"
+# a clone's origin/HEAD is the base
+git clone -q "$BR" "$T/clone" >/dev/null 2>&1
+(cd "$T/clone" && git checkout -q -b topic origin/feature/x) >/dev/null 2>&1
+expect "origin/HEAD is the base in a clone" 0 bash "$RB" --repo "$T/clone" topic; has "base is origin/HEAD" "$T/out" "base_how=origin-head"
+expect "a remote-only branch is read as origin/<name>" 0 bash "$RB" --repo "$T/clone" feature/x --against main
+has "uses the remote ref" "$T/out" "branch=origin/feature/x"
+expect "a non-repository is an exit 1" 1 bash "$RB" --repo "$T"
+expect "a bad flag is an exit 2" 2 rb --nope
 
 echo
 echo "$pass passed, $fail failed"

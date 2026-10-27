@@ -103,7 +103,7 @@ When you read a RESULT, expect that block.
   out and let the subagent inherit the session's. If the script fails, leave
   both out.
 - The defaults put the strongest model on the few passes that judge or attack
-  reasoning (the adversary, the MR refute pass) and Sonnet on everything else:
+  reasoning (the adversary, the branch-review refute pass) and Sonnet on everything else:
   verifying, auditing, mapping, writing from an approved skeleton and
   implementation. The engineer changes them with `tt-config`; never hard-code a
   model in a skill. The roles are listed in `model-roles.tsv`.

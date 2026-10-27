@@ -13,7 +13,7 @@
     {
       "name": "engineering",
       "source": "./plugins/engineering",
-      "description": "Plan, build, debug and review code with the engineer in control: familiarise, adversarial planning, task breakdown, execute, lite route, debug and MR review. Needs core."
+      "description": "Plan, build, debug and review code with the engineer in control: familiarise, adversarial planning, task breakdown, execute, lite route, debug and git branch review. Needs core."
     },
     {
       "name": "design",

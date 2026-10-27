@@ -88,7 +88,7 @@ need_readme() {
   small feature or a bug .. /tt-workflow-lite [bug | feature]
   chase a bug ............. /tt-debug <symptom>
   build a lite brief ...... /tt-execute-lite <lite brief>
-  review an MR ............ /tt-mr-review [MR or branch]
+  review a branch ......... /tt-branch-review [branch]
   user stories from a design /tt-user-stories <design doc>
 EOF
 	return 1

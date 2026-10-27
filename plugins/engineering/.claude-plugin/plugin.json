@@ -1,7 +1,7 @@
 {
   "name": "engineering",
   "displayName": "TT Engineering",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Plan, build, debug and review code with the engineer in control.",
   "author": { "name": "Tim Lewis" },
   "license": "MIT",

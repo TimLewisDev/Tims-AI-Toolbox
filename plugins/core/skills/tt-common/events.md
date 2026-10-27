@@ -62,7 +62,7 @@ prints the path.
 | `debug.report_written` | debug | The Debug Report was written | `tt-debug-doc` |
 
 Not events: skipped stages, a stage reopening, individual tasks, plan
-amendments, MR reviews.
+amendments, branch reviews.
 
 ## One event per key
 
