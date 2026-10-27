@@ -72,7 +72,7 @@ Read only its problem rows (`--only-problems` or `grep`) and the summary.
 
 Group the plan steps that still need a read into batches, and spawn one
 subagent per batch, at most 4 at a time, model and effort from
-`model-config.sh get unit-writer`, brief
+`model-config.sh get verify-step`, brief
 `<skill>/briefs/verify-step.md`:
 
 - Skip a step whose `refs.tsv` rows are all `OK` and that cites no symbols.
@@ -225,7 +225,7 @@ bash "<scripts>/status-init.sh" "<folder>/<Prefix> - Task Breakdown.md" "<folder
 
 `status-init.sh` writes the whole Task Status from the breakdown's tables and
 reports the unit and task counts; check them against the Task Map. If it exits
-`2` on a breakdown it can't read, fall back to a subagent (`model-config.sh get drift-check`)
+`2` on a breakdown it can't read, fall back to a subagent (`model-config.sh get status-init`)
 following `<skill>/../tt-task-status/briefs/init.md`.
 
 ## 13. Finish

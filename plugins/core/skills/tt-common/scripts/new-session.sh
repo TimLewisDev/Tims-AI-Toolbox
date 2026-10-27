@@ -7,11 +7,14 @@ set -u
 
 usage() {
 	cat >&2 <<'EOF'
-usage: new-session.sh [--print] [--name "<name>"] <folder> "<prompt>"
+usage: new-session.sh [--print] [--name "<name>"] [--model <m>] [--effort <e>] <folder> "<prompt>"
 
-Opens a new terminal in <folder> running: claude [-n "<name>"] "<prompt>"
+Opens a new terminal in <folder> running: claude [--model <m>] [--effort <e>] [-n "<name>"] "<prompt>"
 (an interactive session that starts with the prompt, so a slash command works;
---name sets the session's display name, shown in the prompt box and /resume).
+--name sets the session's display name, shown in the prompt box and /resume;
+--model and --effort start the session on that model and thinking effort. A
+skill can't switch a running session, so a launch is how one is forced;
+model-config.sh args builds the same flags from the `session` setting).
 
   Windows (Git Bash)  inside a JetBrains (Rider) terminal, a new tab in that terminal, typed in with
                       keystrokes (rider-tab.ps1; only when Rider has the Terminal focused);
@@ -30,14 +33,23 @@ EOF
 }
 
 here=$(cd "$(dirname "$0")" && pwd)
-print=0; name=""
+print=0; name=""; model=""; effort=""
 while :; do
 	case ${1:-} in
 	--print) print=1; shift ;;
 	--name) [ $# -ge 2 ] || usage; name=$2; shift 2 ;;
+	--model) [ $# -ge 2 ] || usage; model=$2; shift 2 ;;
+	--effort) [ $# -ge 2 ] || usage; effort=$2; shift 2 ;;
 	*) break ;;
 	esac
 done
+# a model or effort is a word (alias, id, level); "-" means leave it to claude
+for v in "$model" "$effort"; do
+	case $v in "" | - ) ;; *[!A-Za-z0-9._:/-]*) echo "new-session.sh: --model and --effort take a plain word, not '$v'" >&2; exit 2 ;; esac
+done
+flags=""
+case $model in "" | - ) ;; *) flags="--model $model" ;; esac
+case $effort in "" | - ) ;; *) flags="${flags:+$flags }--effort $effort" ;; esac
 case ${1:-} in -h | --help) usage ;; esac
 [ $# -eq 2 ] || usage
 dir=$1; prompt=$2
@@ -53,7 +65,7 @@ manual() {
 		n=$(printf '%s' "$name" | sed "s/'/'\\\\''/g")
 		n="-n '$n' "
 	fi
-	printf 'Open a new terminal and run:\n  cd "%s" && claude %s'"'%s'"'\n' "$dir" "$n" "$q"
+	printf 'Open a new terminal and run:\n  cd "%s" && claude %s%s'"'%s'"'\n' "$dir" "${flags:+$flags }" "$n" "$q"
 }
 
 if [ "$print" = 1 ]; then
@@ -78,10 +90,11 @@ launcher=$(mktemp "${TMPDIR:-/tmp}/tt-session.XXXXXX")
 	# the terminal tab's title, for terminals that take it from the program (Windows Terminal)
 	[ -z "$name" ] || printf '%s\n' "printf '\\033]0;%s\\007' $(printf '%q' "$name")"
 	printf 'cd %q || exit 1\n' "$dir"
+	# flags is only words (checked above), so it is safe to leave unquoted
 	if [ -n "$name" ]; then
-		printf 'exec %q -n %q %q\n' "$claude" "$name" "$prompt"
+		printf 'exec %q %s-n %q %q\n' "$claude" "${flags:+$flags }" "$name" "$prompt"
 	else
-		printf 'exec %q %q\n' "$claude" "$prompt"
+		printf 'exec %q %s%q\n' "$claude" "${flags:+$flags }" "$prompt"
 	fi
 } >"$launcher"
 chmod +x "$launcher"

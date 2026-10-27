@@ -146,7 +146,7 @@ Each turn, whatever the engineer chose or reported:
 2. **Get material only as big as the question.** A small read (one region, one
    symbol, a `git log -S`) you do yourself. Tracing across files, finding every
    writer of some state, or comparing the failing and working cases goes to one
-   subagent (mode `path` or `compare`).
+   subagent (`model-config.sh get debug-investigate`, mode `path` or `compare`).
 3. **Describe one thing, cited**, and say which hypothesis moved.
 4. **Offer 2–4 next steps**, ranked by how much each separates the leading
    hypotheses for the effort it costs, cheapest first. Say who runs each (you,

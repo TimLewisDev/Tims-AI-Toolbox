@@ -9,6 +9,7 @@
 # model: sonnet | opus | haiku | fable | -    effort: low | medium | high | xhigh | max | -
 # "-" means "don't set it": the subagent (or the session) keeps its own.
 # Add a role here, then name it in the skill with `model-config.sh get <role>`.
+session	main	1	tt-workflow, tt-workflow-lite	The main session itself: what a workflow start launches claude with	-	-
 adversary	sub	1	tt-adversarial-plan	Attacks each planning stage's written reasoning	opus	high
 mr-refute	sub	1	tt-mr-review	Tries to disprove each critical or major finding	opus	high
 tt-approach	main	1	tt-approach	Weighs approaches and records the choice	opus	high
@@ -33,7 +34,11 @@ explore	sub	4	tt-familiarise	Maps part of the codebase (read-only)	sonnet	-
 landscape	sub	4	tt-requirements	Maps the systems a feature touches	sonnet	-
 approach-research	sub	4	tt-approach	Researches one candidate approach in the repo	sonnet	-
 verify-area	sub	4	tt-technical-design	Verifies the claims about one area at the pinned commit	sonnet	-
-drift-check	sub	4	tt-execute, tt-task-breakdown	Plan-drift, reconcile, status-init fallbacks and check runs	sonnet	-
+verify-step	sub	4	tt-task-breakdown	Verifies batches of plan steps against the code	sonnet	-
+plan-drift	sub	4	tt-execute	Checks whether the plan changed under the current unit	sonnet	-
+status-reconcile	sub	4	tt-execute, tt-task-status	Reconcile fallback: compares the Task Status with the repo	sonnet	-
+status-init	sub	4	tt-task-breakdown, tt-task-status	Status-init fallback: writes the Task Status from a breakdown	sonnet	-
+agent-checks	sub	4	tt-execute	Runs a work unit's Agent checks when no script can	sonnet	-
 tt-familiarise	main	4	tt-familiarise	Conversational exploration of the codebase	sonnet	-
 tt-execute	main	4	tt-execute	Orchestrates a breakdown, unit by unit	sonnet	-
 tt-execute-lite	main	4	tt-execute-lite	Orchestrates a Lite Brief	sonnet	-

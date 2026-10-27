@@ -7,9 +7,11 @@ description: >
   from a connection pack installed on the machine and matched to the project by
   its git remote, so each project can need different things and this skill
   names none. Runs claude mcp add after a yes, then walks the user through
-  signing in until it works. Use after tt-guide init, or when asked to set up, check or fix a
-  project's MCP or tool connections.
-argument-hint: "[status | setup | pack install <file> | link <pack> | unlink | list]"
+  signing in until it works. It also connects the machine's LLM tools (claude,
+  copilot, codex) and lists the models each one offers, which tt-config offers
+  in turn. Use after tt-guide init, or when asked to set up, check or fix a
+  project's MCP or tool connections, or to connect or list LLM tools and models.
+argument-hint: "[status | setup | pack install <file> | link <pack> | unlink | list | llms]"
 allowed-tools: Bash, AskUserQuestion
 metadata:
   version: "1.0"
@@ -28,6 +30,36 @@ Run the script for facts; read no pack by hand:
 ```sh
 bash "<skill folder>/scripts/connections.sh" <command>
 ```
+
+## llms
+
+`llms` is about the machine, not the project: which LLM command-line tools are
+connected (`claude`, `copilot`, `codex`) and which models they offer. The
+models fill the choices `tt-config` offers. Run the script for facts:
+
+```sh
+bash "<skill folder>/scripts/llms.sh" <command>
+```
+
+- `status`: each tool's state: connected, available (installed, not connected),
+  missing (connected but gone from the PATH) or not installed. Show it as it
+  prints.
+- `models`: the models of the connected tools, with the efforts each takes and
+  whether a skill can run it (`runnable`).
+- `connect <tool>`: ask first (**Connect**, **Skip**). The script finds the tool
+  on the PATH, notes its version and generates its models from the tool's own
+  `--help`. Exit 1 means it isn't installed: say how to install it and stop. If
+  the tool needs a sign-in, tell the engineer to run it once in a terminal;
+  never ask for a token.
+- `disconnect <tool>` and `refresh [tool]` (generate the models again). `claude`
+  can't be disconnected: it runs the skills.
+
+Today only `claude`'s models are `runnable`. A model of another tool is listed
+so it can be seen and chosen later, but `tt-config` won't accept it for a stage
+yet, because a subagent can only be spawned on a Claude model. Models a tool
+doesn't list can be added, one per line, in
+`~/.claude/tt-llms/models.d/<tool>.tsv` (`id`, `label`, `efforts`, `yes|no`,
+tab-separated).
 
 ## status
 

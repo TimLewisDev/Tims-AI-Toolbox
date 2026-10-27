@@ -177,7 +177,7 @@ Each turn, for the direction the engineer chose:
 1. Get the material. Small reads (one file region, one symbol) you do yourself.
    Anything bigger (tracing a flow across files, finding every writer of some
    state, finding where a value comes from) goes to one `trace` subagent (same
-   brief, mode `trace`), writing `<fam>/research/trace-<topic>.md`.
+   brief and the same `model-config.sh get explore`, mode `trace`), writing `<fam>/research/trace-<topic>.md`.
 2. Describe one thing, cited.
 3. Update the Focus Log with one small Edit: what you showed, the engineer's
    words (short quotes), any open question, the research file.

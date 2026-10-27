@@ -8,7 +8,8 @@ set -u
 usage() {
 	cat >&2 <<'EOF'
 usage: session-handoff.sh [--show] [--entry tt-workflow|tt-workflow-lite] [--prefix <P>]
-                          [--stage <label> --run "<command>"] <folder> [<repo root>]
+                          [--stage <label> --run "<command>"] [--model <m>] [--effort <e>]
+                          <folder> [<repo root>]
 
 Opens a new terminal tab running claude, named "<Prefix> : <stage>", started with
 the command that carries on from where <folder> now stands. Write the state
@@ -29,6 +30,9 @@ which links the folder and asks its first question; without them it exits 2.
 step the state alone can't name (for example writing up a confirmed
 exploration: --stage "Familiarisation Doc" --run '/tt-familiarisation-doc "<log>"').
 A name another open Claude session already has gets " (2)", " (3)", ... after it.
+--model and --effort start the new session on that model and effort; without them
+it uses the `session` setting of tt-config (model-config.sh args), and nothing is
+forced when that is left to the session. --show then adds a "Flags:" line.
 --show prints "Name:" and "Prompt:" and opens nothing (no claude command needed).
 <repo root> is where the session starts; it defaults to the git root of the
 current directory.
@@ -40,10 +44,12 @@ EOF
 here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
 . "$here/tt-path.sh"
 
-show=0; entry=""; prefix=""; stage_over=""; run_over=""
+show=0; entry=""; prefix=""; stage_over=""; run_over=""; model=""; effort=""
 while :; do
 	case ${1:-} in
 	--show) show=1; shift ;;
+	--model) [ $# -ge 2 ] || { usage; exit 2; }; model=$2; shift 2 ;;
+	--effort) [ $# -ge 2 ] || { usage; exit 2; }; effort=$2; shift 2 ;;
 	--entry) [ $# -ge 2 ] || { usage; exit 2; }; entry=$2; shift 2 ;;
 	--prefix) [ $# -ge 2 ] || { usage; exit 2; }; prefix=$2; shift 2 ;;
 	--stage) [ $# -ge 2 ] || { usage; exit 2; }; stage_over=$2; shift 2 ;;
@@ -138,8 +144,24 @@ else
 	[ -n "$hint" ] && prompt="$prompt $hint"
 fi
 
+# The model and effort the new session starts on: --model/--effort, else the
+# `session` setting of tt-config (nothing when it is left to the session).
+flags=""
+if [ -n "$model" ] || [ -n "$effort" ]; then
+	flags=$(bash "$here/model-config.sh" args --model "${model:--}" --effort "${effort:--}") || exit 2
+else
+	flags=$(bash "$here/model-config.sh" args 2>/dev/null) || flags=""
+fi
+set -- $flags
+model=""; effort=""
+while [ $# -ge 2 ]; do
+	case $1 in --model) model=$2 ;; --effort) effort=$2 ;; esac
+	shift 2
+done
+
 if [ "$show" = 1 ]; then
 	printf 'Name: %s\nPrompt: %s\n' "$name" "$prompt"
+	[ -z "$model$effort" ] || printf 'Flags: %s\n' "${flags}"
 	exit 0
 fi
-exec bash "$here/new-session.sh" --name "$name" "$repo" "$prompt"
+exec bash "$here/new-session.sh" --name "$name" ${model:+--model "$model"} ${effort:+--effort "$effort"} "$repo" "$prompt"

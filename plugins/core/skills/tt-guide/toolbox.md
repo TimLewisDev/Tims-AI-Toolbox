@@ -396,6 +396,13 @@ project gets a different list.
 - **Scripted:** `tt-connections/scripts/connections.sh` does the matching and
   every check; the model only asks and runs the commands you approve. MCP setup
   uses the `claude` CLI, so it is Claude Code only.
+- **LLM tools:** `/tt-connections llms` (script `llms.sh`: `status`, `models`,
+  `connect <tool>`, `disconnect <tool>`, `refresh`) is about the machine, not
+  the project. It connects `claude`, `copilot` and `codex` and generates the
+  models each offers from the tool's own `--help` (kept in `~/.claude/tt-llms/`;
+  add models by hand in `models.d/<tool>.tsv`). The models are what
+  `/tt-config` offers. Only Claude's are runnable today; the others are listed,
+  not yet usable for a stage.
 - **Won't:** accept a secret, edit settings files by hand, or run a setup
   command you haven't said yes to.
 
@@ -413,6 +420,11 @@ and when the feature is finished (here, or when the last work unit passes in
   ignores the link, asks where to create a new feature folder and what it is,
   and replaces the old link. `/tt-workflow status` reports without running
   anything; `/tt-workflow unlink` forgets the link.
+- **Model and effort:** the session a workflow runs in can't be switched by a
+  skill, so it is chosen when the session starts. `/tt-config`'s `session` row
+  holds it; `tt-common/scripts/model-config.sh args` prints the `claude` flags
+  (`--model … --effort …`), and a new session opened from here (or by Tatty)
+  starts with them. The start output shows the setting when one is set.
 - **Scripted:** the link (`tt-workflow/scripts/workflow.sh`, kept per project in
   `~/.claude/tt-workflow/links.tsv`, never in your repo or documents) and the
   stage check (`tt-common/scripts/workflow-state.sh`, also behind
@@ -791,6 +803,10 @@ skill.
   adversary and the MR refute pass, Sonnet elsewhere), `economy` (all Sonnet)
   and `thorough` (recommended, plus Opus on the gates before code). Your own
   modes and edits live in `~/.claude/tt-config/`, outside every repo.
+- **Models come from the connected LLM tools** (`/tt-connections llms`): the
+  runnable ones are on offer, and `-` leaves a choice to the session. The
+  `session` row is the model and effort a workflow starts on (see
+  `tt-workflow`), applied only at launch.
 - **Subagent roles** take effect from the next spawn. **Advisory rows** are the
   stages that run in your own session (approach and technical design default to
   Opus, high effort): a skill can't change the session's model, so the

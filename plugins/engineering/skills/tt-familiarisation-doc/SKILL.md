@@ -81,7 +81,8 @@ or adjust it. This is the last cheap point to correct the focus.
 ### 3. Fill gaps (only if needed)
 
 If a section needs a fact the research doesn't hold, read it yourself at
-`BASE_SHA` if it's one small read; otherwise spawn one subagent with
+`BASE_SHA` if it's one small read; otherwise spawn one subagent (model and effort from
+`model-config.sh get explore`) with
 `<skill>/../tt-familiarise/briefs/explore.md`, mode `trace`. Never fill a gap
 from memory.
 

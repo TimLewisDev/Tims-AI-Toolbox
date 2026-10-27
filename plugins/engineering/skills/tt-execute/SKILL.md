@@ -91,13 +91,13 @@ its two summary lines.
   `status-record.sh <status> change …`).
 - `judge` rows (an In Progress task): read `git diff` on that task's card files
   against its Steps and say how far it got.
-- `plan: … (drift)`: only now spawn the plan-drift subagent (`model-config.sh get drift-check`,
+- `plan: … (drift)`: only now spawn the plan-drift subagent (`model-config.sh get plan-drift`,
   `<skill>/briefs/plan-drift.md`), given the plan, the "Plan read" revision,
   the current unit and the later units' IDs. A plan change that affects a card
   or a unit's checks goes through the amendment rules.
 - `needs_model: no` and no rows: nothing to reconcile; say so in one line.
 
-If the script exits `2`, fall back to the reconcile subagent (`model-config.sh get drift-check`,
+If the script exits `2`, fall back to the reconcile subagent (`model-config.sh get status-reconcile`,
 `<skill>/../tt-task-status/briefs/reconcile.md`) and, if the plan's revision
 can't be read, the plan-drift one.
 
@@ -191,7 +191,7 @@ When every task in the unit is `Implemented`:
    checks passed or failed, engineer checks pending. Check by hand any it
    reports `blocked` (an Agent check with no command), and record the result
    as in step 5. If it exits `2` (the unit has no `checks` block, as in
-   breakdowns written before it existed), use a subagent (`model-config.sh get drift-check`,
+   breakdowns written before it existed), use a subagent (`model-config.sh get agent-checks`,
    `<skill>/briefs/run-agent-checks.md`) instead, given the breakdown path and
    unit ID, the Build check, the same log folder and the repo, and write its
    results as an attempt file in the same format. Agent results from an

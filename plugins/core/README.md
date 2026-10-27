@@ -5,8 +5,8 @@ The shared base every discipline installs.
 | Skill | What it is |
 |---|---|
 | `tt-guide` | Tatty, the toolbox's guide; the catalogue lives in `tt-guide/toolbox.md`. |
-| `tt-config` | Model and effort modes for the stages. |
-| `tt-connections` | Checks and sets up a project's MCP servers, logins and git settings. |
+| `tt-config` | Model and effort modes for the stages, and the model a workflow starts on. |
+| `tt-connections` | Checks and sets up a project's MCP servers, logins and git settings, and connects the claude, copilot and codex tools and lists their models. |
 | `tt-metrics` | Optional token log; its `SessionEnd` hook comes with this plugin. |
 | `tt-common` | Not run directly: shared rules, templates and scripts the other plugins use. |
 

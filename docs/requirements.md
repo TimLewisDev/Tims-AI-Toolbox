@@ -19,7 +19,10 @@
 - **Agent instructions in the repo** (`AGENTS.md`, `CLAUDE.md` or equivalent)
   for build checks and tool-managed files. Without them, the skills ask you.
 - **For `tt-connections`:** a connection pack for your project (optional; without
-  one the skill has nothing to check) and the `claude` CLI for MCP setup.
+  one the skill has nothing to check) and the `claude` CLI for MCP setup. To
+  list models from other LLM tools (`/tt-connections llms`), the `copilot` or
+  `codex` CLI on the PATH; they are listed only, and subagents still run on
+  Claude models.
 - **For `tt-mr-review`:** GitLab, with `glab` or a GitLab MCP server. An
   issue-tracker integration is optional and used to read the linked issue.
 - **Optional, for the token log (Claude Code):** nothing to install;

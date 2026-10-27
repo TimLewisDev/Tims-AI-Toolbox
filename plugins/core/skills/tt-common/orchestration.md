@@ -107,6 +107,9 @@ When you read a RESULT, expect that block.
   verifying, auditing, mapping, writing from an approved skeleton and
   implementation. The engineer changes them with `tt-config`; never hard-code a
   model in a skill. The roles are listed in `model-roles.tsv`.
+- The models on offer are the runnable ones of the connected LLM tools
+  (`tt-connections`' `llms.sh`); today those are Claude's. A model that is
+  listed but not runnable is never passed to the Agent tool.
 - If a subagent on the chosen model fails to start, re-run the same brief
   without a model (the session's).
 

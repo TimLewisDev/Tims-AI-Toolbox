@@ -15,6 +15,8 @@ export TT_EVENTS_HOME="$T/events"
 # Register the plugins the way their SessionStart hooks do, in a pointer folder of
 # our own: skills in one plugin reach tt-common and each other through it.
 export TT_PLUGINS_HOME="$T/tt-plugins"
+# Keep the LLM connections out of the real home too.
+export TT_LLMS_HOME="$T/llms"
 for p in core engineering design production; do
 	CLAUDE_PLUGIN_ROOT="$root/plugins/$p" bash "$root/plugins/$p/hooks/register.sh" "$p"
 done
@@ -868,6 +870,14 @@ if command -v claude >/dev/null 2>&1; then
 	has "quote survives" "$T/out" "-n 'Bob'\\''s : Scope'"
 fi
 expect "name needs a value" 2 bash "$NS" --name
+expect "model must be a plain word" 2 bash "$NS" --print --model "a b" "$T" x
+expect "effort needs a value" 2 bash "$NS" --effort
+if command -v claude >/dev/null 2>&1; then
+	expect "print the command with a model and effort" 0 bash "$NS" --print --name "Feat : Scope" --model opus --effort high "$T" '/tt-workflow'
+	has "flags come before the name" "$T/out" "claude --model opus --effort high -n 'Feat : Scope' '/tt-workflow'"
+	expect "an inherit value adds no flag" 0 bash "$NS" --print --model - --effort high "$T" '/tt-workflow'
+	has "only the effort flag" "$T/out" "claude --effort high '/tt-workflow'"
+fi
 
 echo "# workflow-state.sh: the stage column"
 bash "$WS" --tsv "$G" >"$T/rows"
@@ -981,6 +991,41 @@ expect "trace retrieval" 0 bash "$S/knowledge.sh" trace "$T/cache" tt-review rev
 expect "retrieval report" 0 bash "$root/tools/retrieval-report.sh" "$T/cache"
 has "retrieval report skill" "$T/out" "tt-review / review"
 
+echo "# llms.sh"
+LL() { bash "$core/tt-connections/scripts/llms.sh" "$@"; }
+LLF="$root/tools/fixtures/llms"
+export TT_COPILOT_BIN="$LLF/fake-copilot.sh" TT_CODEX_BIN="$LLF/fake-codex.sh"
+expect "llms usage" 2 LL
+expect "llms unknown command" 2 LL nope
+expect "llms status before anyone connects" 0 LL status
+has "claude is connected from the start" "$T/out" "claude    connected"
+has "copilot is available, not connected" "$T/out" "copilot   available"
+expect "claude models need no setup" 0 LL models --runnable --tsv
+for m in sonnet opus haiku fable; do has "claude alias $m is runnable" "$T/out" "claude	$m	"; done
+expect "claude cannot be disconnected" 1 LL disconnect claude
+expect "unknown provider" 2 LL connect gemini
+expect "connect copilot" 0 LL connect copilot
+has "copilot models from its --help" "$T/out" "claude-sonnet-4.5"
+expect "copilot models are listed" 0 LL models --tsv
+has "copilot model row" "$T/out" "copilot	gpt-5	gpt-5	low,medium,high	no"
+expect "only claude is runnable" 0 LL models --runnable --tsv
+hasnt "copilot is not runnable" "$T/out" "copilot"
+expect "connect codex lists nothing from help" 0 LL connect codex
+has "codex says where to add models" "$T/out" "models.d/codex.tsv"
+mkdir -p "$TT_LLMS_HOME/models.d"; printf 'gpt-5-codex\tGPT-5 Codex\tlow,high\tno\n' >"$TT_LLMS_HOME/models.d/codex.tsv"
+expect "models.d adds a model" 0 LL models --provider codex --tsv
+has "extra codex model" "$T/out" "codex	gpt-5-codex	GPT-5 Codex	low,high	no"
+expect "refresh keeps models.d" 0 LL refresh
+expect "status after connecting" 0 LL status --tsv
+has "copilot connected with its models" "$T/out" "copilot	connected	copilot 9.9.9	3	0"
+expect "disconnect copilot" 0 LL disconnect copilot
+expect "disconnected models are gone" 0 LL models --tsv
+hasnt "no copilot models" "$T/out" "copilot"
+TT_CODEX_BIN="$T/none-codex" expect "status with the tool gone" 0 LL status --tsv
+has "connected but gone shows missing" "$T/out" "codex	missing"
+TT_COPILOT_BIN="$T/none-copilot" expect "connect a tool that is not installed" 1 LL connect copilot
+has "says it is not installed" "$T/out" "not installed"
+
 echo "# model-config.sh"
 MC() { bash "$S/model-config.sh" "$@"; }
 export TT_CONFIG_DIR="$T/ttconfig"
@@ -992,6 +1037,28 @@ expect "unknown role" 2 MC get nope
 expect "set rejects a bad model" 2 MC set coder gpt high
 expect "set rejects a bad effort" 2 MC set coder opus loud
 expect "set rejects a bad role" 2 MC set nope opus high
+expect "set rejects a model that is not runnable" 2 MC set coder gpt-5 low
+LL connect copilot >/dev/null
+expect "set rejects a connected tool's model that is not runnable" 2 MC set coder gpt-5 low
+LL disconnect copilot >/dev/null
+expect "the session role is inherit by default" 0 MC get session
+has "session default" "$T/out" "model=- effort=-"
+expect "args with nothing set" 0 MC args
+[ ! -s "$T/out" ] && ok "no flags when left to the session" || bad "no flags when left to the session" "$(cat "$T/out")"
+expect "args from explicit values" 0 MC args --model opus --effort high
+has "both flags" "$T/out" "--model opus --effort high"
+expect "args with a model only" 0 MC args --model sonnet
+has "model flag" "$T/out" "--model sonnet"
+hasnt "no effort flag" "$T/out" "--effort"
+expect "args rejects an unknown model" 2 MC args --model gpt-5
+expect "args rejects a bad effort" 2 MC args --model opus --effort loud
+expect "args needs a value" 2 MC args --model
+expect "list as rows for a program" 0 MC list --tsv
+has "a subagent row" "$T/out" "coder	sub	3	tt-execute, tt-execute-lite, tt-coder	Writes the code for one task	sonnet	-	sonnet	-"
+has "the session row" "$T/out" "session	main	1	"
+expect "list --tsv for a named mode" 0 MC list --tsv --mode economy
+has "economy's adversary" "$T/out" "adversary	sub	1	tt-adversarial-plan	Attacks each planning stage's written reasoning	sonnet	-	opus	high"
+expect "list rejects an unknown flag" 2 MC list --nope
 expect "set an override" 0 MC set coder opus medium
 expect "get sees the override" 0 MC get coder
 has "override applied" "$T/out" "model=opus effort=medium"
@@ -1007,6 +1074,13 @@ MC get coder >"$T/out"; has "shipped mode not changed by save" "$T/out" "model=s
 expect "use a saved mode" 0 MC use cheap
 MC get coder >"$T/out"; has "saved mode applies" "$T/out" "model=haiku effort=-"
 expect "use an unknown mode" 2 MC use nope
+mkdir -p "$TT_CONFIG_DIR/modes"; printf 'drift-check\topus\thigh\n' >"$TT_CONFIG_DIR/modes/old.tsv"
+expect "a saved mode naming a retired role" 0 MC use old
+expect "it still resolves" 0 MC get coder
+has "the retired row is ignored" "$T/out" "model=sonnet effort=-"
+expect "and lists" 0 MC list
+hasnt "the retired role is not listed" "$T/out" "drift-check"
+rm -f "$TT_CONFIG_DIR/modes/old.tsv"; MC use cheap >/dev/null
 expect "economy has no opus" 0 MC use economy
 MC list >"$T/out"; hasnt "economy list has no opus" "$T/out" " opus "
 MC use thorough >/dev/null; MC get plan-audit >"$T/out"; has "thorough gates on opus" "$T/out" "model=opus effort=high"
@@ -1041,6 +1115,28 @@ for r in $roles; do printf '%s\n' "$used" | grep -qx "$r" && ok "role $r is used
 for r in $used; do printf '%s\n' "$roles" | grep -qx "$r" && ok "skill role $r is registered" || bad "skill role $r is registered"; done
 hardcoded=$(grep -rln 'model: sonnet' "$root"/plugins/*/skills/tt-*/ --include=*.md || true)
 [ -z "$hardcoded" ] && ok "no skill hard-codes a model" || bad "no skill hard-codes a model" "$hardcoded"
+# the main session's model and effort reach a launcher
+MC use recommended >/dev/null
+expect "set the session" 0 MC set session opus high
+expect "args follow the session setting" 0 MC args
+has "session flags" "$T/out" "--model opus --effort high"
+expect "an explicit value beats the setting" 0 MC args --effort low
+has "mixed flags" "$T/out" "--model opus --effort low"
+expect "start prints the session setting" 0 wf start
+has "session line" "$T/out" "Session setting (tt-config): model=opus effort=high"
+expect "lite start prints it too" 0 lw start
+has "session line in lite" "$T/out" "Session setting (tt-config): model=opus effort=high"
+expect "handoff shows the flags" 0 hf --show --prefix Other --entry tt-workflow "$HF"
+has "handoff flags from the setting" "$T/out" "Flags: --model opus --effort high"
+expect "handoff takes explicit flags" 0 hf --show --prefix Other --entry tt-workflow --model sonnet --effort - "$HF"
+has "explicit model" "$T/out" "Flags: --model sonnet"
+hasnt "explicit inherit effort" "$T/out" "--effort"
+expect "handoff rejects an unknown model" 2 hf --show --prefix Other --entry tt-workflow --model gpt-5 "$HF"
+MC set session - - >/dev/null
+expect "start prints nothing when inherited" 0 wf start
+hasnt "no session line" "$T/out" "Session setting"
+expect "handoff adds no flags when inherited" 0 hf --show --prefix Other --entry tt-workflow "$HF"
+hasnt "no flags line" "$T/out" "Flags:"
 unset TT_CONFIG_DIR
 
 echo "# tt-event.sh"

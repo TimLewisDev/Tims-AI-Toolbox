@@ -83,6 +83,10 @@ start)
 		echo "Linked folder: $folder"
 		printf '%s\n' "$report"
 	fi
+	# What a launcher starts claude with (tt-config's `session`); nothing when left to the session.
+	sess=$(bash "$common/model-config.sh" get session 2>/dev/null)
+	[ -z "$sess" ] || [ "$sess" = "model=- effort=-" ] ||
+		echo "Session setting (tt-config): $sess. A running session can't be switched; a new session started from here or from Tatty uses it."
 	exit 0
 	;;
 state) state "$@" ;;

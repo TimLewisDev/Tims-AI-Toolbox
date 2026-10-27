@@ -27,9 +27,11 @@ bash "<this skill's folder>/../tt-common/scripts/model-config.sh" <command>
 
 (`<common>` below is that `tt-common` folder.) Its commands are `list`,
 `set <role> <model> <effort>`, `modes`, `use <mode>`, `save <name>`,
-`reset <mode>`, `delete <mode>` and `status`. Models are `sonnet`, `opus`,
-`haiku`, `fable` or `-`; efforts are `low`, `medium`, `high`, `xhigh`, `max` or
-`-`. `-` means "leave it to the session". The roles and their defaults are in
+`reset <mode>`, `delete <mode>`, `args` and `status`. Models are the runnable
+ones of the connected LLM tools (`tt-connections`' `llms.sh models`; by default
+`sonnet`, `opus`, `haiku`, `fable`) or `-`; efforts are `low`, `medium`, `high`,
+`xhigh`, `max` or `-` (a model may take fewer). `-` means "leave it to the
+session". The roles and their defaults are in
 `<common>/model-roles.tsv`. Choices live in `~/.claude/tt-config/`, outside
 every repo.
 
@@ -42,6 +44,12 @@ every repo.
   a skill cannot reconfigure. The setting is a recommendation: the stage
   skills tell the engineer once, in one line, if their session differs, and the
   engineer applies it with `/model` and `/effort`.
+- **The `session` row** is the model and effort a workflow is *started* on. A
+  running session can't be switched, so it only takes effect when `claude` is
+  launched with it: `model-config.sh args` prints the flags (`--model opus
+  --effort high`), and `new-session.sh` and `session-handoff.sh` pass them to
+  the session they open. Another launcher (a terminal alias, Tatty) can use
+  the same command. Left at `-`, nothing is forced.
 
 ## Arguments
 

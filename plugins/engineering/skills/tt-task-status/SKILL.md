@@ -256,6 +256,8 @@ A short resume summary, from the header, Resume Here and the boards only:
 - `templates/task-status.md`: the full and standalone templates. Read it only
   for `init`.
 - `briefs/init.md`: `init` from a Task Breakdown by a subagent, the fallback
-  when `status-init.sh` can't read the breakdown.
+  when `status-init.sh` can't read the breakdown (model and effort from
+  `model-config.sh get status-init`).
 - `briefs/reconcile.md`: the read-only part of `reconcile`, run by a subagent;
-  it returns discrepancies and proposed corrections for the caller to present.
+  it returns discrepancies and proposed corrections for the caller to present
+  (model and effort from `model-config.sh get status-reconcile`).

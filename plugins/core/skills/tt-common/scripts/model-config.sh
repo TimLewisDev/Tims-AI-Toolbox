@@ -8,7 +8,9 @@ set -u
 usage() {
 	cat >&2 <<'EOF'
 usage: model-config.sh get <role>                    model=<m> effort=<e> for the active mode
-       model-config.sh list [--mode <name>]          the ranked table, highest value first
+       model-config.sh list [--mode <name>] [--tsv]  the ranked table, highest value first (--tsv: one row per role
+                                                     for a program: role kind tier used-by label model effort
+                                                     default-model default-effort)
        model-config.sh set <role> <model> <effort>   change one role in the active mode
        model-config.sh modes                         list modes; * marks the active one
        model-config.sh use <mode>                    make a mode the active one
@@ -16,10 +18,14 @@ usage: model-config.sh get <role>                    model=<m> effort=<e> for th
        model-config.sh reset <mode>                  drop your edits to a shipped mode
        model-config.sh delete <mode>                 delete a mode you saved
        model-config.sh stage-note <skill>            one line for a main-thread stage, if configured
+       model-config.sh args [--model m] [--effort e]  the flags that start claude on that model and effort
+                                                     (values left out come from the `session` role)
        model-config.sh status                        active mode, changes, warnings
 
 model: sonnet | opus | haiku | fable | -     effort: low | medium | high | xhigh | max | -
 "-" leaves the choice to the session. Roles are in tt-common/model-roles.tsv.
+The models offered are the runnable ones of the connected LLMs (tt-connections: llms.sh models);
+without that script, the Claude aliases above.
 TT_CONFIG_DIR overrides the state folder (default ~/.claude/tt-config).
 Exit: 0 ok, 1 nothing to report / refused, 2 usage or environment error.
 EOF
@@ -37,6 +43,32 @@ DEFAULT_MODE=recommended
 
 die() { echo "model-config: $*" >&2; exit 2; }
 in_list() { case " $2 " in *" $1 "*) return 0 ;; esac; return 1; }
+
+# The models a skill can use come from the connected LLMs (tt-connections'
+# llms.sh); when that script isn't there, the Claude aliases above stand in.
+. "$here/tt-path.sh"
+LLMS=""
+if conn=$(tt_find tt-connections) && [ -f "$conn/scripts/llms.sh" ]; then LLMS="$conn/scripts/llms.sh"; fi
+
+# runnable_rows: provider, id, label, efforts, runnable, one per line
+runnable_rows() {
+	[ -n "$LLMS" ] && bash "$LLMS" models --runnable --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' 'NF >= 5' && return 0
+	return 1
+}
+
+# model_ids: the ids that may be set, "-" included
+model_ids() {
+	local ids
+	ids=$(runnable_rows | awk -F'\t' '{ printf "%s ", $2 }') || ids=""
+	[ -n "$ids" ] && echo "$ids-" || echo "$MODELS"
+}
+
+# effort_list <model>: the efforts that model accepts, "-" included
+effort_list() {
+	local e=""
+	[ "$1" != "-" ] && e=$(runnable_rows | awk -F'\t' -v m="$1" '$2 == m && $4 != "-" { gsub(/,/, " ", $4); print $4; exit }')
+	[ -n "$e" ] && echo "$e -" || echo "$EFFORTS"
+}
 
 [ -f "$REG" ] || die "role registry not found: $REG"
 
@@ -80,12 +112,19 @@ cmd_get() {
 }
 
 cmd_list() {
-	local mode
+	local mode tsv=0
 	mode=$(active_mode)
-	if [ "${1:-}" = "--mode" ]; then
-		[ -n "${2:-}" ] && mode_exists "$2" || die "unknown mode '${2:-}'"
-		mode=$2
-	fi
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--mode) [ -n "${2:-}" ] && mode_exists "$2" || die "unknown mode '${2:-}'"; mode=$2; shift ;;
+		--tsv) tsv=1 ;;
+		*) usage; exit 2 ;;
+		esac
+		shift
+	done
+	# --tsv: one row per role, tab-separated, for a program to read:
+	# role kind tier used-by label model effort default-model default-effort
+	[ $tsv -eq 1 ] && { resolve "$mode"; return 0; }
 	echo "Mode: $mode"
 	resolve "$mode" | awk -F'\t' '
 		BEGIN { printf "  %-4s %-20s %-9s %-8s %-7s %s\n", "Tier", "Role", "Kind", "Model", "Effort", "Used by" }
@@ -107,12 +146,43 @@ write_override() { # write_override <file> <role> <model> <effort>
 	} >"$tmp" && mv "$tmp" "$f"
 }
 
+# check_pair <model> <effort>: exit 2 unless both are allowed together
+check_pair() {
+	local ids efforts
+	ids=$(model_ids); efforts=$(effort_list "$1")
+	in_list "$1" "$ids" || die "model must be one of: $ids"
+	in_list "$2" "$efforts" || die "effort for '$1' must be one of: $efforts"
+}
+
+# cmd_args [--model m] [--effort e]: the flags that start claude on a model and
+# effort, e.g. `--model opus --effort high`. A value left out comes from the
+# `session` role; "-" or nothing leaves that flag off (the session decides).
+cmd_args() {
+	local m e row
+	row=$(resolve "$(active_mode)" | awk -F'\t' '$1 == "session" { print $6 "\t" $7 }')
+	m=${row%%$'\t'*}; e=${row##*$'\t'}
+	[ -n "$row" ] || { m="-"; e="-"; }
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--model) [ $# -ge 2 ] || { usage; exit 2; }; m=$2; shift ;;
+		--effort) [ $# -ge 2 ] || { usage; exit 2; }; e=$2; shift ;;
+		*) usage; exit 2 ;;
+		esac
+		shift
+	done
+	[ -n "$m" ] || m="-"; [ -n "$e" ] || e="-"
+	check_pair "$m" "$e"
+	local out=""
+	[ "$m" = "-" ] || out="--model $m"
+	[ "$e" = "-" ] || out="${out:+$out }--effort $e"
+	[ -z "$out" ] || printf '%s\n' "$out"
+}
+
 cmd_set() {
 	[ $# -eq 3 ] || { usage; exit 2; }
 	local role=$1 model=$2 effort=$3 mode
 	awk -F'\t' -v r="$role" '$1 !~ /^#/ && $1 == r { f = 1 } END { exit !f }' "$REG" || die "unknown role '$role'"
-	in_list "$model" "$MODELS" || die "model must be one of: $MODELS"
-	in_list "$effort" "$EFFORTS" || die "effort must be one of: $EFFORTS"
+	check_pair "$model" "$effort"
 	mode=$(active_mode)
 	write_override "$(user_file "$mode")" "$role" "$model" "$effort"
 	echo "set $role: model=$model effort=$effort (mode $mode)"
@@ -231,6 +301,7 @@ case "$cmd" in
 	reset) cmd_reset "$@" ;;
 	delete) cmd_delete "$@" ;;
 	stage-note) cmd_stage_note "$@" ;;
+	args) cmd_args "$@" ;;
 	status) cmd_status ;;
 	-h | --help | help | "") usage; [ -n "$cmd" ] && exit 0 || exit 2 ;;
 	*) usage; exit 2 ;;
