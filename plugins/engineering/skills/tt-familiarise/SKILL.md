@@ -43,6 +43,8 @@ read **Lite mode** below.
   stall recovery, subagents and scripts apply throughout.
 - The Focus Log template is `<skill>/templates/focus-log.md`, the subagent
   brief `<skill>/briefs/explore.md`. Read each only when you reach it.
+  `<skill>/scripts/focus-summary.sh` writes the summary the confirmation
+  questions carry (see **Close**).
 - **You hold the conversation.** Subagents only read code. They never talk to
   the engineer, and what they find is material for you to describe, not
   conclusions.
@@ -85,8 +87,10 @@ How to talk and Flow below all still apply; these are the differences:
 - **Boil down** after two or three Dig turns, then every three. Stop digging
   when the Change facts hold: the wanted change, at least one acceptance
   statement, the seams (or "a new file"), and the build or check method.
-- **Close.** Show the focus statement, the Focus topics and the Change facts for
-  confirmation (the same rule: silence is not confirmation). Then offer, with
+- **Close.** Ask for confirmation as in **Close** below, with the summary from
+  `focus-summary.sh` in the question text (it adds the wanted change); also show
+  the Change facts, in the prose before the question (the same rule: silence is
+  not confirmation). Then offer, with
   `AskUserQuestion`: **write the lite brief now** (invoke `tt-lite-brief` with
   the Focus Log path) · **write it in a new session** (follow
   `<common>/session-handoff.md`; the session starts the lite brief) ·
@@ -193,7 +197,8 @@ somewhere, play back:
 
 Then ask, with `AskUserQuestion` (multi-select where it fits), which topics
 they are **very interested in** (Focus), which they need only **as background**
-(Context), and which they **don't care about** (Parked). Write the ratings and
+(Context), and which they **don't care about** (Parked). Put the playback in
+the question text as well as in the prose, for the reason given in **Close**. Write the ratings and
 the confirmed or corrected statement into the Focus Log. Carry on digging
 unless they say the focus is right.
 
@@ -201,9 +206,16 @@ unless they say the focus is right.
 
 When the engineer says the focus is right, or asks to stop:
 
-1. Show the final focus statement and the Focus and Context topics (one line
-   each), and ask them to confirm. "Looks fine" or silence is not
-   confirmation; any hesitation is another direction to dig.
+1. Ask them to confirm the focus with `AskUserQuestion`, with the summary
+   **inside the question text**: run `bash "<skill>/scripts/focus-summary.sh" "<fam>/focus-log.md"`
+   and put its output verbatim in the `question`, followed by "Is this focus
+   right?" (options **Yes, that's the focus** · **No, keep digging**). The
+   summary carries the focus statement, the Focus and Context topics, the
+   parked and unrated counts and a link to the log, so the engineer can open
+   it for detail. Prose before the question may not be shown with it (a front
+   end can show the question alone), so never leave the summary there only.
+   "Looks fine" or silence is not confirmation; any hesitation is another
+   direction to dig.
 2. On confirmation, set the log's Status to `Focus confirmed <YYYY-MM-DD>`, then
    record it (silent, best-effort; `<common>/events.md`):
    `bash "<common>/scripts/tt-event.sh" emit explore.focus_confirmed --prefix "<Prefix>" --folder "<feature folder>" --skill tt-familiarise`.
