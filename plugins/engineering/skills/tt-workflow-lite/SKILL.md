@@ -75,8 +75,13 @@ stands>`, then `→ /<skill> …` for the next step, other sensible steps
 (`→ or …`) and problems (`!`). If there are several, ask which one. `status`
 ends here with the block.
 
-- **`No tt documents in …`**: a new task. If you don't know yet whether it is a
-  bug or a feature, ask; if you don't have the sentence, ask for it. Then run
+- **`No tt documents in …`**: a new task. The sentence is whatever you were
+  started with after the folder, or the ticket or brief document the folder
+  already holds (read it; it is not a tt document). If you don't know yet whether
+  it is a bug or a feature, ask (say which you think, from the sentence); if you
+  still don't have the sentence, ask for it. Then run it here, in this
+  conversation: a new task has no long conversation to shed, so skip step 3's
+  question and don't offer **Continue in a new session**. Run
   - a **feature**: `tt-familiarise` with the arguments
     `lite <the sentence>. Mode: lite. Folder: <folder>. Prefix: <prefix>.`
   - a **bug**: `tt-debug` with
@@ -110,6 +115,9 @@ not asked about.
 For `tt-execute-lite`, building is better in a fresh session than after an
 exploration's long context: lead with **Continue in a new session** and
 recommend it.
+
+If opening the new session fails (the script exits 2), say why and ask this
+question again without that option; never end the turn on the failure.
 
 On **Continue in a new session**, follow `<common>/session-handoff.md` with
 `--entry tt-workflow-lite` (`<common>` is `~/.claude/tt-plugins/core/skills/tt-common` (or `<this skill's folder>/../tt-common` when the skills are linked into one folder)):

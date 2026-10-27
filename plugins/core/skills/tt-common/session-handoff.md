@@ -62,6 +62,12 @@ Windows Terminal. The new tab's shell is assumed to be PowerShell.
 - Exit `1`: no terminal could be opened. Give the engineer the command the
   script printed, then stop.
 - Exit `2`: tell the engineer why (nothing left to run, or several features),
-  and carry on with the other options.
+  then ask the same question again without this option, so they always have a
+  way to carry on. Never end the turn on the failure alone.
+
+A folder with no tt documents yet (a new task) can be handed off only with
+`--entry`: the new session then starts `/<entry> "<folder>"`, which links the
+folder and asks its first question. There is rarely a reason to: a new task has
+no long conversation to shed, so `tt-workflow-lite` doesn't offer it there.
 
 Never open a session without a yes.

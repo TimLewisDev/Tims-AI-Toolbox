@@ -22,6 +22,9 @@ The start command is, in order:
   not linked               the next step's own command, e.g. /tt-adversarial-plan resume "<plan>"
 
 --prefix picks the feature when the folder holds several.
+A folder with no tt documents yet (a new task) has no step to name: with --entry (or
+--run) the session is named "<folder name> : Start" and starts `/<entry> "<folder>"`,
+which links the folder and asks its first question; without them it exits 2.
 --stage and --run replace the stage label and the start command, for the rare
 step the state alone can't name (for example writing up a confirmed
 exploration: --stage "Familiarisation Doc" --run '/tt-familiarisation-doc "<log>"').
@@ -58,26 +61,41 @@ folder=$(abs "$1") || { echo "session-handoff.sh: no such folder: $1" >&2; exit 
 repo=${2:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}
 
 rows=$(bash "$here/workflow-state.sh" --tsv "$folder" 2>/dev/null | awk -F'\t' '$2 == "primary"')
-[ -n "$rows" ] || { echo "session-handoff.sh: no tt documents in $folder" >&2; exit 2; }
-
-if [ -n "$prefix" ]; then
-	rows=$(printf '%s\n' "$rows" | awk -F'\t' -v p="$prefix" '$1 == p')
-	[ -n "$rows" ] || { echo "session-handoff.sh: no feature '$prefix' in $folder" >&2; exit 2; }
+# A folder with no tt documents yet (a new task) has no step to read. With --entry
+# (or --run) the new session just starts the entry skill on the folder, which links
+# it and asks its usual first question; without either there is no command to give.
+fresh=0
+if [ -z "$rows" ] || [ "$(printf '%s\n' "$rows" | awk -F'\t' '{ print $3 }' | sort -u)" = empty ]; then
+	if [ -n "$entry" ] || [ -n "$run_over" ]; then
+		fresh=1
+	else
+		echo "session-handoff.sh: no tt documents in $folder (pass --entry to start the entry skill on it)" >&2
+		exit 2
+	fi
 fi
-if [ "$(printf '%s\n' "$rows" | wc -l)" -gt 1 ]; then
-	echo "session-handoff.sh: several features in $folder; pass --prefix:" >&2
-	printf '%s\n' "$rows" | awk -F'\t' '{ print "  " $1 }' >&2
-	exit 2
-fi
 
-# awk, not read: empty tab-separated fields must stay empty
-f() { printf '%s' "$rows" | awk -F'\t' -v n="$1" '{ print $n }'; }
-p=$(f 1); phase=$(f 3); skill=$(f 4); verb=$(f 5); arg=$(f 6); hint=$(f 8); stage=$(f 9)
-[ "$phase" != empty ] || { echo "session-handoff.sh: no tt documents in $folder" >&2; exit 2; }
-[ "$skill" != "-" ] || { echo "session-handoff.sh: nothing left to run in $folder" >&2; exit 2; }
-[ -n "$p" ] || p=$(basename "$folder")
-[ -z "$stage_over" ] || stage=$stage_over
-[ -n "$stage" ] || stage=Next
+if [ $fresh = 1 ]; then
+	p=${prefix:-$(basename "$folder")}; phase=""; skill=""; verb=""; arg=""; hint=""
+	stage=${stage_over:-Start}
+else
+	if [ -n "$prefix" ]; then
+		rows=$(printf '%s\n' "$rows" | awk -F'\t' -v p="$prefix" '$1 == p')
+		[ -n "$rows" ] || { echo "session-handoff.sh: no feature '$prefix' in $folder" >&2; exit 2; }
+	fi
+	if [ "$(printf '%s\n' "$rows" | wc -l)" -gt 1 ]; then
+		echo "session-handoff.sh: several features in $folder; pass --prefix:" >&2
+		printf '%s\n' "$rows" | awk -F'\t' '{ print "  " $1 }' >&2
+		exit 2
+	fi
+
+	# awk, not read: empty tab-separated fields must stay empty
+	f() { printf '%s' "$rows" | awk -F'\t' -v n="$1" '{ print $n }'; }
+	p=$(f 1); phase=$(f 3); skill=$(f 4); verb=$(f 5); arg=$(f 6); hint=$(f 8); stage=$(f 9)
+	[ "$skill" != "-" ] || { echo "session-handoff.sh: nothing left to run in $folder" >&2; exit 2; }
+	[ -n "$p" ] || p=$(basename "$folder")
+	[ -z "$stage_over" ] || stage=$stage_over
+	[ -n "$stage" ] || stage=Next
+fi
 name="$p : $stage"
 
 # Claude Code adds a random suffix to a name another live session already has.
@@ -112,6 +130,7 @@ if [ -n "$run_over" ]; then
 	prompt=$run_over
 elif [ -n "$entry" ]; then
 	prompt="/$entry"
+	[ $fresh = 0 ] || prompt="$prompt \"$folder\""  # a new task: the entry skill links this folder
 else
 	prompt="/$skill"
 	[ -n "$verb" ] && prompt="$prompt $verb"

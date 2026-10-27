@@ -937,6 +937,12 @@ has "plain again" "$T/out" "Name: Other : Build"
 hasnt "plain again, no counter" "$T/out" "(2)"
 unset CLAUDE_CONFIG_DIR
 expect "no tt documents" 2 hf --show "$G/empty"
+has "says to pass --entry" "$T/out" "pass --entry"
+expect "a new task with --entry" 0 hf --show --entry tt-workflow-lite "$G/empty"
+has "named for the folder, at Start" "$T/out" "Name: empty : Start"
+has "starts the entry skill on the folder" "$T/out" 'Prompt: /tt-workflow-lite "'
+expect "a new task with --entry and --prefix" 0 hf --show --entry tt-workflow --prefix Sample "$G/empty"
+has "the prefix names it" "$T/out" "Name: Sample : Start"
 mkdir -p "$HF/done"; sed 's/^- State: .*/- State: Complete/' "$ST" >"$HF/done/Fin - Task Status.md"
 expect "nothing left to run" 2 hf --show "$HF/done"
 expect "no such folder" 2 hf --show "$HF/none"
