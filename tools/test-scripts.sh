@@ -896,6 +896,66 @@ stage_is "$T/rows" D primary "Debug Report" "debug finished"
 stage_is "$T/rows" F primary Fix "debugged"
 stage_is "$T/rows" G primary Build "lite brief"
 
+echo "# stages.sh"
+STG="$S/stages.sh"
+SF="$T/stg"; mkdir -p "$SF"
+# row_is <key> <column: on|locked> <want> <name>: that stage's field in the last show --tsv
+row_is() { awk -F'\t' -v k="$1" -v c="$2" -v want="$3" '$1 == k { got = (c == "on") ? $4 : $5; found = 1 } END { exit !(found && got == want) }' "$T/rows" && ok "stages: $4" || bad "stages: $4" "$(grep "^$1	" "$T/rows")"; }
+show_rows() { bash "$STG" show --tsv "$1" >"$T/rows"; }
+show_rows "$SF"
+row_is explore on on "a new folder includes every stage"
+row_is explore locked 0 "explore can change in a new folder"
+row_is requirements locked 1 "requirements cannot be left out"
+row_is build locked 1 "build cannot be left out"
+expect "leave out scope" 0 bash "$STG" set "$SF" scope off
+has "profile written" "$SF/.tt/workflow-stages.tsv" "scope	off"
+show_rows "$SF"; row_is scope on off "scope shows as off"
+expect "leaving scope out twice is fine" 0 bash "$STG" set "$SF" scope off
+expect "requirements cannot be left out" 1 bash "$STG" set "$SF" requirements off
+has "says why" "$T/out" "Always included"
+expect "an unknown stage" 1 bash "$STG" set "$SF" nonsense off
+expect "a bad value" 2 bash "$STG" set "$SF" scope maybe
+expect "scope back in" 0 bash "$STG" set "$SF" scope on
+[ ! -e "$SF/.tt/workflow-stages.tsv" ] && ok "an all-on profile is no file" || bad "an all-on profile is no file"
+expect "plan off is the lite route" 0 bash "$STG" set "$SF" plan off
+show_rows "$SF"
+row_is breakdown on off "breakdown follows plan"
+row_is approach on off "planning stages are off with plan"
+row_is approach locked 1 "and cannot be changed alone"
+row_is explore on on "the lite route still explores"
+expect "check of a good profile" 0 bash "$STG" check "$SF"
+expect "plan back on" 0 bash "$STG" set "$SF" plan on
+show_rows "$SF"; row_is breakdown on on "breakdown follows plan back on"
+printf 'plan\toff\n' >"$SF/.tt/workflow-stages.tsv"
+expect "check: plan without breakdown" 1 bash "$STG" check "$SF"
+printf 'build\toff\n' >"$SF/.tt/workflow-stages.tsv"
+expect "check: build left out" 1 bash "$STG" check "$SF"
+rm -f "$SF/.tt/workflow-stages.tsv"
+# a folder that has started cannot change route
+mkdir -p "$T/stg-lite"; cp "$LF/Farewell - Lite Brief.md" "$T/stg-lite/"
+expect "plan is locked once work has started" 1 bash "$STG" set "$T/stg-lite" plan off
+# a draft plan: the Stages table follows the profile and keeps its CRLFs
+mkdir -p "$T/stg-draft"; DP="$T/stg-draft/Dr - Comprehensive Tech Plan.md"
+printf -- '- **Status:** Draft · **Stage:** Scope\r\n\r\n**Stages**\r\n\r\n| Stage | Status | Output | Challenges |\r\n|---|---|---|---|\r\n| Familiarisation | Skipped | n/a | |\r\n| Requirements | Closed | R | |\r\n| Scope & Constraints | In progress | S | |\r\n| Approach | Not started | A | |\r\n| Whole plan | Not started | w | |\r\n' >"$DP"
+expect "leave out approach in a draft" 0 bash "$STG" set "$T/stg-draft" approach off
+has "the row is skipped" "$DP" "| Approach | Skipped: not selected | A | |"
+[ "$(tr -cd '\r' <"$DP" | wc -c | tr -d ' ')" = "$(wc -l <"$DP" | tr -d ' ')" ] && ok "CRLFs kept" || bad "CRLFs kept"
+expect "scope has started" 1 bash "$STG" set "$T/stg-draft" scope off
+expect "approach back in" 0 bash "$STG" set "$T/stg-draft" approach on
+has "the row is back" "$DP" "| Approach | Not started | A | |"
+expect "leave out the whole-plan challenge" 0 bash "$STG" set "$T/stg-draft" whole-plan off
+bash "$WS" --tsv "$T/stg-draft" >"$T/rows"
+stage_is "$T/rows" Dr primary "Scope & Constraints" "a left-out stage is not the open one"
+# review left out: no review alt on a finished build
+mkdir -p "$T/stg-fin"; cp "$W2/Fin - Task Status.md" "$T/stg-fin/"
+bash "$WS" --tsv "$T/stg-fin" >"$T/rows"; grep -q "tt-branch-review" "$T/rows" && ok "review is offered" || bad "review is offered"
+bash "$STG" set "$T/stg-fin" review off >/dev/null
+bash "$WS" --tsv "$T/stg-fin" >"$T/rows"; grep -q "tt-branch-review" "$T/rows" && bad "no review once left out" || ok "no review once left out"
+# the full entry points a lite-profile folder at the lite route
+mkdir -p "$T/stg-new"; bash "$STG" set "$T/stg-new" plan off >/dev/null
+TT_WORKFLOW_HOME="$T/wfhome-stg" expect "state of a lite-profile folder" 0 bash "$WF" state "$T/stg-new"
+has "points at the lite route" "$T/out" "/tt-workflow-lite"
+
 echo "# workflow.sh linked, session-handoff.sh"
 SHF="$S/session-handoff.sh"
 hf() { (cd "$T/wf proj" && bash "$SHF" "$@"); }
@@ -1232,6 +1292,17 @@ has "closed with a skipped challenge" "$LG" '"event":"plan.scope_closed"'
 hasnt "open stage" "$LG" "plan.approach_closed"
 hasnt "skipped stage" "$LG" "plan.familiarisation_closed"
 hasnt "not signed off" "$LG" "plan.signed_off"
+bash "$WS" --tsv "$T/evdraft" >"$T/rows"
+stage_is "$T/rows" Mini primary Approach "skipped and note-closed stages are not the open one"
+# a signed-off plan: stages the profile left out are not claimed as closed
+mkdir -p "$T/evsigned/.tt"
+printf -- '- **Status:** Signed off 2026-10-01 · **Revision:** 1\n' >"$T/evsigned/Sg - Comprehensive Tech Plan.md"
+printf 'scope\toff\nwhole-plan\toff\n' >"$T/evsigned/.tt/workflow-stages.tsv"
+export TT_EVENTS_HOME="$T/ev-signed"; LG="$TT_EVENTS_HOME/events.jsonl"
+expect "reconcile a signed-off plan with stages left out" 0 bash "$EV" reconcile "$T/evsigned"
+has "approach was closed" "$LG" '"event":"plan.approach_closed"'
+hasnt "scope was left out" "$LG" "plan.scope_closed"
+hasnt "whole-plan was left out" "$LG" "plan.whole_closed"
 # the lite and debug routes
 mkdir -p "$T/evlite/.tt/Slow - Debug"
 cp "$LF/Farewell - Lite Brief.md" "$T/evlite/"; cp "$LF/Slow - debug-log.md" "$T/evlite/.tt/Slow - Debug/debug-log.md"

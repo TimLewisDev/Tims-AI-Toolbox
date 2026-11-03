@@ -70,7 +70,14 @@ A folder with no tt documents prints `No tt documents in …` and
 `/tt-adversarial-plan <idea, spec or ticket>`: ask what the feature is (a
 sentence, a spec or a ticket), then run `tt-adversarial-plan` with it and
 "Folder: <folder>. Prefix: <name>" (the folder's name unless `new` printed one).
-It asks whether to explore first.
+It asks whether to explore first (unless the folder's stages leave Familiarisation
+out, in which case it doesn't ask).
+
+If that block also has a `!` line pointing at `/tt-workflow-lite`, the stages
+chosen for the folder leave out Plan (`stages.sh show`): it is a small change.
+Say so, point at `/tt-workflow-lite "<folder>"`, and stop, as for a folder that
+holds lite documents. To plan it in full instead, the engineer turns Plan back on
+(`stages.sh set "<folder>" plan on`).
 
 A feature that is built and validated has no next skill. When `start` showed
 the party Tatty (arms raised, confetti), congratulate the engineer on finishing

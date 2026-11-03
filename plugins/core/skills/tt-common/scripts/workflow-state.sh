@@ -42,14 +42,18 @@ rel() { case $1 in ./*) printf '%s' "${1#./}" ;; *) printf '%s' "$1" ;; esac; }
 # field <file> <regex>: the first line matching the regex, without CR
 field() { awk -v re="$2" '{ sub(/\r$/, "") } $0 ~ re { print; exit }' "$1"; }
 
+# left_out <stage>: the folder's stage profile (stages.sh) leaves this stage out
+left_out() { [ -f "$dir/.tt/workflow-stages.tsv" ] && awk -F'\t' -v k="$1" '{ sub(/\r$/, "") } $1 == k && $2 == "off" { f = 1 } END { exit !f }' "$dir/.tt/workflow-stages.tsv"; }
+
 # stage <plan>: "<stage> (<status>)" for the first Stages row not Closed or Skipped
+# (either may carry a note: "Skipped: known area", "Closed (challenge skipped: small)")
 stage() {
 	awk -F'|' '{ sub(/\r$/, "") }
 		/^\*\*Stages\*\*/ { on = 1; next }
 		on && /^\|/ {
 			s = $2; t = $3; gsub(/^ +| +$/, "", s); gsub(/^ +| +$/, "", t)
 			if (s == "Stage" || s ~ /^-+$/) next
-			if (t != "Closed" && t != "Skipped") { print s " (" t ")"; exit }
+			if (t !~ /^(Closed|Skipped)/) { print s " (" t ")"; exit }
 			next
 		}
 		on && NF && !/^\|/ { exit }' "$1"
@@ -108,7 +112,7 @@ else
 			next=$(field "$st" '^4[.] Next action:'); next=${next#4. Next action: }
 			if [ "$state" = Complete ]; then
 				row "$p" primary complete - "" "" "built and validated ($prog). Commit it yourself, then review the branch."
-				row "$p" alt complete tt-branch-review "" "" "review the branch:" "[branch]"
+				left_out review || row "$p" alt complete tt-branch-review "" "" "review the branch:" "[branch]"
 			else
 				if [ -f "$lb" ]; then ex=tt-execute-lite; exa=$(rel "$lb"); else ex=tt-execute; exa=$(rel "$st"); fi
 				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"

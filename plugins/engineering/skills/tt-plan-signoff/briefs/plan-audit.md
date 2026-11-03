@@ -27,11 +27,14 @@ Read `<common>/subagent-rules.md` first.
    reading only its `UNDEFINED` rows for `CH` IDs), and every challenge whose
    Outcome is `Accepted` is cited by at least one plan entry.
 6. **Proposals.** Every `A`, `CD` and `NB` entry, and every Rejected
-   Alternatives row, cites a `P`.
+   Alternatives row, cites a `P`. (A section holding only `_Left out: this stage
+   was not selected._` has no entries; that is not a finding.)
 7. **Steps vs Affected Files.** Every file a step's **Files** list names is in
    the Affected Files table with the same status (new, changed, unchanged), and
    the reverse.
-8. **Scope.** No step does something a Non-Goal (`S`) rules out.
+8. **Scope.** No step does something a Non-Goal (`S`) rules out. (If Scope /
+   Non-Goals holds only `_Left out: this stage was not selected._`, skip this
+   check.)
 
 ## Return
 

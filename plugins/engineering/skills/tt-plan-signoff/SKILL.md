@@ -43,7 +43,9 @@ Read the plan's Status line and Stages table.
 - If the plan already says `Signed off`, or `<draft>/parts/` has step files,
   go straight to the **Resume** section of `handoff.md`.
 - Every stage from Requirements to Whole plan must be `Closed` (Familiarisation
-  may be `Skipped`). If one isn't, say which, and point to
+  may be `Skipped`; so may Scope & Constraints, Approach and Whole plan when the
+  row says `Skipped: not selected`, a stage the feature's stage profile leaves
+  out; Requirements and Technical Design never may). If one isn't, say which, and point to
   `/tt-adversarial-plan resume <plan>`. Don't run the gate on an
   unchallenged plan unless the engineer explicitly says to, and record that in
   `Next`.

@@ -59,6 +59,10 @@ is a view of it for human review.
   `A1`, `§4`, `P2`, or a named section such as "Pressure Points: Stale
   correctness"). The one-paragraph summary cites its IDs once at the end. This
   is how `tt-tech-plan-review` maps an amendment made against either doc.
+- **Left-out stages.** A plan section holding only `_Left out: this stage was
+  not selected._` has nothing to render: write one line saying so (for example
+  "Scope and Non-Goals: not part of this plan's stages.") instead of the section's
+  usual content, and don't treat its absent IDs as a gap.
 - **Brief.** Aim for a five-minute read: about 60–120 lines. If it runs longer,
   group more. Group related requirements into one line rather than listing each.
 - **Simple.** Plain English and short sentences. Use technical names only where

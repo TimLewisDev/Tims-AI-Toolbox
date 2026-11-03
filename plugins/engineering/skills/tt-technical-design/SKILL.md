@@ -48,6 +48,12 @@ Normally invoked by `tt-adversarial-plan`.
 - The Tech Proposals doc's **At a glance**.
 - The Familiarisation doc's **Key parts** and **Data and contracts**, and the
   `<draft>/research/approach-<x>.md` file for the chosen approach.
+- A ledger section holding only `_Left out: this stage was not selected._`
+  means the feature's stage profile left that stage out (see the protocol's
+  **Left-out stages**). With Scope & Constraints left out, record the base
+  branch Constraint yourself as `C1` before the alignment pass. With Approach
+  left out there is no `approach-<x>.md`; the design choices that would have
+  been the approach are Critical Decisions, resolved through proposals.
 
 ## Procedure
 

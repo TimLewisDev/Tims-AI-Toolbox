@@ -62,7 +62,13 @@ state() {
 	# Catch stages finished outside a live skill run (best-effort, silent).
 	bash "$common/tt-event.sh" reconcile "$folder" >/dev/null 2>&1
 	bash "$common/workflow-state.sh" "$folder"
-	[ $? -le 1 ] # no tt documents is a state, not a failure
+	local rc=$?
+	# A new folder whose stages leave out Plan (stages.sh) is a small change: the lite route.
+	if [ $rc -eq 1 ] && [ "${TT_WORKFLOW_LINKS:-links.tsv}" = links.tsv ] &&
+		bash "$common/stages.sh" show --tsv "$folder" 2>/dev/null | awk -F'\t' '$1 == "plan" && $4 == "off" { f = 1 } END { exit !f }'; then
+		echo "  ! The stages chosen for this folder leave out Plan, so it is a small change → /tt-workflow-lite \"$folder\""
+	fi
+	[ $rc -le 1 ] # no tt documents is a state, not a failure
 }
 
 cmd=${1:-start}

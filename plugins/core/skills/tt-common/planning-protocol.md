@@ -187,6 +187,15 @@ are already agreed: use them and ask only for the base branch.
    `<draft>/research/`. Mark Familiarisation `Closed` (it was challenged),
    `Challenge pending` (a doc exists but hasn't been challenged) or
    `Skipped: <reason>`.
+   Then read which stages this feature includes:
+   `bash "<common>/scripts/stages.sh" show --tsv "<folder>"` (no script or no
+   profile means all of them). For each of Familiarisation, Scope &
+   Constraints, Approach and Whole plan whose `on` column is `off`, set its
+   row to `Skipped: not selected`, and under each ledger heading that stage
+   would have filled (`## Scope / Non-Goals` and `## Constraints`;
+   `## Chosen Approach` and `## Rejected Alternatives`) write the single line
+   `_Left out: this stage was not selected._` Requirements, Technical Design
+   and Sign-off are always included.
 4. If an issue or ticket is referenced, or inferable from the branch, note its
    key for the plan's header. If intake documents (a spec, design doc, brief)
    are provided, read every one in full before the first probe.
@@ -218,6 +227,17 @@ the engineer can change the session's model. Carry on either way.
 | 4 | Technical Design | `tt-technical-design` | Repo Facts, `CD`, `NB`, Implementation outline |
 | 5 | Whole plan | (a challenge only, run by the orchestrator) | — |
 | 6 | Sign-off | `tt-plan-signoff` | signed-off plan, Tech Plan, Future Iterations |
+
+**Left-out stages.** A stage whose row is `Skipped: not selected` is passed
+over by the loop and the sign-off gate, and has no challenge or `plan.*_closed`
+event. Its ledger headings hold the `_Left out_` line, so a reader or audit
+that finds that line has nothing to check against it (no `S` to rule a step
+out, no `A` to cite a proposal). Two things move to Technical Design: the base
+branch Constraint, when Scope & Constraints is left out (Technical Design
+records it as `C1`), and, when Approach is left out, the design choices that
+would have been the approach (each is a Critical Decision, resolved through a
+proposal as usual). The engineer can change the selection only for stages not
+yet begun: `stages.sh set <folder> <stage> on|off` also updates this table.
 
 1. **Entry check.** Read the plan's Status line and Stages table. If any
    earlier stage isn't `Closed` or `Skipped`, say which and ask whether to go

@@ -139,7 +139,7 @@ units_done() {
 
 # reconcile_one <folder> <prefix>
 reconcile_one() {
-	local dir=$1 p=$2 e
+	local dir=$1 p=$2 e k
 	local plan="$dir/$p - Comprehensive Tech Plan.md" st="$dir/$p - Task Status.md"
 	local fam="$dir/$p - Familiarisation.md" log_="$dir/.tt/$p - Familiarisation/focus-log.md"
 	local lb="$dir/$p - Lite Brief.md" dlog="$dir/.tt/$p - Debug/debug-log.md" drep="$dir/$p - Debug Report.md"
@@ -151,9 +151,19 @@ reconcile_one() {
 		if field "$plan" 'Status:' | grep -q Draft; then
 			stages_closed "$plan" | while IFS= read -r e; do em "$e"; done
 		else
-			# The Stages table is deleted at sign-off: every stage was closed.
+			# The Stages table is deleted at sign-off: every stage was closed, except
+			# those the folder's stage profile (stages.sh) leaves out.
 			[ -f "$fam" ] && em plan.familiarisation_closed
-			for e in plan.requirements_closed plan.scope_closed plan.approach_closed plan.design_closed plan.whole_closed plan.signed_off; do em "$e"; done
+			for e in plan.requirements_closed plan.scope_closed plan.approach_closed plan.design_closed plan.whole_closed plan.signed_off; do
+				case $e in
+				plan.scope_closed) k=scope ;; plan.approach_closed) k=approach ;; plan.whole_closed) k=whole-plan ;; *) k="" ;;
+				esac
+				if [ -n "$k" ] && [ -f "$dir/.tt/workflow-stages.tsv" ] &&
+					awk -F'\t' -v k="$k" '{ sub(/\r$/, "") } $1 == k && $2 == "off" { f = 1 } END { exit !f }' "$dir/.tt/workflow-stages.tsv"; then
+					continue
+				fi
+				em "$e"
+			done
 		fi
 	fi
 	[ -f "$lb" ] && em lite.brief_written

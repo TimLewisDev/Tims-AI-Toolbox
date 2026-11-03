@@ -87,7 +87,10 @@ and Stages table, then go to **The loop**.
   challenge. Link the doc from the plan's header and the plan from the doc's
   header. Familiarisation is `Challenge pending`.
 
-**With a description**: ask, with `AskUserQuestion`, whether to explore the
+**With a description**: if the folder's stage profile leaves Familiarisation out
+(`bash "<common>/scripts/stages.sh" show --tsv "<folder>"`, `explore` row `off`),
+don't ask: run **Setup** with Familiarisation `Skipped: not selected`. Otherwise
+ask, with `AskUserQuestion`, whether to explore the
 code first: **Explore first (Recommended)** when the engineer or the code area
 is unfamiliar · **Skip to requirements** when they already know the area or
 have a spec. Exploring invokes `tt-familiarise` with the description; when
@@ -109,12 +112,13 @@ Read the Stages table and do the first thing that applies, then read it again:
    the plan path (Requirements → `tt-requirements`, Scope & Constraints →
    `tt-scope`, Approach → `tt-approach`, Technical Design →
    `tt-technical-design`). When the skill hands back, its stage is
-   `Challenge pending`.
+   `Challenge pending`. A row that is `Skipped` (including `Skipped: not
+   selected`, a stage the feature's stage profile leaves out) is passed over.
 4. Technical Design is `Closed` and Whole plan is `Not started` → set Whole
    plan `Challenge pending` and challenge it with
    `tt-plan-signoff/challenge-lens.md`.
-5. Whole plan is `Closed` → invoke `tt-plan-signoff` with the plan path. It
-   runs the termination gate and the hand-off. Planning ends there.
+5. Whole plan is `Closed` or `Skipped` → invoke `tt-plan-signoff` with the plan
+   path. It runs the termination gate and the hand-off. Planning ends there.
 
 After each stage is `Closed`, take a **Break point**.
 

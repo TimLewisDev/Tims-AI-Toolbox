@@ -15,7 +15,8 @@ section (`md-section.sh get <plan> "## Scope"`). Read parts with `grep` and
 ## Checks
 
 1. **Non-Goals.** No card's Goal or Steps does what Scope / Non-Goals rules
-   out. Read each card's Goal
+   out. (If that section holds only `_Left out: this stage was not selected._`,
+   there are no Non-Goals: skip this check.) Read each card's Goal
    (`grep -h -A0 "^\*\*Goal:\*\*" <draft>/parts/31-*.md`), and a card's Steps
    only where its Goal comes close to a Non-Goal.
 2. **Plain English.** Every unit block's and card's **In plain English**
