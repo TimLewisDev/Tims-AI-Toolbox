@@ -89,7 +89,12 @@ earlier stage's entry, it's a contradiction.
 Hunt for them systematically (the protocol's list, item by item, against the
 approach and the facts) and resolve each one through a proposal, by the
 protocol's Blocking or Non-Blocking procedure, before writing anything that
-depends on it. Record any **Architectural Pressure Points** the facts reveal
+depends on it. Finish the hunt before asking: write every Blocking proposal
+that doesn't depend on another's answer (one per response), then put them to
+the engineer together (the protocol's **Putting proposals to the engineer**:
+one at a time in the chat, or all at once outside it), and apply the answers
+in one pass. A decision that only arises from an earlier answer is a second
+round. Record any **Architectural Pressure Points** the facts reveal
 (area, pressure, handling) as you find them.
 
 ### Implementation outline

@@ -59,6 +59,32 @@ stage() {
 		on && NF && !/^\|/ { exit }' "$1"
 }
 
+# waiting <prefix>: " 2 challenges and 1 proposal wait for a decision." (or, once
+# decided, for the session to apply them); nothing when none do
+waiting() {
+	local c="$dir/$1 - Challenges.md" p="$dir/$1 - Tech Proposals.md" s=$(dirname "$0") q
+	{
+		[ -f "$c" ] && bash "$s/challenges.sh" status "$c" 2>/dev/null | sed 's/^/challenge /'
+		[ -f "$p" ] && bash "$s/proposals.sh" status "$p" 2>/dev/null | sed 's/^/proposal /'
+		for q in "$dir/.tt/$1 - Questions"/*.md; do
+			[ -f "$q" ] && bash "$s/questions.sh" status "$q" 2>/dev/null | grep -E '^(open|apply)=' | sed 's/^/question /'
+		done
+	} | awk '
+		{ split($2, kv, "="); n[$1, kv[1]] += kv[2] + 0 }
+		function say(what,   k, t, parts, m, s) {
+			t = 0; m = 0
+			for (k = 1; k <= 3; k++) { kind = (k == 1 ? "challenge" : k == 2 ? "proposal" : "question"); v = n[kind, what]
+				if (v > 0) { parts[++m] = v " " kind (v == 1 ? "" : "s"); t += v } }
+			if (!m) return ""
+			s = parts[1]; for (k = 2; k <= m; k++) s = s (k == m ? " and " : ", ") parts[k]
+			return " " s " wait" (t == 1 ? "s" : "")
+		}
+		END {
+			o = say("open"); if (o != "") { printf "%s for a decision.", o; exit }
+			a = say("apply"); if (a != "") printf "%s to be applied.", a
+		}'
+}
+
 # stage_of <phase>: the label of the stage the next session works on
 stage_of() {
 	case $1 in
@@ -115,21 +141,21 @@ else
 				left_out review || row "$p" alt complete tt-branch-review "" "" "review the branch:" "[branch]"
 			else
 				if [ -f "$lb" ]; then ex=tt-execute-lite; exa=$(rel "$lb"); else ex=tt-execute; exa=$(rel "$st"); fi
-				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}"
+				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}$(waiting "$p")"
 			fi
 		elif [ -f "$lb" ]; then
-			row "$p" primary lite-brief tt-execute-lite "" "$(rel "$lb")" "lite brief written; not started."
+			row "$p" primary lite-brief tt-execute-lite "" "$(rel "$lb")" "lite brief written; not started.$(waiting "$p")"
 		elif [ -f "$plan" ]; then
 			status=$(field "$plan" 'Status:')
 			if printf '%s' "$status" | grep -q Draft; then
 				s=$(stage "$plan")
-				row "$p" primary planning tt-adversarial-plan resume "$(rel "$plan")" "planning, draft plan${s:+ at $s}." "" "${s% (*}"
+				row "$p" primary planning tt-adversarial-plan resume "$(rel "$plan")" "planning, draft plan${s:+ at $s}.$(waiting "$p")" "" "${s% (*}"
 			elif [ -d "$dir/.tt/$p - Task Breakdown" ]; then
 				row "$p" primary breakdown-draft tt-task-breakdown "" "$(rel "$plan")" "signed off; a breakdown is part-written." "(picks up the draft)"
 			elif [ -f "$bd" ]; then
 				row "$p" primary breakdown-written tt-task-status "" "$(rel "$bd")" "breakdown written, but no Task Status yet."
 			else
-				row "$p" primary signed-off tt-task-breakdown "" "$(rel "$plan")" "plan signed off; ready to break down."
+				row "$p" primary signed-off tt-task-breakdown "" "$(rel "$plan")" "plan signed off; ready to break down.$(waiting "$p")"
 				row "$p" alt signed-off tt-tech-plan-review "" "$(rel "$plan")" "or review or change the plan first:"
 			fi
 			rev=$(field "$plan" 'Revision:' | sed -n 's/.*Revision:[* ]*\([0-9][0-9]*\).*/\1/p')
@@ -142,7 +168,7 @@ else
 			row "$p" primary explored tt-adversarial-plan "" "$(rel "$fam")" "explored and written up; no plan yet."
 		elif [ -f "$log" ] && grep -q 'Mode:\*\* lite' "$log"; then
 			if grep -q '^- \*\*Status:\*\* *Focus confirmed' "$log"; then
-				row "$p" primary lite-focus tt-lite-brief "" "$(rel "$log")" "lite exploration done; ready for the brief."
+				row "$p" primary lite-focus tt-lite-brief "" "$(rel "$log")" "lite exploration done; ready for the brief.$(waiting "$p")"
 			else
 				row "$p" primary exploring tt-familiarise resume "$(rel "$log")" "exploring (lite; the focus is not yet confirmed)."
 			fi

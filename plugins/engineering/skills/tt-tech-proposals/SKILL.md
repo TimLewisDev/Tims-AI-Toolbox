@@ -74,20 +74,35 @@ Types:
   every section filled except **Decision**.
 - **Decide**: fill **Decision**, set status `Decided` with the date. A `Default
   applied` proposal that the engineer confirms or overrides is decided in place.
-- **Supersede**: a `Decided` proposal is never re-decided. Add a new proposal
-  whose question opens with "Reopens Pn because …", and set the old one to
-  `Superseded by Pm (<date>)`.
-- After every operation, update **At a glance** and **Last updated**.
+  The decision reads `Applied: not yet` until the plan records it.
+- **Supersede**: a `Decided` proposal is never re-decided once applied. Add a
+  new proposal whose question opens with "Reopens Pn because …", and set the
+  old one to `Superseded by Pm (<date>)`.
+- **At a glance** and **Last updated** follow every operation.
 
 **How to write.** Proposals docs grow long (hundreds of lines); never rewrite
 or re-read the whole doc. `<common>` is `~/.claude/tt-plugins/core/skills/tt-common` (or `${CLAUDE_SKILL_DIR}/../tt-common` when the skills are linked into one folder).
+Once the doc exists, `<common>/scripts/proposals.sh` is its only writer: never
+Edit a Status row, a `(Chosen)` mark, a Decision section or an At a glance row
+by hand (the script keeps the doc's line endings and its rows in step). The one
+exception is **Standalone use**: bringing an older doc into the layout, after
+which `proposals.sh check` must pass.
 
 - **Add:** write the proposal to a part file ending with `<!-- tt:end -->`
   (beside the doc in `.tt/<Prefix> - Plan/research/P<n>.md`, or a temp file),
-  then `bash "<common>/scripts/assemble.sh" append "<doc>" "<part>"`, then add
-  its **At a glance** row with a small Edit. One proposal per response.
-- **Decide / supersede:** targeted Edits to that proposal's status row,
-  headings and **Decision**, and to its **At a glance** row.
+  then `bash "<common>/scripts/proposals.sh" add "<doc>" "<part>"` (it adds the
+  **At a glance** row and refuses a `P` already used). One proposal per
+  response.
+- **Decide:** `proposals.sh decide "<doc>" P<n> <A-D> --note "<why>" [--by "<who>"]`
+  (Status, the `(Chosen)` marks, the Decision section with Not chosen, and the
+  row). `other --note "<what they want>"` records a choice that is none of the
+  options, to settle with the engineer; `leave` keeps a `Default applied` one as
+  it is. Once the plan follows the decision: `proposals.sh applied "<doc>" P<n>`.
+- **Supersede:** `proposals.sh supersede "<doc>" P<n> P<m>` after adding P<m>.
+- **Put a `Default applied` proposal to the engineer:** `proposals.sh ask "<doc>" P<n>`
+  marks it as waiting for their decision (an `Open` one always is). How they
+  are asked is the protocol's **Putting proposals to the engineer**.
+- **Check:** `proposals.sh check "<doc>"` after a session's changes.
 - **Read** one proposal with
   `bash "<common>/scripts/md-section.sh" get "<doc>" "## P<n> —"`, the table
   with `… get "<doc>" "## At a glance"`, and the list of proposals with

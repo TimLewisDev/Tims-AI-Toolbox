@@ -168,13 +168,25 @@ next.
 
 #### Open proposals
 
-- Take them one at a time: `Open` first, then `Default applied`.
+- Run `bash "<common>/scripts/decide.sh" mode`. With **`elsewhere`**, mark
+  each `Default applied` proposal to review with
+  `proposals.sh ask "<proposals>" P<n>` (an `Open` one is always waiting), say
+  in one line which wait and that they should say "continue" when they have
+  decided, and **end your turn**. When they come back, take the answers from
+  `proposals.sh list --tsv "<proposals>"` (state `apply`; a `Default applied`
+  one they left is `done` again) and carry each one out as below, without
+  asking again: an option that keeps what's applied is a **Confirm** (its Why
+  is their note), any other option is a **Pick another**, `Other: …` is a
+  **Pick another** you settle with them.
+- In the chat, take them one at a time: `Open` first, then `Default applied`.
 - For each:
   - the question;
   - one line per option;
   - what's applied in the plan now, and the recommendation;
   - a link to the proposal's section, for the full comparison.
-- Ask: confirm it, pick another option, leave it open, or skip.
+- Ask: confirm it, pick another option, leave it open, or skip. Record the
+  answer with `proposals.sh decide` (`leave` for leave open) in the same
+  response as the next question; carry the decisions out after the last one.
   - **Confirm**: ask once why (or record "confirmed the default; no reason
     given"), then decide the proposal in place through `tt-tech-proposals`
     (status `Decided`, with who, when and why). Update the Tech Plan through
@@ -328,7 +340,9 @@ For each change:
       **Update** mode and rules (invoke it, or follow its loaded rules). That
       sets `Mirrors revision` to the session's revision.
    3. **Tech Proposals**, if a decision changed: write the proposal drafted in
-      step 5 (decided, superseded or added), with **At a glance** updated.
+      step 5 through `proposals.sh` (`add` a new one, `decide` it or the one
+      in review, `supersede` the old one, then `applied`); the script keeps
+      **At a glance** in step.
    4. **Future Iterations**, if an item left scope (add an entry citing the
       change), came into scope (mark its entry `Moved into scope <YYYY-MM-DD>,
       rev <N+1>` rather than deleting it), or the change alters what an

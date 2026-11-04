@@ -1599,6 +1599,231 @@ has "uses the remote ref" "$T/out" "branch=origin/feature/x"
 expect "a non-repository is an exit 1" 1 bash "$RB" --repo "$T"
 expect "a bad flag is an exit 2" 2 rb --nope
 
+echo "# challenges.sh"
+CHS="$S/challenges.sh"; DEC="$S/decide.sh"
+CF="$T/chf"; mkdir -p "$CF"; cp "$root/tools/fixtures/challenges/"* "$CF/"
+CD="$CF/Ch - Challenges.md"; CSET="$CF/requirements.md"
+expect "append a challenge set" 0 bash "$CHS" append "$CD" "$CSET"
+has "an At a glance row per challenge" "$CD" "| CH2 | Requirements | significant | R3 / R4 | Open |"
+has "the set is in the document" "$CD" "### CH3 — Wording of R1"
+hasnt "the end marker is dropped" "$CD" "<!-- tt:end -->"
+expect "the same set twice is refused" 1 bash "$CHS" append "$CD" "$CSET"
+has "names the clash" "$T/out" "CH1"
+printf '## X — challenged 2026-11-03 @ `a`\n\n### CH9 — t\n- **Severity:** minor · **Target:** R1\n- **Outcome:** Open\n- **Resolution:** —\n' >"$CF/part.md"
+expect "an incomplete set is refused" 1 bash "$CHS" append "$CD" "$CF/part.md"
+expect "a fresh document checks" 0 bash "$CHS" check "$CD"
+bash "$CHS" status "$CD" >"$T/out"; has "status counts the open ones" "$T/out" "open=3"
+bash "$CHS" list --tsv --stage Requirements "$CD" >"$T/out"
+[ "$(wc -l <"$T/out" | tr -d ' ')" = 3 ] && ok "list --tsv --stage" || bad "list --tsv --stage" "$(cat "$T/out")"
+printf 'The handler is registered\nonce per panel open.\n' >"$T/take"
+expect "record a take" 0 bash "$CHS" take "$CD" CH1 accept <"$T/take"
+has "the take sits above the outcome" "$CD" "- **Take:** *Recommend accept.* The handler is registered once per panel open."
+expect "a take a minor one can't take" 1 bash "$CHS" take "$CD" CH3 rebut <"$T/take"
+expect "a second take replaces the first" 0 bash "$CHS" take "$CD" CH1 rebut <"$T/take"
+[ "$(grep -c 'Take:' "$CD")" = 1 ] && ok "one take line" || bad "one take line" "$(grep 'Take:' "$CD")"
+bash "$CHS" show "$CD" CH1 >"$T/out"
+has "show: the recommended option" "$T/out" "option	rebut	Rebut	The plan stands. Your reason is recorded.	1	1"
+has "show: a joined field" "$T/out" "why	The handler is registered twice when the panel is reopened, so the save can run twice for one change."
+has "show: the state" "$T/out" "state	open"
+expect "rebut needs a reason" 1 bash "$CHS" decide "$CD" CH2 rebut
+expect "rebut with a reason" 0 bash "$CHS" decide "$CD" CH2 rebut --note "A toast already shows it"
+has "rebutted, with the reason" "$CD" ": A toast already shows it"
+has "the row follows" "$CD" "| CH2 | Requirements | significant | R3 / R4 | Rebutted |"
+expect "a blocking one can't be dismissed" 1 bash "$CHS" decide "$CD" CH1 dismiss
+expect "a minor one can't be deferred" 1 bash "$CHS" decide "$CD" CH3 defer
+expect "dismiss a minor one" 0 bash "$CHS" decide "$CD" CH3 dismiss
+has "dismissed" "$CD" "minor, not taken up"
+FI="$CF/.tt/Ch - Plan/research/fi-notes.md"
+expect "defer" 0 bash "$CHS" decide "$CD" CH1 defer --note "after the release"
+has "a deferred one is noted for Future Iterations" "$FI" "- CH1 (deferred "
+has "with its title and note" "$FI" "A repeated trigger is not covered — after the release"
+expect "change a decision: accept" 0 bash "$CHS" decide "$CD" CH1 accept --note "make the save idempotent"
+hasnt "the deferral note goes" "$FI" "- CH1 (deferred "
+has "accepted, to apply" "$CD" "- **Resolution:** To apply: make the save idempotent"
+bash "$CHS" status "$CD" >"$T/out"; has "one to apply" "$T/out" "apply=1"
+expect "applied needs the IDs" 1 bash "$CHS" applied "$CD" CH1 ""
+expect "applied" 0 bash "$CHS" applied "$CD" CH1 "R2 reworded; new R7"
+has "the resolution names the IDs" "$CD" ": R2 reworded; new R7"
+expect "an applied one can't be re-decided" 1 bash "$CHS" decide "$CD" CH1 rebut --note x
+expect "applied twice is refused" 1 bash "$CHS" applied "$CD" CH1 "again"
+expect "the decided document checks" 0 bash "$CHS" check "$CD"
+expect "an unknown challenge" 1 bash "$CHS" decide "$CD" CH99 accept
+expect "a missing document" 2 bash "$CHS" list "$CF/none.md"
+sed 's/| CH3 | Requirements | minor | R1 | Dismissed |/| CH3 | Requirements | minor | R1 | Open |/' "$CD" >"$CF/bad.md"
+expect "check finds a row out of step" 1 bash "$CHS" check "$CF/bad.md"
+has "says which" "$T/out" "CH3: At a glance says"
+# CRLF and a BOM are kept
+mkdir -p "$T/chcr"; CR="$T/chcr/Cr - Challenges.md"
+{ printf '\357\273\277'; sed 's/$/\r/' "$root/tools/fixtures/challenges/Ch - Challenges.md"; } >"$CR"
+expect "append to a CRLF document" 0 bash "$CHS" append "$CR" "$CSET"
+expect "decide in a CRLF document" 0 bash "$CHS" decide "$CR" CH2 accept
+[ "$(tr -cd '\r' <"$CR" | wc -c | tr -d ' ')" = "$(wc -l <"$CR" | tr -d ' ')" ] && ok "CRLFs kept" || bad "CRLFs kept"
+[ "$(head -c 3 "$CR" | od -An -tx1 | tr -d ' \n')" = efbbbf ] && ok "the BOM is kept" || bad "the BOM is kept"
+[ "$(grep -c $'^\357\273\277' "$CR")" = 1 ] && ok "only one BOM" || bad "only one BOM"
+# a lock left by a crash is taken over; a fresh one waits, then gives up
+mkdir "$T/chcr/.Cr - Challenges.md.lock"; touch -d '5 minutes ago' "$T/chcr/.Cr - Challenges.md.lock"
+expect "an old lock is taken over" 0 bash "$CHS" decide "$CR" CH3 dismiss
+[ ! -d "$T/chcr/.Cr - Challenges.md.lock" ] && ok "the lock is released" || bad "the lock is released"
+
+echo "# proposals.sh"
+PRS="$S/proposals.sh"
+PF="$T/prf"; mkdir -p "$PF"; cp "$root/tools/fixtures/proposals/"* "$PF/"
+PD="$PF/Pr - Tech Proposals.md"
+expect "a document in the template's layout checks" 0 bash "$PRS" check "$PD"
+expect "add two proposals" 0 bash "$PRS" add "$PD" "$PF/P2.md" "$PF/P3.md"
+has "says which" "$T/out" "added P2 P3"
+has "an At a glance row, with the recommendation" "$PD" "| P2 | Where does a failed save go? | Blocking decision | Open | A: Show the error | — |"
+hasnt "the end marker is dropped" "$PD" "<!-- tt:end -->"
+hasnt "Last updated moves on" "$PD" "- **Last updated:** 2026-11-01 10:00"
+expect "the same part twice is refused" 1 bash "$PRS" add "$PD" "$PF/P2.md"
+printf '## P9 — x\n\n| | |\n|---|---|\n| **Status** | Decided |\n| **Type** | Approach |\n\n<!-- tt:end -->\n' >"$PF/bad.md"
+expect "a part that isn't a new proposal is refused" 1 bash "$PRS" add "$PD" "$PF/bad.md"
+expect "the document still checks" 0 bash "$PRS" check "$PD"
+bash "$PRS" status "$PD" >"$T/out"; has "one open" "$T/out" "open=1"; has "two done" "$T/out" "done=2"
+bash "$PRS" show "$PD" P2 >"$T/out"
+has "show: the question" "$T/out" "context	A save can fail on a full disk. Should the error be shown, or the save retried until it works?"
+has "show: the recommended option, with its line, benefit and risk" "$T/out" "option	A	Show the error	A toast says the save failed. Benefit: Nothing is lost without a word. Risk: One more message	1	0"
+has "show: something else needs words" "$T/out" "option	other	Something else"
+hasnt "show: an Open one can't be left" "$T/out" "option	leave"
+expect "a Default applied one waits only once asked" 0 bash "$PRS" ask "$PD" P3
+bash "$PRS" list --tsv "$PD" >"$T/out"; has "asked: open" "$T/out" "P3	Review item	Default applied	open"
+expect "an Open one can't be asked" 1 bash "$PRS" ask "$PD" P2
+expect "leave a Default applied one" 0 bash "$PRS" decide "$PD" P3 leave
+hasnt "the asked line goes" "$PD" "**Asked:**"
+has "and what was applied stays" "$PD" "**Applied for now:** Option A"
+expect "an Open one can't be left" 1 bash "$PRS" decide "$PD" P2 leave
+expect "an option it doesn't have" 1 bash "$PRS" decide "$PD" P2 Z
+expect "other needs words" 1 bash "$PRS" decide "$PD" P2 other
+expect "decide" 0 bash "$PRS" decide "$PD" P2 B --note "less noise" --by Sam
+has "the status" "$PD" "| **Status** | Decided "
+has "the chosen column" "$PD" "| | A: Show the error (Recommended) | B: Retry quietly (Chosen) | C: Both |"
+has "the chosen heading line" "$PD" "- **Chosen:** Option B: Retry quietly"
+has "who" "$PD" "- **By / when:** Sam, "
+has "why" "$PD" "- **Why:** less noise"
+has "not chosen" "$PD" "- **Not chosen:** A: Show the error · C: Both"
+has "to apply" "$PD" "- **Applied:** not yet"
+has "the row follows" "$PD" "| P2 | Where does a failed save go? | Blocking decision | Decided | A: Show the error | B: Retry quietly |"
+expect "change it before it is applied" 0 bash "$PRS" decide "$PD" P2 A
+has "the mark moves" "$PD" "| | A: Show the error (Recommended) (Chosen) | B: Retry quietly | C: Both |"
+[ "$(grep -c 'Chosen:\*\*' "$PD")" = 2 ] && ok "one Decision per proposal" || bad "one Decision per proposal" "$(grep 'Chosen:' "$PD")"
+expect "applied" 0 bash "$PRS" applied "$PD" P2
+hasnt "the applied line goes" "$PD" "**Applied:** not yet"
+expect "a decided one is superseded, not decided again" 1 bash "$PRS" decide "$PD" P2 B
+expect "applied twice is refused" 1 bash "$PRS" applied "$PD" P2
+expect "other, with words" 0 bash "$PRS" decide "$PD" P3 other --note "make it a setting after all"
+has "other is recorded" "$PD" "- **Chosen:** Other: make it a setting after all"
+bash "$PRS" list --tsv "$PD" >"$T/out"; has "other waits to be settled" "$T/out" "P3	Review item	Default applied	apply"
+expect "supersede" 0 bash "$PRS" supersede "$PD" P1 P2
+has "superseded" "$PD" "| **Status** | Superseded by P2 ("
+expect "supersede by a proposal that isn't there" 1 bash "$PRS" supersede "$PD" P2 P9
+expect "the decided document checks" 0 bash "$PRS" check "$PD"
+sed 's/| P2 | Where does a failed save go? | Blocking decision | Decided |/| P2 | Where does a failed save go? | Blocking decision | Open |/' "$PD" >"$PF/bad - Tech Proposals.md"
+expect "check finds a row out of step" 1 bash "$PRS" check "$PF/bad - Tech Proposals.md"
+has "says which" "$T/out" "P2: At a glance says"
+# CRLF and a BOM are kept, and a "|" inside a [[link|label]] stays in its cell
+mkdir -p "$T/prcr"; PCR="$T/prcr/Cr - Tech Proposals.md"
+{ printf '\357\273\277'; sed 's/$/\r/' "$root/tools/fixtures/proposals/Pr - Tech Proposals.md"; } >"$PCR"
+sed 's/| \*\*Decides\*\* | CD1 |/| **Decides** | [[Cr - Comprehensive Tech Plan#^cd1|CD1]] |/' "$PF/P2.md" >"$T/prcr/P2.md"
+expect "add to a CRLF document" 0 bash "$PRS" add "$PCR" "$T/prcr/P2.md"
+expect "decide in a CRLF document" 0 bash "$PRS" decide "$PCR" P2 C
+[ "$(tr -cd '\r' <"$PCR" | wc -c | tr -d ' ')" = "$(wc -l <"$PCR" | tr -d ' ')" ] && ok "CRLFs kept" || bad "CRLFs kept"
+[ "$(head -c 3 "$PCR" | od -An -tx1 | tr -d ' \n')" = efbbbf ] && ok "the BOM is kept" || bad "the BOM is kept"
+bash "$PRS" show "$PCR" P2 >"$T/out"; has "a link with a label is read whole" "$T/out" "decides	[[Cr - Comprehensive Tech Plan#^cd1|CD1]]"
+# an older document, not in the template's layout, is read without harm
+printf '# Old: Tech Proposals\n\n## At a glance\n| # | Question | Status | Decides |\n|---|---|---|---|\n| P1 | Q? | Decided | CD1 |\n\n## P1 — Q?\n**Decides:** CD1 · **Status:** Decided\n\nText.\n' >"$PF/Old - Tech Proposals.md"
+bash "$PRS" status "$PF/Old - Tech Proposals.md" >"$T/out"; has "an older document: nothing waits" "$T/out" "open=0"
+
+echo "# questions.sh"
+QS="$S/questions.sh"
+QF="$T/qf"; QL="$QF/.tt/Qa - Questions/validation-WU3.md"
+expect "init a list" 0 bash "$QS" init "$QL" --title "Qa: WU3 engineer checks" --for "the Task Status, WU3" --feature Qa
+has "with its title" "$QL" "# Qa: WU3 engineer checks"
+expect "init twice is refused" 1 bash "$QS" init "$QL" --title x
+expect "init needs a title" 1 bash "$QS" init "$QF/other.md"
+printf '%s\n' 'title: The panel shows a toast on a failed save' 'ref: WU3 check 2' 'context: Fill the disk, then save.' \
+	'  You should see: "Couldn'"'"'t save".' 'take: The toast code is in src/greet.sh:1.' \
+	'option: passed | Passed | It showed as described | recommended' 'option: failed | Failed | Say what you saw | note' '---' \
+	'title: Pick a colour' 'option: A | Red: warm | Like a stop sign' 'option: B | Blue | Calm' >"$T/qspec"
+expect "add two questions" 0 bash "$QS" add "$QL" <"$T/qspec"
+has "numbered" "$T/out" "added Q1 Q2"
+has "the context keeps its lines" "$QL" '  You should see: "Couldn'"'"'t save".'
+has "an option, marked" "$QL" "  - **passed** — Passed: It showed as described *(recommended)*"
+has "a needs-a-note option" "$QL" "  - **failed** — Failed: Say what you saw *(needs a note)*"
+has "a colon in a title is kept apart from the detail" "$QL" "  - **A** — Red - warm: Like a stop sign"
+printf 'title: One option\noption: a | A\n' >"$T/qbad"
+expect "one option is refused" 1 bash "$QS" add "$QL" <"$T/qbad"
+printf 'title: Two picks\noption: a | A | x | recommended\noption: b | B | y | recommended\n' >"$T/qbad"
+expect "two recommended is refused" 1 bash "$QS" add "$QL" <"$T/qbad"
+printf 'title: Odd\nwhat: x\noption: a | A\noption: b | B\n' >"$T/qbad"
+expect "an unknown field is refused" 1 bash "$QS" add "$QL" <"$T/qbad"
+expect "the list checks" 0 bash "$QS" check "$QL"
+bash "$QS" show "$QL" Q1 >"$T/out"
+has "show: the context, joined" "$T/out" 'context	Fill the disk, then save. / You should see: "Couldn'"'"'t save".'
+has "show: the ref" "$T/out" "ref	WU3 check 2"
+has "show: an option" "$T/out" "option	failed	Failed	Say what you saw	0	1"
+has "show: the list it is in" "$T/out" "list	Qa: WU3 engineer checks"
+expect "a needs-a-note option without one" 1 bash "$QS" decide "$QL" Q1 failed
+expect "an option it doesn't have" 1 bash "$QS" decide "$QL" Q1 nope
+expect "decide" 0 bash "$QS" decide "$QL" Q1 failed --note "no toast, a beep"
+has "the decision, with its title" "$QL" "- **Decision:** failed (Failed)"
+has "the note" "$QL" "- **Note:** no toast, a beep"
+has "the list's status follows" "$QL" "- **Decided:** 1 of 2"
+expect "change it" 0 bash "$QS" decide "$QL" Q1 passed
+bash "$QS" list --tsv "$QL" >"$T/out"; has "list: decided, to apply" "$T/out" "Q1	apply	passed	WU3 check 2	The panel shows a toast on a failed save"
+expect "applied needs a decision" 1 bash "$QS" applied "$QL" Q2
+expect "applied" 0 bash "$QS" applied "$QL" Q1 "check 2 passed"
+has "applied, with how" "$QL" ": check 2 passed"
+expect "an applied one can't be decided again" 1 bash "$QS" decide "$QL" Q1 failed --note x
+expect "decide the other" 0 bash "$QS" decide "$QL" Q2 B
+expect "and apply it" 0 bash "$QS" applied "$QL" Q2
+has "every one done: the list is Done" "$QL" "- **Status:** Done"
+ls "$QF/.tt/Qa - Questions/" | grep -q 'model\|tmp' && bad "no temp files left" "$(ls -a "$QF/.tt/Qa - Questions/")" || ok "no temp files left"
+# CRLF and a BOM are kept
+QC="$QF/.tt/Qa - Questions/crlf.md"; bash "$QS" init "$QC" --title Crlf >/dev/null
+{ printf '\357\273\277'; sed 's/$/\r/' "$QC"; } >"$QC.x" && mv "$QC.x" "$QC"
+expect "add to a CRLF list" 0 bash "$QS" add "$QC" <"$T/qspec"
+[ "$(tr -cd '\r' <"$QC" | wc -c | tr -d ' ')" = "$(wc -l <"$QC" | tr -d ' ')" ] && ok "CRLFs kept" || bad "CRLFs kept"
+[ "$(head -c 3 "$QC" | od -An -tx1 | tr -d ' \n')" = efbbbf ] && ok "the BOM is kept" || bad "the BOM is kept"
+# decide.sh finds the lists, and workflow-state.sh says they wait
+expect "pending in a folder with a list" 0 bash "$DEC" pending --tsv "$QF"
+has "pending: a question, with its list and ref" "$T/out" "$QC	question	Q1	open	Crlf	WU3 check 2	The panel shows a toast on a failed save"
+expect "set a question through decide.sh" 0 bash "$DEC" set "$QC" Q2 A
+has "recorded" "$QC" "- **Decision:** A (Red - warm)"
+expect "show a question through decide.sh" 0 bash "$DEC" show "$QC" Q1; has "with its options" "$T/out" "option	passed"
+printf -- '- **Status:** Draft · **Stage:** Requirements\n\n**Stages**\n\n| Stage | Status | Output | Challenges |\n|---|---|---|---|\n| Requirements | In progress | R | |\n' >"$QF/Qa - Comprehensive Tech Plan.md"
+bash "$WS" --tsv "$QF" >"$T/rows"; has "workflow-state: questions wait" "$T/rows" "1 question waits for a decision."
+
+echo "# decide.sh"
+expect "mode is chat by default" 0 env -u TT_DECIDE bash "$DEC" mode; has "chat" "$T/out" "chat"
+TT_DECIDE=elsewhere expect "mode elsewhere" 0 bash "$DEC" mode; has "elsewhere" "$T/out" "elsewhere"
+TT_DECIDE=nonsense expect "an unknown mode is chat" 0 bash "$DEC" mode; has "falls back to chat" "$T/out" "chat"
+DF="$T/decf"; mkdir -p "$DF"; cp "$root/tools/fixtures/challenges/Ch - Challenges.md" "$DF/"
+DD="$DF/Ch - Challenges.md"; bash "$CHS" append "$DD" "$CSET" >/dev/null
+expect "pending" 0 bash "$DEC" pending --tsv "$DF"
+has "pending: one row per open item" "$T/out" "$DD	challenge	CH1	open	Requirements	blocking	A repeated trigger is not covered"
+expect "set through decide.sh" 0 bash "$DEC" set "$DD" CH1 accept
+expect "set passes the note" 0 bash "$DEC" set "$DD" CH2 rebut --note "no need"
+expect "set refuses what the writer refuses" 1 bash "$DEC" set "$DD" CH3 rebut
+bash "$DEC" status "$DF" >"$T/out"
+has "status: open" "$T/out" "open=1"; has "status: apply" "$T/out" "apply=1"; has "status: docs" "$T/out" "docs=1"
+bash "$DEC" pending --tsv "$DF" >"$T/out"; hasnt "a done item is not pending" "$T/out" "CH2"
+expect "show through decide.sh" 0 bash "$DEC" show "$DD" CH3; has "show lists the options" "$T/out" "option	dismiss"
+expect "not a decision document" 2 bash "$DEC" show "$DF/../rows" CH1
+expect "an empty folder has nothing pending" 0 bash "$DEC" status "$T/stg"; has "nothing open" "$T/out" "open=0"
+# workflow-state.sh says so on a draft plan
+printf -- '- **Status:** Draft · **Stage:** Requirements\n\n**Stages**\n\n| Stage | Status | Output | Challenges |\n|---|---|---|---|\n| Requirements | Challenge pending | R | |\n' >"$DF/Ch - Comprehensive Tech Plan.md"
+bash "$WS" --tsv "$DF" >"$T/rows"; has "workflow-state: challenges wait" "$T/rows" "1 challenge waits for a decision."
+bash "$CHS" decide "$DD" CH3 accept >/dev/null
+bash "$WS" --tsv "$DF" >"$T/rows"; has "workflow-state: decided ones wait to be applied" "$T/rows" "2 challenges wait to be applied."
+cp "$root/tools/fixtures/proposals/Pr - Tech Proposals.md" "$DF/Ch - Tech Proposals.md"
+bash "$S/proposals.sh" add "$DF/Ch - Tech Proposals.md" "$root/tools/fixtures/proposals/P2.md" >/dev/null
+bash "$WS" --tsv "$DF" >"$T/rows"; has "workflow-state: proposals wait too" "$T/rows" "1 proposal waits for a decision."
+bash "$DEC" pending --tsv "$DF" >"$T/out"
+has "pending: a proposal" "$T/out" "$DF/Ch - Tech Proposals.md	proposal	P2	open	Blocking decision	blocking	Where does a failed save go?"
+expect "set a proposal through decide.sh" 0 bash "$DEC" set "$DF/Ch - Tech Proposals.md" P2 A --note "a toast is enough"
+has "the proposal is decided" "$DF/Ch - Tech Proposals.md" "- **Why:** a toast is enough"
+bash "$WS" --tsv "$DF" >"$T/rows"; has "workflow-state: both wait to be applied" "$T/rows" "2 challenges and 1 proposal wait to be applied."
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -67,8 +67,13 @@ the `R` IDs it covers; each Non-Goal is an `S` with its **Why**) and
   `AskUserQuestion`, which are explicitly out of scope. Each one they pick
   becomes an `S`; ask about the rest one at a time.
 - **Rules the code imposes**, the landscape's repo rules and the agent
-  instructions: candidate Constraints. Put each to the engineer ("the repo
-  says X is edited only in its tool (`path`); a constraint for this feature?").
+  instructions: candidate Constraints. Gather them all first, as the question
+  list `<plan folder>/.tt/<Prefix> - Questions/constraints.md`
+  (`<common>/question-lists.md`): one question per rule, its context the rule
+  and where it comes from ("the repo says X is edited only in its tool
+  (`path`)"), its options **accept** (it becomes a `C` as worded), **reword**
+  (with `note`: their wording) and **reject** (with `note`: why it doesn't
+  apply). Carry them out by writing the `C` entries.
 - **The base branch** pinned at Setup is always a Constraint.
 
 **Excluded work.** Every time something is ruled out of scope, add one line to

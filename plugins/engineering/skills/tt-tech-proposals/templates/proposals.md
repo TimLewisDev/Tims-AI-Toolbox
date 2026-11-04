@@ -1,8 +1,12 @@
 # Template: Tech Proposals
 
 The document shell, then one proposal per `## Pn —` section. A new proposal is
-written as a part file ending with `<!-- tt:end -->` and appended with
-`assemble.sh append`; the compact form drops the option subsections.
+written as a part file ending with `<!-- tt:end -->` and added with
+`proposals.sh add`; the compact form drops the option subsections. After that,
+`proposals.sh` writes its Status, `(Chosen)` marks, Decision and At a glance row
+(`decide`, `applied`, `supersede`, `ask`). Keep the option columns as
+`<letter>: <title>` and the rows **In one line**, **Main benefit** and **Main
+risk** named as below: the script reads the options from them.
 
 
 ````markdown
@@ -80,6 +84,7 @@ churn.>
 - **By / when:** <engineer>, <YYYY-MM-DD>
 - **Why:** <reason>
 - **Not chosen:** <B: one-line reason> · <C: one-line reason>
+- **Applied:** not yet   <- written by proposals.sh decide; removed by applied
 
 <For Default applied: "**Applied for now:** Option A (the recommendation). Open
 for review.">

@@ -21,6 +21,7 @@ checking, and files on disk carry the results between them.**
 | 1. Continue mode | `status-set.sh`, `status-log.sh` and `status-record.sh` write the Task Status. `continue-preflight.sh` replaces the reconcile and plan-drift subagents. `run-checks.sh` runs a unit's checks. `validation-checklist.sh` drafts your checklist. Implementation subagents write a result file. | No re-typed reports, and no subagents just to compare files or run commands |
 | 2. Breakdown mode | `donewhen.sh`, `skeleton-check.sh`, `skeleton-render.sh`, `card-scaffold.sh`, `coverage.sh` and `status-init.sh`. Verification subagents are batched. | Card writers fill in only the parts that need thought; checks and tables come from scripts |
 | 3. Smaller reads | Subagents read `tt-common/subagent-rules.md` (2k) instead of `orchestration.md` (5k), and only the `SKILL.md` sections they need | Every subagent starts smaller |
+| 4. Pre-written questions | `challenges.sh`, `proposals.sh` and `questions.sh` own the Challenges doc, the Tech Proposals doc and the question lists; `decide.sh` lists, shows and records what a folder is waiting on. With `TT_DECIDE=elsewhere` a session writes the questions and ends its turn; the answers are applied in one pass (`tt-common/question-lists.md`) | No turn and no hand edit per answer, and the questions can be answered outside the chat |
 
 ## Why it's better for us
 

@@ -275,8 +275,10 @@ named options, with the recommended option first and labelled as recommended.
 ## Contradiction handling (spans all stages)
 
 After **every** answer, cross-check it against the whole Ledger, and against
-the Familiarisation doc's description of the code. If a new answer contradicts
-an earlier agreed item:
+the Familiarisation doc's description of the code. Answers to a list that was
+written before the first question (a challenge set) are cross-checked once,
+together, when they are applied. If a new answer contradicts an earlier agreed
+item:
 
 - **stop forward progress**,
 - state the contradiction explicitly, quoting both conflicting entries,
@@ -316,10 +318,12 @@ a resolution, and do not continue downstream planning on a speculative one.
 **Blocking Decisions** materially affect implementation direction, sequencing,
 architecture, or downstream planning:
 
-1. Write the proposal (status `Open`, type `Blocking decision`).
-2. Pause. Summarise the options in chat and ask with `AskUserQuestion`,
-   recommended first, pointing at the proposal.
-3. Record the decision in the proposal and as a `CD` in the Ledger.
+1. Write the proposal (status `Open`, type `Blocking decision`). When a hunt
+   finds several that don't depend on each other, write them all first.
+2. Pause and put them to the engineer (**Putting proposals to the
+   engineer**, below).
+3. Record the decision in the proposal (`proposals.sh decide`, or already
+   recorded) and as a `CD` in the Ledger, then `proposals.sh applied`.
 
 **Non-Blocking Review Items** matter but don't prevent planning from
 continuing:
@@ -346,16 +350,42 @@ alternatives goes straight into the Ledger with no proposal.
   its rules and template. Re-invoke it if they've dropped out of context.
 - **You write each proposal yourself, one per response**: you hold the options
   and facts. Write it to `<draft>/research/P<n>.md` ending with
-  `<!-- tt:end -->`, then append it with
-  `assemble.sh append "<proposals doc>" "<draft>/research/P<n>.md"`, then make a
-  small Edit to **At a glance**. Use the compact form wherever it fits.
+  `<!-- tt:end -->`, then add it with
+  `bash "<common>/scripts/proposals.sh" add "<proposals doc>" "<draft>/research/P<n>.md"`
+  (it adds the **At a glance** row). Use the compact form wherever it fits.
+- **`proposals.sh` is the only writer of the Proposals doc once it exists**:
+  never Edit a proposal's Status, `(Chosen)` marks, Decision section or At a
+  glance row by hand.
 - You alone assign `P` numbers: the next one not used in the doc or the plan.
 - Never read the whole Proposals doc back: read **At a glance**, or one
   proposal (`md-section.sh get <proposals> "## P4 —"`).
-- When the engineer decides, record the Decision in the proposal straight away
-  (a targeted Edit).
 - Every Ledger entry decided through a proposal (`R`, `S`, `C`, `A`, `CD`,
   `NB`), and every Rejected Alternatives row, cites the `P` that decided it.
+
+### Putting proposals to the engineer
+
+Run `bash "<common>/scripts/decide.sh" mode`.
+
+- **`chat`**: one proposal at a time. Summarise its options in chat and ask
+  with `AskUserQuestion`, recommended first, pointing at the proposal. Record
+  the answer with
+  `bash "<common>/scripts/proposals.sh" decide "<proposals doc>" P<n> <A-D|other> [--note "<why, in their words>"]`
+  in the same response as the next question.
+- **`elsewhere`**: the engineer answers outside the chat. Say in one line which
+  proposals wait (`P` IDs and the doc), and that they should say "continue"
+  when they have decided. Then **end your turn**: ask nothing. A `Default
+  applied` proposal you want them to review is marked first with
+  `proposals.sh ask "<proposals doc>" P<n>`.
+
+When they come back (or after the last question), read the states
+(`proposals.sh list --tsv "<proposals doc>"`): rows still `open` in `elsewhere`
+mode are waiting (say which, and end your turn again). For each one in state
+`apply`, cross-check the batch together against the Ledger (**Contradiction
+handling**), write what the decision decides into the Ledger, citing the `P`,
+then run `proposals.sh applied "<proposals doc>" P<n>`. A decision recorded as
+`Other: …` is not one of the options: settle it with the engineer (a new
+proposal that supersedes it, `proposals.sh supersede`, or one of the options
+after all), then mark it applied.
 
 ## Challenge resolution
 
@@ -363,34 +393,60 @@ Run by `tt-adversarial-plan` in the main conversation, after an adversary
 subagent has written `<draft>/challenges/<stage>.md`. The planner holds the
 conversation; the adversary never talks to the engineer.
 
+`<scripts>` is `<common>/scripts`. **`challenges.sh` is the only writer of the
+Challenges doc once it exists**: never Edit its Outcome, Resolution, Take or
+At a glance lines by hand.
+
 1. **Record.** Append the challenge set to `<Prefix> - Challenges.md` (create
    it from `tt-adversarial-plan/templates/challenges.md` the first time) with
-   `assemble.sh append`, add its rows to the doc's **At a glance**, and link
-   the section from the Stages table. `CH` numbers run across the whole doc:
-   the orchestrator gives the adversary the next free number. Then run
+   `bash "<scripts>/challenges.sh" append "<challenges>" "<draft>/challenges/<stage>.md"`
+   (it adds the **At a glance** rows), and link the section from the Stages
+   table. `CH` numbers run across the whole doc: the orchestrator gives the
+   adversary the next free number. Then run
    `ids.sh linkify --def "<plan>" --def "<proposals>" "<challenges>"` so the
    targets and evidence cites link to what they name.
-2. **Blocking and significant challenges, one at a time.** State the challenge
-   in plain words, with its evidence, and say what the entry it targets says
-   (`ids.sh gloss "<plan>" <Target IDs>`; the adversary writes bare IDs because
-   it never sees the conversation). Give your honest take: concede it, or
-   counter it with evidence (`path:line`, a Ledger quote). Then ask with
-   `AskUserQuestion`: **Accept & change** · **Rebut** (the plan stands; record
-   why) · **Defer** (to Future Iterations or Open Items).
-3. **Minor challenges** go to the engineer as one numbered list. They name the
-   ones to accept; the rest are recorded as `Dismissed` with "minor, not taken
-   up".
-4. **Apply.** An accepted challenge changes the Ledger through the owning
-   stage's normal rules: a reworded or new entry, or a proposal if there are
-   real alternatives, and contradiction handling if it hits a `Closed` stage.
-   Every entry it changes cites the `CH`. A deferred one adds a line to
-   `fi-notes.md` (or the plan's Open Items) citing the `CH`.
-5. **Record each outcome** straight away with a small Edit to its row:
-   `Accepted` · `Rebutted` · `Deferred` · `Dismissed`, and a one-line
-   resolution naming the IDs it changed or the engineer's reason.
+2. **Take a view on every challenge, in one response.** For each one, read
+   what the entry it targets says (`ids.sh gloss "<plan>" <Target IDs>`; the
+   adversary writes bare IDs because it never sees the conversation) and give
+   your honest take: concede it, or counter it with evidence (`path:line`, a
+   Ledger quote), in one to three sentences that name what the target says.
+   Record each with
+   `bash "<scripts>/challenges.sh" take "<challenges>" CH<n> <option>`, the
+   take's text on stdin (a heredoc), where `<option>` is the one you
+   recommend: `accept`, `rebut` or `defer` for blocking and significant
+   challenges, `accept` or `dismiss` for minor ones.
+3. **Put them to the engineer.** Run `bash "<scripts>/decide.sh" mode`.
+   - **`elsewhere`**: the engineer answers outside the chat. Say in one line
+     how many challenges wait and where (`<challenges>`, the stage's section),
+     and that they should say "continue" when they have decided. Then **end
+     your turn**: ask nothing. When they come back, carry on at step 4.
+   - **`chat`**: blocking and significant ones one at a time: state the
+     challenge in plain words with its evidence and your take, then ask with
+     `AskUserQuestion`, your recommended option first: **Accept & change** ·
+     **Rebut** (the plan stands; ask why) · **Defer** (to Future Iterations).
+     Minor ones as one numbered list: they name the ones to accept; the rest
+     are dismissed. Record each answer with
+     `bash "<scripts>/decide.sh" set "<challenges>" CH<n> accept|rebut|defer|dismiss [--note "<their words>"]`
+     in the same response as the next question. A rebuttal needs their reason
+     as the note. Apply nothing yet.
+4. **Check every challenge is decided**:
+   `bash "<scripts>/challenges.sh" list --tsv --stage "<Stage>" "<challenges>"`.
+   Rows still `open` in `elsewhere` mode: say which, and end your turn again.
+   The script has already finished the rebutted, deferred and dismissed ones
+   (a deferral writes its line in `fi-notes.md`).
+5. **Apply the accepted ones, in one pass** (state `apply`). First
+   cross-check them together against the Ledger and each other: if two
+   accepted challenges conflict, or one contradicts an agreed entry, follow
+   **Contradiction handling** for just those. Then each accepted challenge
+   changes the Ledger through the owning stage's normal rules: a reworded or
+   new entry, or a proposal if there are real alternatives, and contradiction
+   handling if it hits a `Closed` stage. Every entry it changes cites the `CH`.
+   Record each with
+   `bash "<scripts>/challenges.sh" applied "<challenges>" CH<n> "<the IDs it changed>"`.
 6. **Close.** The stage becomes `Closed` only when no blocking challenge is
-   unresolved. Never dismiss, merge or soften a challenge on the engineer's
-   behalf: every one is put to them.
+   unresolved (`challenges.sh status --stage "<Stage>"` shows `open=0` and
+   `apply=0`). Never dismiss, merge or soften a challenge on the engineer's
+   behalf: every one is put to them, and only they decide.
 
 ## Behavioural guardrails
 

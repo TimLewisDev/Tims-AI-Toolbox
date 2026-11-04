@@ -92,9 +92,14 @@ can't be stated without it.
 Continue until the requirements feel complete to you **and** the engineer
 agrees they are. Before asking (protocol, Stage contract step 5):
 
-- List any Familiarisation **Open questions** that no `R` answers. For each,
-  the engineer chooses: answer it now, carry it to Scope & Constraints, or drop
-  it (recorded in `fi-notes.md` if it's excluded work).
+- List any Familiarisation **Open questions** that no `R` answers, as the
+  question list `<plan folder>/.tt/<Prefix> - Questions/open-questions.md`
+  (`<common>/question-lists.md`; `ref` is the open question's number). For
+  each, the engineer chooses: **answer it now** (with `note`: their answer, if
+  they have one), **carry it** to Scope & Constraints, or **drop it**. Carry
+  them out: an answer becomes an `R` (or a probe, if it needs one), a carried
+  question goes in the Status line's `Next` for Scope, a dropped one is
+  recorded in `fi-notes.md` if it's excluded work.
 - Show the requirement IDs with one line each (the words from `ids.sh gloss`,
   per the planning protocol), and ask for confirmation that the Requirements
   are complete.

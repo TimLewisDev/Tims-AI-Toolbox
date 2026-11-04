@@ -10,7 +10,8 @@ description: >
   (tt-scope), approach (tt-approach), technical design (tt-technical-design),
   sign-off (tt-plan-signoff). After each stage an adversary subagent attacks
   the stage's reasoning and assumptions using only written documents and code;
-  challenges go to the engineer one at a time and into a Challenges doc.
+  challenges go into a Challenges doc (by script) and to the engineer, one at
+  a time in the chat or all together outside it, then are applied in one pass.
   Offers breaks after each stage; resumes from the plan's on-disk Stages table.
   Only the engineer's explicit sign-off ends planning.
 metadata:
@@ -143,11 +144,13 @@ After each stage is `Closed`, take a **Break point**.
    the same brief; if it fails again, tell the engineer and offer to do the
    brief yourself.
 4. **Resolve** with the engineer, following the protocol's **Challenge
-   resolution**: record, blocking and significant one at a time, minor as a
-   batch, apply, record each outcome. Applying a change means following the
-   owning stage's rules; for a change to a closed stage, its skill's file
-   tells you what an accepted challenge changes (the "Applying" line in its
-   lens).
+   resolution**: record the set with `challenges.sh append`, write your take on
+   every challenge (`challenges.sh take`), put them to the engineer (in the
+   chat, or, when `decide.sh mode` says `elsewhere`, end your turn while they
+   decide outside it), then apply the accepted ones in one pass. Applying a
+   change means following the owning stage's rules; for a change to a closed
+   stage, its skill's file tells you what an accepted challenge changes (the
+   "Applying" line in its lens).
 5. **Close**: when no blocking challenge is unresolved, set the stage `Closed`
    and link its Challenges section in the Stages table. For Familiarisation,
    also set the doc's **Challenged** line. Then record the close (silent,
@@ -181,8 +184,11 @@ After a stage closes:
 2. Read the Tech Proposals' **At a glance**, and the Challenges doc's.
 3. If a stage was `In progress`, tell the engineer in a few lines where it
    stands and invoke its skill: it carries on from `Next`.
-4. If a challenge was being resolved (rows still `Open` in the stage's
-   Challenges section), carry on with the first `Open` challenge.
+4. If a challenge was being resolved, look at the stage's challenges
+   (`challenges.sh list --tsv --stage "<Stage>" "<challenges>"`): carry on at
+   the protocol's **Challenge resolution** step 2 if any has no take yet,
+   step 3 for those still `open`, and step 5 for those in state `apply`
+   (decided while the session was away).
 5. If `<draft>/challenges/<stage>.md` exists but isn't in the Challenges doc
    yet, record it first. If the stage is `Challenge pending` with no file,
    spawn the adversary.

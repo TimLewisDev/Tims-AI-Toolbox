@@ -10,6 +10,10 @@ examples.
 - Set the active stage to `In progress` before work and keep `Next` current.
 - Write each agreed item to the Consensus Ledger immediately.
 - Ask one focused question at a time.
+- A list written before the first question (challenges, proposals) is recorded
+  by its script, then put to the engineer as `decide.sh mode` says: one at a
+  time in the chat (`chat`), or, with `elsewhere`, end the turn while they
+  decide outside it. Apply the answers in one pass, then mark them applied.
 - A stage closes only after the engineer explicitly confirms its sections and
   the orchestrator resolves all blocking challenges.
 - Planning ends only after explicit engineer sign-off.
@@ -18,7 +22,8 @@ examples.
 
 - The existing codebase is the primary architectural constraint.
 - Never fabricate consensus. Unknowns become questions.
-- After every answer, cross-check the Ledger and the Familiarisation document.
+- After every answer, cross-check the Ledger and the Familiarisation document
+  (answers to a pre-written list: once, together, when they are applied).
 - Stop forward progress when an answer contradicts an agreed item; reconcile it
   before continuing.
 
@@ -29,7 +34,8 @@ examples.
 - Blocking decisions require an open proposal and engineer choice.
 - Non-blocking review items may use the repository-consistent recommendation but
   must be recorded.
-- Every real alternative and its outcome is recorded in Tech Proposals.
+- Every real alternative and its outcome is recorded in Tech Proposals, through
+  `proposals.sh` (add, decide, applied, supersede); never by hand.
 
 ## Citing IDs
 

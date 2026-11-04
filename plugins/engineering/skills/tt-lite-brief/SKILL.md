@@ -87,14 +87,18 @@ A Debug Log is a bug fix: the Goal is "fix <symptom>", Acceptance A1 is the
 original *Expected* behaviour, and A2 is that the cause no longer holds (a
 regression check). Don't invent more.
 
-### 2. Decide (as many responses as there are decisions)
+### 2. Decide (a question list)
 
-List the design choices the change needs. For each one with more than one
-reasonable option, or on `tt-coder`'s Critical Decision list, ask with
-`AskUserQuestion`: the options with their benefits and risks, the repo's
-precedent where one exists, and a recommendation first. Record each answer
-as soon as it is given in `<draft>/context.md` so a stall loses nothing. Do not
-batch them into one wall of text.
+List the design choices the change needs. Each one with more than one
+reasonable option, or on `tt-coder`'s Critical Decision list, is a question in
+the list `<doc folder>/.tt/<Prefix> - Questions/design-choices.md`, written,
+put to the engineer and carried out as `<common>/question-lists.md` says: its
+context gives the options' benefits and risks and the repo's precedent where
+one exists, and the recommended option comes first. A choice that only arises
+from an earlier answer goes in a second round. Carrying them out means writing
+each choice (what was chosen, the options considered, who chose, and their
+note) into `<draft>/context.md`, so the brief's **The change** can be written
+from it. Never put the choices to the engineer as one wall of text.
 
 ### 3. Outline (one response)
 
@@ -139,10 +143,16 @@ Spawn one subagent (model and effort from `model-config.sh get brief-check`,
 general-purpose, foreground) with
 `<skill>/briefs/brief-check.md`, the brief, the repo, `BASE_SHA` (or "working
 tree") and `<common>`. It never sees the conversation. It writes
-`<draft>/verify/brief-check.md`. Read its findings and put them to the engineer
-one at a time, with `AskUserQuestion` (**fix it** · **leave it** · **discuss**).
-Apply the accepted ones with targeted Edits, bump `Revision`, and re-run step 5.
-If it finds nothing, say so in one line.
+`<draft>/verify/brief-check.md`. Turn its findings into the question list
+`<doc folder>/.tt/<Prefix> - Questions/brief-check.md` (`<common>/question-lists.md`),
+one question per finding: its context is the problem, where, the evidence
+(`path:line`) and the severity; its options are **fix** (what the fix would
+change; recommended for `blocks` and `should fix`), **leave** (with `note`: the
+engineer's reason) and **discuss** (with `note`: what to talk over). Put them
+to the engineer and carry them out: apply the fixes with targeted Edits, record
+each finding left as it is (with its reason) as a decision in the brief's
+**The change**, talk the `discuss` ones through, then bump `Revision` and
+re-run step 5. If it finds nothing, say so in one line.
 
 ### 7. Hand off
 
@@ -172,9 +182,13 @@ without the engineer's say-so.
 
 ## Resuming
 
-After a stall or "continue": `assemble.sh status "<draft>/manifest.txt"`, read
-`<draft>/context.md` for the decisions already taken, write the next missing
-part (smaller than the one that failed), and carry on from step 4.
+After a stall or "continue": if a question list in
+`<doc folder>/.tt/<Prefix> - Questions/` (`design-choices`, `brief-check`) still
+has questions open or to carry out (`questions.sh status`), finish that step
+first (`<common>/question-lists.md` §3). Otherwise `assemble.sh status
+"<draft>/manifest.txt"`, read `<draft>/context.md` for the decisions already
+taken, write the next missing part (smaller than the one that failed), and
+carry on from step 4.
 
 ## Guardrails
 

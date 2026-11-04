@@ -214,6 +214,14 @@ When every task in the unit is `Implemented`:
    - end with: "Ask me about any step if you need more detail."
 
    A check marked **Agent + Engineer** passes only when both parts pass.
+   When `decide.sh mode` says **`elsewhere`**, write the checklist instead as
+   the question list `<feature folder>/.tt/<Prefix> - Questions/validation-WU3.md`
+   (`<common>/question-lists.md`): one question per check, its `ref`
+   `WU3 check <n>`, its context the steps, what they should see and what to
+   report, its options **passed** (recommended), **failed** (`note`: what they
+   saw) and **waived** (`note`: why). Say how many checks wait and end your
+   turn. When they come back, record each answered one as in step 5 (the note
+   is the evidence) and mark it applied.
 5. Wait for the answers, and answer follow-up questions in the same session. A
    question isn't a result: keep the check open until the engineer reports it.
    Record each answer as it arrives:

@@ -69,16 +69,20 @@ For the approach choice:
    in the Tech Proposals doc (see the protocol's **Proposals**). The first
    proposal in a session creates the doc from `tt-tech-proposals`'
    template.
-2. Ask with **`AskUserQuestion`**: the approaches as options in the same order
-   as the proposal, recommended first and labelled as recommended. Tell the
-   engineer the proposal's path so they can read the full breakdown there.
-3. Record the answer: the proposal's Decision, and the chosen approach plus
-   rejected alternatives (with rationale and the `P` link) under **Chosen
-   Approach** and **Rejected Alternatives**. Record any implied consequences
-   the engineer agrees to under **Implied consequences, agreed**.
+2. Put it to the engineer as the protocol's **Putting proposals to the
+   engineer** says. In the chat: ask with **`AskUserQuestion`**, the approaches
+   as options in the same order as the proposal, recommended first and
+   labelled as recommended, and tell the engineer the proposal's path so they
+   can read the full breakdown there.
+3. Record the answer: the proposal's Decision (`proposals.sh decide`, or
+   already recorded outside the chat), and the chosen approach plus rejected
+   alternatives (with rationale and the `P` link) under **Chosen Approach** and
+   **Rejected Alternatives**, then `proposals.sh applied`. Record any implied
+   consequences the engineer agrees to under **Implied consequences, agreed**.
 
 An approach usually breaks into several sub-choices. Give each real choice its
-own proposal, decided the same way. A sub-choice that is a Critical Decision
+own proposal, decided the same way; the ones that don't depend on each other
+can be written first and put to the engineer together. A sub-choice that is a Critical Decision
 follows the protocol's Blocking or Non-Blocking procedure.
 
 If the research shows an `R`, `S` or `C` can't be met by any candidate, that

@@ -172,6 +172,14 @@ current unit. When every task in it is `Implemented`:
    values (look the target up with a quick `git grep` if the draft is vague);
    edge cases as their own items; end with "Ask me about any step if you need
    more detail." An **Agent + Engineer** check passes only when both parts pass.
+   When `decide.sh mode` says **`elsewhere`**, write it instead as the question
+   list `<feature folder>/.tt/<Prefix> - Questions/validation-<WU>.md`
+   (`<common>/question-lists.md`): one question per check (`ref`
+   `<WU> check <n>`; context: the steps, what they should see, what to report;
+   options **passed** (recommended), **failed** (`note`: what they saw),
+   **waived** (`note`: why)), say how many wait, and end your turn. When they
+   come back, record each answered one as below (the note is the evidence) and
+   mark it applied.
 5. Wait for the answers; a question isn't a result. Record each as it arrives:
    `status-record.sh "<status>" check <WU> <n> passed|failed|waived --evidence "<what they reported>"`.
 6. **All pass:** `status-set.sh "<status>" <WU> Done`.
