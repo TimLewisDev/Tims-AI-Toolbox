@@ -1654,7 +1654,7 @@ expect "check finds a row out of step" 1 bash "$CHS" check "$CF/bad.md"
 has "says which" "$T/out" "CH3: At a glance says"
 # CRLF and a BOM are kept
 mkdir -p "$T/chcr"; CR="$T/chcr/Cr - Challenges.md"
-{ printf '\357\273\277'; sed 's/$/\r/' "$root/tools/fixtures/challenges/Ch - Challenges.md"; } >"$CR"
+{ printf '\357\273\277'; tr -d '\r' <"$root/tools/fixtures/challenges/Ch - Challenges.md" | sed 's/$/\r/'; } >"$CR"
 expect "append to a CRLF document" 0 bash "$CHS" append "$CR" "$CSET"
 expect "decide in a CRLF document" 0 bash "$CHS" decide "$CR" CH2 accept
 [ "$(tr -cd '\r' <"$CR" | wc -c | tr -d ' ')" = "$(wc -l <"$CR" | tr -d ' ')" ] && ok "CRLFs kept" || bad "CRLFs kept"
@@ -1722,7 +1722,7 @@ expect "check finds a row out of step" 1 bash "$PRS" check "$PF/bad - Tech Propo
 has "says which" "$T/out" "P2: At a glance says"
 # CRLF and a BOM are kept, and a "|" inside a [[link|label]] stays in its cell
 mkdir -p "$T/prcr"; PCR="$T/prcr/Cr - Tech Proposals.md"
-{ printf '\357\273\277'; sed 's/$/\r/' "$root/tools/fixtures/proposals/Pr - Tech Proposals.md"; } >"$PCR"
+{ printf '\357\273\277'; tr -d '\r' <"$root/tools/fixtures/proposals/Pr - Tech Proposals.md" | sed 's/$/\r/'; } >"$PCR"
 sed 's/| \*\*Decides\*\* | CD1 |/| **Decides** | [[Cr - Comprehensive Tech Plan#^cd1|CD1]] |/' "$PF/P2.md" >"$T/prcr/P2.md"
 expect "add to a CRLF document" 0 bash "$PRS" add "$PCR" "$T/prcr/P2.md"
 expect "decide in a CRLF document" 0 bash "$PRS" decide "$PCR" P2 C
