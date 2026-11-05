@@ -49,6 +49,7 @@ findings):
 ```
 RESULT
 status: done | partial | blocked | failed
+model: <the exact model ID your system prompt says you run as, or unknown>
 wrote: <absolute path per line, or none>
 summary: <up to 5 lines>
 escalations: <none, or one per line:>

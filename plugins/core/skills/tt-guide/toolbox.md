@@ -401,7 +401,9 @@ project gets a different list.
   the project. It connects `claude`, `copilot` and `codex` and generates the
   models each offers from the tool's own `--help` (kept in `~/.claude/tt-llms/`;
   add models by hand in `models.d/<tool>.tsv`). The models are what
-  `/tt-config` offers. Only Claude's are runnable today; the others are listed,
+  `/tt-config` offers. Claude's are its four aliases plus specific versions
+  (`tt-connections/claude-models.tsv`); a version can start the main session but
+  not a subagent. Only Claude's are runnable today; the others are listed,
   not yet usable for a stage.
 - **Won't:** accept a secret, edit settings files by hand, or run a setup
   command you haven't said yes to.

@@ -1,0 +1,21 @@
+# claude-models.tsv: the specific Claude model versions llms.sh offers next to the
+# aliases (sonnet, opus, haiku, fable). Claude has no command that lists its
+# models, so this list is kept by hand: add a row when a model ships, remove one
+# when it retires. Newest first within a family. Columns (tab-separated):
+#   family   label   first-party id   Bedrock id
+# llms.sh gives a row the Bedrock id when Claude Code runs on Bedrock
+# (CLAUDE_CODE_USE_BEDROCK=1 in the environment or ~/.claude/settings.json), else the
+# first-party id. A "-" id leaves the row out on that backend. Every id here was
+# run once with `claude --model <id>`; Bedrock ids carry a region prefix that
+# depends on the account, and Bedrock names older models with a date and a
+# -v1:0 suffix, so they can't be derived. To add your own, use models.d/claude.tsv.
+sonnet	Sonnet 5.5	claude-sonnet-5-5	us.anthropic.claude-sonnet-5-5
+sonnet	Sonnet 5	claude-sonnet-5	us.anthropic.claude-sonnet-5
+sonnet	Sonnet 4.6	claude-sonnet-4-6	us.anthropic.claude-sonnet-4-6
+sonnet	Sonnet 4.5	claude-sonnet-4-5	us.anthropic.claude-sonnet-4-5-20250929-v1:0
+opus	Opus 5.5	claude-opus-5-5	us.anthropic.claude-opus-5-5
+opus	Opus 5	claude-opus-5	us.anthropic.claude-opus-5
+opus	Opus 4.8	claude-opus-4-8	us.anthropic.claude-opus-4-8
+haiku	Haiku 5.5	claude-haiku-5-5	us.anthropic.claude-haiku-5-5
+haiku	Haiku 4.5	claude-haiku-4-5	us.anthropic.claude-haiku-4-5-20251001-v1:0
+fable	Fable 5.1	claude-fable-5-1	us.anthropic.claude-fable-5-1

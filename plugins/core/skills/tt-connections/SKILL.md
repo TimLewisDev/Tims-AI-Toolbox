@@ -54,12 +54,21 @@ bash "<skill folder>/scripts/llms.sh" <command>
 - `disconnect <tool>` and `refresh [tool]` (generate the models again). `claude`
   can't be disconnected: it runs the skills.
 
+Claude's models are its aliases (`sonnet`, `opus`, `haiku`, `fable`, which
+follow the latest model of each family, or whatever `ANTHROPIC_DEFAULT_<ALIAS>_MODEL`
+says), each followed by its specific versions (Sonnet 5.5, Sonnet 5, Sonnet 4.5
+...), listed in `claude-models.tsv` beside `scripts/` and kept by hand, with the
+Bedrock id when Claude Code runs on Bedrock. `models --tsv` has a sixth column,
+the scope: an alias is `any`, a version is `session`. A version can start a
+session (`claude --model`) but not a subagent, because the Agent tool takes the
+four aliases only, so `tt-config` offers versions for the `session` row alone.
+
 Today only `claude`'s models are `runnable`. A model of another tool is listed
 so it can be seen and chosen later, but `tt-config` won't accept it for a stage
 yet, because a subagent can only be spawned on a Claude model. Models a tool
 doesn't list can be added, one per line, in
 `~/.claude/tt-llms/models.d/<tool>.tsv` (`id`, `label`, `efforts`, `yes|no`,
-tab-separated).
+and optionally `session` for a model only a session can use; tab-separated).
 
 ## status
 

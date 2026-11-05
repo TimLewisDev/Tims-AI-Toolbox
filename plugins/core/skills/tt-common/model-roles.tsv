@@ -7,6 +7,7 @@
 #              skill cannot change the session's model. The role is the skill name.
 # tier: 1 = highest value for an expensive model, 4 = lowest.
 # model: sonnet | opus | haiku | fable | -    effort: low | medium | high | xhigh | max | -
+#        (the session role may also name a specific version, e.g. claude-sonnet-5-5)
 # "-" means "don't set it": the subagent (or the session) keeps its own.
 # Add a role here, then name it in the skill with `model-config.sh get <role>`.
 session	main	1	tt-workflow, tt-workflow-lite	The main session itself: what a workflow start launches claude with	-	-

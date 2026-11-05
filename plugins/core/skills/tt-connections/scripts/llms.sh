@@ -2,7 +2,8 @@
 # llms.sh: which LLM command-line tools are connected (claude, copilot, codex)
 # and which models they offer. The connections are machine-wide, not per
 # project. Models are generated from each tool's own --help (and from any
-# lines you add in models.d/), never from this repo. Needs bash and awk only.
+# lines you add in models.d/, and for Claude from claude-models.tsv, the
+# specific versions kept by hand). Needs bash and awk only.
 # It never signs in or handles a token: sign-in is the tool's own.
 set -u
 
@@ -18,17 +19,22 @@ usage: llms.sh status [--tsv]                      each provider: connected, ava
 providers: claude | copilot | codex
 A model is runnable when a tt-* skill can use it for a subagent. Only claude
 models are runnable today; the others are listed so they can be picked later.
+Claude's models are its aliases (sonnet, opus, haiku, fable), each followed by
+its specific versions (claude-models.tsv, next to scripts/; Bedrock ids when
+Claude Code runs on Bedrock). A version has scope "session": `claude --model`
+takes it, but the Agent tool, so a tt-* subagent, takes aliases only.
 Extra models for a provider go in <home>/models.d/<provider>.tsv, one per line:
-  <id> TAB <label> TAB <efforts, comma separated or -> TAB <yes|no>
+  <id> TAB <label> TAB <efforts, comma separated or -> TAB <yes|no> TAB <session, optional>
 
 State lives in ${TT_LLMS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-llms}
 TT_CLAUDE_BIN, TT_COPILOT_BIN and TT_CODEX_BIN name the executables.
---tsv output: models: provider, id, label, efforts, runnable;
+--tsv output: models: provider, id, label, efforts, runnable, scope (any | session);
               status: provider, state, version, models, runnable models.
 Exit: 0 ok, 1 refused or not installed, 2 usage error.
 EOF
 }
 
+here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
 home=${TT_LLMS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-llms}
 conns="$home/connections.tsv"
 modelsf="$home/models.tsv"
@@ -104,9 +110,32 @@ alias_target() {
 
 csv() { echo "$*" | tr ' ' ','; }
 
-# gen_claude: claude has no model list command, so the models are its aliases
+# on_bedrock: Claude Code is set to run on Amazon Bedrock (env, then settings.json)
+on_bedrock() {
+	# the environment decides when it says (Claude Code sets it from settings.json itself)
+	[ -n "${CLAUDE_CODE_USE_BEDROCK+x}" ] && { [ "$CLAUDE_CODE_USE_BEDROCK" = 1 ]; return; }
+	local settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+	[ -f "$settings" ] && grep -q '"CLAUDE_CODE_USE_BEDROCK"[[:space:]]*:[[:space:]]*"\{0,1\}1' "$settings"
+}
+
+# versions_of <family>: the pinned versions of a family from claude-models.tsv, as
+# `label TAB id` for the backend in use (rows with no id there are left out)
+versions_of() {
+	local list="$here/../claude-models.tsv" col=3
+	[ -f "$list" ] || return 0
+	on_bedrock && col=4
+	awk -F'\t' -v OFS='\t' -v f="$1" -v c=$col '
+		{ sub(/\r$/, "") }
+		/^#/ || $1 != f { next }
+		$c != "" && $c != "-" { print $2, $c }' "$list"
+}
+
+# gen_claude: claude has no model list command, so the models are its aliases,
+# each followed by its specific versions (claude-models.tsv). The sixth column is
+# the scope: an alias is "any" (a session or a subagent can use it); a version is
+# "session" (only `claude --model` takes it, the Agent tool takes aliases only).
 gen_claude() {
-	local bin eff a t label
+	local bin eff a t label vl vid
 	eff=$DEFAULT_EFFORTS
 	if bin=$(bin_path claude); then
 		e=$(help_choices "$bin" --effort)
@@ -116,7 +145,10 @@ gen_claude() {
 		t=$(alias_target "$a")
 		label=$a
 		[ -n "$t" ] && label="$a ($t)"
-		printf 'claude\t%s\t%s\t%s\tyes\n' "$a" "$label" "$eff"
+		printf 'claude\t%s\t%s\t%s\tyes\tany\n' "$a" "$label" "$eff"
+		versions_of "$a" | while IFS=$'\t' read -r vl vid; do
+			printf 'claude\t%s\t%s\t%s\tyes\tsession\n' "$vid" "$vl" "$eff"
+		done
 	done
 }
 
@@ -130,16 +162,17 @@ gen_other() {
 		e=$(help_choices "$bin" "$f")
 		[ -n "$e" ] && { eff=$(csv "$e"); break; }
 	done
-	for m in $ms; do printf '%s\t%s\t%s\t%s\tno\n' "$p" "$m" "$m" "$eff"; done
+	for m in $ms; do printf '%s\t%s\t%s\t%s\tno\tany\n' "$p" "$m" "$m" "$eff"; done
 }
 
-# extra_rows <provider>: lines from models.d/<provider>.tsv as full model rows
+# extra_rows <provider>: lines from models.d/<provider>.tsv as full model rows;
+# an optional fifth column "session" marks a model only a session can use
 extra_rows() {
 	[ -f "$extras/$1.tsv" ] || return 0
 	awk -F'\t' -v OFS='\t' -v p="$1" '
 		{ sub(/\r$/, "") }
 		/^#/ || $1 == "" { next }
-		{ print p, $1, ($2 == "" ? $1 : $2), ($3 == "" ? "-" : $3), (p == "claude" && $4 == "" ? "yes" : ($4 == "yes" ? "yes" : "no")) }' "$extras/$1.tsv"
+		{ print p, $1, ($2 == "" ? $1 : $2), ($3 == "" ? "-" : $3), (p == "claude" && $4 == "" ? "yes" : ($4 == "yes" ? "yes" : "no")), ($5 == "session" ? "session" : "any") }' "$extras/$1.tsv"
 }
 
 # refresh_one <provider>: replace its rows in models.tsv
@@ -153,20 +186,22 @@ refresh_one() {
 	} >"$tmp" && mv "$tmp" "$modelsf"
 }
 
-# ensure_claude: models.tsv always has claude's rows, even before anyone connects
+# ensure_claude: models.tsv always has claude's rows, even before anyone connects.
+# Rows from before the scope column (five fields) are generated again.
 ensure_claude() {
-	[ -f "$modelsf" ] && awk -F'\t' '$1 == "claude" { f = 1 } END { exit !f }' "$modelsf" && return 0
+	[ -f "$modelsf" ] && awk -F'\t' '$1 == "claude" { f = 1; if (NF < 6) old = 1 } END { exit !(f && !old) }' "$modelsf" && return 0
 	refresh_one claude
 }
 
-# all_models: generated rows plus models.d rows of the connected providers, once per provider+id
+# all_models: generated rows plus models.d rows of the connected providers, once per provider+id.
+# Six columns: provider, id, label, efforts, runnable, scope (any | session).
 all_models() {
 	local p
 	ensure_claude
 	{
 		for p in $PROVIDERS; do
 			is_connected "$p" || continue
-			[ -f "$modelsf" ] && awk -F'\t' -v p="$p" '{ sub(/\r$/, "") } $1 == p' "$modelsf"
+			[ -f "$modelsf" ] && awk -F'\t' -v OFS='\t' -v p="$p" '{ sub(/\r$/, "") } $1 == p { if (NF < 6) $6 = "any"; print }' "$modelsf"
 			extra_rows "$p"
 		done
 	} | awk -F'\t' '!seen[$1 FS $2]++'

@@ -17,6 +17,7 @@ export TT_EVENTS_HOME="$T/events"
 export TT_PLUGINS_HOME="$T/tt-plugins"
 # Keep the LLM connections out of the real home too.
 export TT_LLMS_HOME="$T/llms"
+export CLAUDE_CODE_USE_BEDROCK=0 # first-party model ids, whatever this machine's environment or settings.json says
 for p in core engineering design production; do
 	CLAUDE_PLUGIN_ROOT="$root/plugins/$p" bash "$root/plugins/$p/hooks/register.sh" "$p"
 done
@@ -1062,6 +1063,15 @@ has "claude is connected from the start" "$T/out" "claude    connected"
 has "copilot is available, not connected" "$T/out" "copilot   available"
 expect "claude models need no setup" 0 LL models --runnable --tsv
 for m in sonnet opus haiku fable; do has "claude alias $m is runnable" "$T/out" "claude	$m	"; done
+has "an alias is usable by a subagent" "$T/out" "yes	any"
+has "a specific version is listed" "$T/out" "claude	claude-sonnet-5-5	Sonnet 5.5	"
+has "a specific version is session-only" "$T/out" "yes	session"
+CLAUDE_CODE_USE_BEDROCK=1 TT_LLMS_HOME="$T/llms-bedrock" expect "versions on Bedrock" 0 LL models --runnable --tsv
+has "Bedrock gets its own id" "$T/out" "claude	us.anthropic.claude-sonnet-5-5	Sonnet 5.5	"
+hasnt "and not the first-party one" "$T/out" "claude	claude-sonnet-5-5	"
+mkdir -p "$T/llms-old"; printf 'claude\tsonnet\tsonnet\tlow,high\tyes\n' >"$T/llms-old/models.tsv"
+TT_LLMS_HOME="$T/llms-old" expect "a cache from before versions is generated again" 0 LL models --runnable --tsv
+has "the old cache gains the versions" "$T/out" "claude	claude-opus-5-5	Opus 5.5	"
 expect "claude cannot be disconnected" 1 LL disconnect claude
 expect "unknown provider" 2 LL connect gemini
 expect "connect copilot" 0 LL connect copilot
@@ -1107,6 +1117,17 @@ expect "args with nothing set" 0 MC args
 [ ! -s "$T/out" ] && ok "no flags when left to the session" || bad "no flags when left to the session" "$(cat "$T/out")"
 expect "args from explicit values" 0 MC args --model opus --effort high
 has "both flags" "$T/out" "--model opus --effort high"
+expect "args takes a specific version" 0 MC args --model claude-sonnet-5-5 --effort high
+has "the version is passed on" "$T/out" "--model claude-sonnet-5-5 --effort high"
+expect "the session role takes a specific version" 0 MC set session claude-sonnet-5-5 high
+expect "args reads that setting" 0 MC args
+has "the saved version starts the session" "$T/out" "--model claude-sonnet-5-5 --effort high"
+expect "a step refuses a specific version" 2 MC set coder claude-sonnet-5-5 -
+has "and says only the session can use it" "$T/out" "only the session can use"
+expect "a step still takes an alias" 0 MC set coder haiku -
+expect "an unknown model is still refused for the session" 2 MC set session claude-nonsense-9 -
+expect "put the session back" 0 MC set session - -
+expect "put the coder back" 0 MC set coder sonnet -
 expect "args with a model only" 0 MC args --model sonnet
 has "model flag" "$T/out" "--model sonnet"
 hasnt "no effort flag" "$T/out" "--effort"

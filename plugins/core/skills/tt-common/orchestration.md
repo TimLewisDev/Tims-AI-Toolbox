@@ -110,8 +110,18 @@ When you read a RESULT, expect that block.
 - The models on offer are the runnable ones of the connected LLM tools
   (`tt-connections`' `llms.sh`); today those are Claude's. A model that is
   listed but not runnable is never passed to the Agent tool.
+- **Check the model that ran.** Every RESULT has a `model:` line, the model
+  ID the subagent reports. Compare it with what `get` asked for (an alias such
+  as `opus` matches an ID that contains `opus`, or the ID the alias maps to
+  through `ANTHROPIC_DEFAULT_<ALIAS>_MODEL` in the environment or
+  `~/.claude/settings.json`). When it differs, or a spawn that should have had a
+  model went without one, tell the engineer in one line: the role, the model
+  asked for, and the model that ran. Don't change anything; the engineer
+  decides. A `-` role (the session's own) has nothing to compare, and `unknown`
+  is not a mismatch.
 - If a subagent on the chosen model fails to start, re-run the same brief
-  without a model (the session's).
+  without a model (the session's), and tell the engineer the same way that the
+  role ran on the session's model.
 
 ## 5. Git
 

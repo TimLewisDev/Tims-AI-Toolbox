@@ -25,7 +25,9 @@ usage: model-config.sh get <role>                    model=<m> effort=<e> for th
 model: sonnet | opus | haiku | fable | -     effort: low | medium | high | xhigh | max | -
 "-" leaves the choice to the session. Roles are in tt-common/model-roles.tsv.
 The models offered are the runnable ones of the connected LLMs (tt-connections: llms.sh models);
-without that script, the Claude aliases above.
+without that script, the Claude aliases above. The `session` role (and `args`) may also name a
+specific version (e.g. claude-sonnet-5-5); every other role takes the aliases only, because the
+Agent tool, which runs a subagent, takes no specific version.
 TT_CONFIG_DIR overrides the state folder (default ~/.claude/tt-config).
 Exit: 0 ok, 1 nothing to report / refused, 2 usage or environment error.
 EOF
@@ -50,16 +52,18 @@ in_list() { case " $2 " in *" $1 "*) return 0 ;; esac; return 1; }
 LLMS=""
 if conn=$(tt_find tt-connections) && [ -f "$conn/scripts/llms.sh" ]; then LLMS="$conn/scripts/llms.sh"; fi
 
-# runnable_rows: provider, id, label, efforts, runnable, one per line
+# runnable_rows: provider, id, label, efforts, runnable[, scope], one per line
 runnable_rows() {
 	[ -n "$LLMS" ] && bash "$LLMS" models --runnable --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' 'NF >= 5' && return 0
 	return 1
 }
 
-# model_ids: the ids that may be set, "-" included
+# model_ids [session]: the ids that may be set, "-" included. A specific version
+# (scope "session") is a session model: `claude --model` takes it, but the Agent
+# tool, so a subagent role, takes aliases only. Without "session" they are left out.
 model_ids() {
 	local ids
-	ids=$(runnable_rows | awk -F'\t' '{ printf "%s ", $2 }') || ids=""
+	ids=$(runnable_rows | awk -F'\t' -v s="${1:-}" 's == "session" || $6 != "session" { printf "%s ", $2 }') || ids=""
 	[ -n "$ids" ] && echo "$ids-" || echo "$MODELS"
 }
 
@@ -68,6 +72,11 @@ effort_list() {
 	local e=""
 	[ "$1" != "-" ] && e=$(runnable_rows | awk -F'\t' -v m="$1" '$2 == m && $4 != "-" { gsub(/,/, " ", $4); print $4; exit }')
 	[ -n "$e" ] && echo "$e -" || echo "$EFFORTS"
+}
+
+# is_session_only <model>: a specific version, which only the session can use
+is_session_only() {
+	[ "$1" != "-" ] && runnable_rows | awk -F'\t' -v m="$1" '$2 == m && $6 == "session" { f = 1 } END { exit !f }'
 }
 
 [ -f "$REG" ] || die "role registry not found: $REG"
@@ -146,11 +155,19 @@ write_override() { # write_override <file> <role> <model> <effort>
 	} >"$tmp" && mv "$tmp" "$f"
 }
 
-# check_pair <model> <effort>: exit 2 unless both are allowed together
+# check_pair <model> <effort> <role>: exit 2 unless both are allowed together for
+# that role. The session role (and `args`, which starts a session) may name a
+# specific version; every other role is a subagent or a stage and takes aliases.
 check_pair() {
-	local ids efforts
-	ids=$(model_ids); efforts=$(effort_list "$1")
-	in_list "$1" "$ids" || die "model must be one of: $ids"
+	local ids efforts scope=""
+	[ "${3:-}" = session ] && scope=session
+	ids=$(model_ids "$scope"); efforts=$(effort_list "$1")
+	if ! in_list "$1" "$ids"; then
+		if [ -z "$scope" ] && is_session_only "$1"; then
+			die "'$1' is a specific version, which only the session can use; '$3' takes one of: $ids"
+		fi
+		die "model must be one of: $ids"
+	fi
 	in_list "$2" "$efforts" || die "effort for '$1' must be one of: $efforts"
 }
 
@@ -171,7 +188,7 @@ cmd_args() {
 		shift
 	done
 	[ -n "$m" ] || m="-"; [ -n "$e" ] || e="-"
-	check_pair "$m" "$e"
+	check_pair "$m" "$e" session
 	local out=""
 	[ "$m" = "-" ] || out="--model $m"
 	[ "$e" = "-" ] || out="${out:+$out }--effort $e"
@@ -182,7 +199,7 @@ cmd_set() {
 	[ $# -eq 3 ] || { usage; exit 2; }
 	local role=$1 model=$2 effort=$3 mode
 	awk -F'\t' -v r="$role" '$1 !~ /^#/ && $1 == r { f = 1 } END { exit !f }' "$REG" || die "unknown role '$role'"
-	check_pair "$model" "$effort"
+	check_pair "$model" "$effort" "$role"
 	mode=$(active_mode)
 	write_override "$(user_file "$mode")" "$role" "$model" "$effort"
 	echo "set $role: model=$model effort=$effort (mode $mode)"
