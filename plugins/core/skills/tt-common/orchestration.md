@@ -114,7 +114,8 @@ When you read a RESULT, expect that block.
   ID the subagent reports. Compare it with what `get` asked for (an alias such
   as `opus` matches an ID that contains `opus`, or the ID the alias maps to
   through `ANTHROPIC_DEFAULT_<ALIAS>_MODEL` in the environment or
-  `~/.claude/settings.json`). When it differs, or a spawn that should have had a
+  `~/.claude/settings.json`; `model-config.sh family list` shows the version each
+  alias is meant to have). When it differs, or a spawn that should have had a
   model went without one, tell the engineer in one line: the role, the model
   asked for, and the model that ran. Don't change anything; the engineer
   decides. A `-` role (the session's own) has nothing to compare, and `unknown`

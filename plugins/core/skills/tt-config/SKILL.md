@@ -27,7 +27,7 @@ bash "<this skill's folder>/../tt-common/scripts/model-config.sh" <command>
 
 (`<common>` below is that `tt-common` folder.) Its commands are `list`,
 `set <role> <model> <effort>`, `modes`, `use <mode>`, `save <name>`,
-`reset <mode>`, `delete <mode>`, `args` and `status`. Models are the runnable
+`reset <mode>`, `delete <mode>`, `args`, `family` and `status`. Models are the runnable
 ones of the connected LLM tools (`tt-connections`' `llms.sh models`; by default
 `sonnet`, `opus`, `haiku`, `fable`) or `-`; efforts are `low`, `medium`, `high`,
 `xhigh`, `max` or `-` (a model may take fewer). `-` means "leave it to the
@@ -92,6 +92,28 @@ every repo.
 Don't edit the registry, the shipped modes or any skill file from here. To add
 a mode of your own, `save` it. To drop edits to a shipped mode, `reset` it;
 to remove a mode you saved, `delete` it.
+
+## Which version an alias means (`family`)
+
+A subagent is started with an alias (`sonnet`), which the Agent tool can't give a
+version. The alias means whatever `ANTHROPIC_DEFAULT_<FAMILY>_MODEL` says in the
+environment of the session that spawns it, and Claude Code falls back to an older
+model when nothing sets it (a session started by a launcher that is not itself a
+Claude session, e.g. Tatty, gets Sonnet 4.5 on Bedrock). So:
+
+- `family list` shows each alias, the version it means and where that comes
+  from: `chosen` (pinned here), `own` (your environment or `settings.json`
+  already says) or `newest` (the newest in `tt-connections/claude-models.tsv`).
+- `family set <family> <version id>` pins one (ids from `llms.sh versions`);
+  `family set <family> -` goes back to the newest. The choice is machine-wide,
+  not part of a mode, and is kept in `~/.claude/tt-config/family-versions.tsv`.
+- `family env` prints the `ANTHROPIC_DEFAULT_<FAMILY>_MODEL=<id>` lines for a
+  launcher to export when it starts `claude`. A pinned family is always
+  printed; an unpinned one only when your own environment leaves it open.
+  Sessions already running keep the version they started with.
+
+When the user asks which version the aliases use, or to change it, run `family
+list`, then `family set` for what they choose.
 
 ## If the model alias doesn't resolve
 

@@ -402,8 +402,9 @@ project gets a different list.
   models each offers from the tool's own `--help` (kept in `~/.claude/tt-llms/`;
   add models by hand in `models.d/<tool>.tsv`). The models are what
   `/tt-config` offers. Claude's are its four aliases plus specific versions
-  (`tt-connections/claude-models.tsv`); a version can start the main session but
-  not a subagent. Only Claude's are runnable today; the others are listed,
+  (`tt-connections/claude-models.tsv`; `llms.sh versions` lists them by family);
+  a version can start the main session but a subagent takes an alias, whose
+  version is set per family (see `/tt-config`). Only Claude's are runnable today; the others are listed,
   not yet usable for a stage.
 - **Won't:** accept a secret, edit settings files by hand, or run a setup
   command you haven't said yes to.
@@ -817,6 +818,15 @@ skill.
   stages that run in your own session (approach and technical design default to
   Opus, high effort): a skill can't change the session's model, so the
   workflow skills show a one-line reminder to run `/model` and `/effort`.
+- **Which version an alias means.** A subagent is started with an alias
+  (`sonnet`), and the alias means whatever `ANTHROPIC_DEFAULT_<FAMILY>_MODEL`
+  says in the environment of the session that spawns it; where nothing sets it
+  Claude Code falls back to an older model (Sonnet 4.5 on Bedrock).
+  `model-config.sh family list` shows what each alias means, `family set
+  <family> <version id>` pins one (`-` goes back to the newest listed), and
+  `family env` prints the `NAME=value` lines a launcher exports when it starts
+  `claude` (Tatty does). A launcher whose environment already sets a variable
+  keeps it unless you pinned that family.
 - On Bedrock or a gateway, set `ANTHROPIC_DEFAULT_OPUS_MODEL` (and the Sonnet
   one) in the env block of `settings.json`, or the `opus` alias may not
   resolve; `/tt-config` warns when it looks missing.

@@ -1189,6 +1189,44 @@ CLAUDE_CODE_USE_BEDROCK=1 ANTHROPIC_DEFAULT_OPUS_MODEL= HOME="$T/nohome" expect 
 has "bedrock warning" "$T/out" "warning: this looks like Bedrock"
 CLAUDE_CODE_USE_BEDROCK=1 ANTHROPIC_DEFAULT_OPUS_MODEL=x HOME="$T/nohome" expect "status with the alias set" 0 MC status
 hasnt "no warning when set" "$T/out" "warning"
+# family versions: what each alias means for the sessions a launcher starts
+FAMENV() { env -u ANTHROPIC_DEFAULT_SONNET_MODEL -u ANTHROPIC_DEFAULT_OPUS_MODEL -u ANTHROPIC_DEFAULT_HAIKU_MODEL -u ANTHROPIC_DEFAULT_FABLE_MODEL \
+	HOME="$T/nohome" CLAUDE_CODE_USE_BEDROCK=1 TT_CONFIG_DIR="$T/famconfig" "$@"; }
+expect "llms versions lists a family" 0 LL versions sonnet --tsv
+has "newest first" "$T/out" "sonnet	Sonnet 5.5	claude-sonnet-5-5"
+expect "llms versions is first-party off Bedrock" 0 env -u CLAUDE_CODE_USE_BEDROCK HOME="$T/nohome" bash "$core/tt-connections/scripts/llms.sh" versions haiku --tsv
+has "haiku id" "$T/out" "haiku	Haiku 5.5	claude-haiku-5-5"
+CLAUDE_CODE_USE_BEDROCK=1 expect "llms versions gets the Bedrock id" 0 LL versions haiku --tsv
+has "Bedrock haiku id" "$T/out" "haiku	Haiku 4.5	us.anthropic.claude-haiku-4-5-20251001-v1:0"
+expect "llms versions rejects a family it doesn't know" 2 LL versions gpt
+expect "family list needs a subcommand" 2 MC family
+expect "family list, nothing chosen" 0 FAMENV bash "$S/model-config.sh" family list --tsv
+has "sonnet follows the newest" "$T/out" "sonnet	-	us.anthropic.claude-sonnet-5-5	Sonnet 5.5	newest"
+has "fable follows the newest" "$T/out" "fable	-	us.anthropic.claude-fable-5-1	Fable 5.1	newest"
+expect "family env pins every alias to the newest" 0 FAMENV bash "$S/model-config.sh" family env
+has "sonnet exported" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5"
+has "opus exported" "$T/out" "ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-5-5"
+has "haiku exported" "$T/out" "ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-5-5"
+expect "a user's own pin is left alone" 0 FAMENV ANTHROPIC_DEFAULT_SONNET_MODEL=my-own-model bash "$S/model-config.sh" family env
+hasnt "own sonnet not exported" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL"
+has "the rest still are" "$T/out" "ANTHROPIC_DEFAULT_OPUS_MODEL="
+FAMENV ANTHROPIC_DEFAULT_SONNET_MODEL=my-own-model bash "$S/model-config.sh" family list --tsv >"$T/out"
+has "listed as the user's own" "$T/out" "sonnet	-	my-own-model	-	own"
+expect "pin a family" 0 FAMENV bash "$S/model-config.sh" family set sonnet us.anthropic.claude-sonnet-4-6
+FAMENV bash "$S/model-config.sh" family list --tsv >"$T/out"
+has "the pin is listed" "$T/out" "sonnet	us.anthropic.claude-sonnet-4-6	us.anthropic.claude-sonnet-4-6	Sonnet 4.6	chosen"
+FAMENV ANTHROPIC_DEFAULT_SONNET_MODEL=my-own-model bash "$S/model-config.sh" family env >"$T/out"
+has "a pin beats the user's own setup" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6"
+env -u CLAUDE_CODE_USE_BEDROCK -u ANTHROPIC_DEFAULT_SONNET_MODEL -u ANTHROPIC_DEFAULT_OPUS_MODEL -u ANTHROPIC_DEFAULT_HAIKU_MODEL -u ANTHROPIC_DEFAULT_FABLE_MODEL HOME="$T/nohome" TT_CONFIG_DIR="$T/famconfig" bash "$S/model-config.sh" family list --tsv >"$T/out"
+has "a pin this backend doesn't list is ignored" "$T/out" "sonnet	-	claude-sonnet-5-5	Sonnet 5.5	newest"
+expect "a version of another family is refused" 2 FAMENV bash "$S/model-config.sh" family set opus us.anthropic.claude-sonnet-4-6
+expect "an unknown version is refused" 2 FAMENV bash "$S/model-config.sh" family set sonnet claude-nonsense-9
+expect "an unknown family is refused" 2 FAMENV bash "$S/model-config.sh" family set cat x
+expect "family set needs two arguments" 2 FAMENV bash "$S/model-config.sh" family set sonnet
+expect "clear a pin" 0 FAMENV bash "$S/model-config.sh" family set sonnet -
+FAMENV bash "$S/model-config.sh" family env >"$T/out"
+has "back to the newest" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5"
+[ ! -s "$T/famconfig/family-versions.tsv" ] && ok "the pin file is empty again" || bad "the pin file is empty again" "$(cat "$T/famconfig/family-versions.tsv")"
 # every role is wired into a skill, and every wired role exists
 roles=$(awk -F'\t' '$1 !~ /^#/ && $2 == "sub" { print $1 }' "$core/tt-common/model-roles.tsv")
 used=$(grep -rhoE 'model-config\.sh get [a-z][a-z-]*' "$root"/plugins/*/skills/tt-*/ --include=*.md | awk '{ print $3 }' | sort -u)

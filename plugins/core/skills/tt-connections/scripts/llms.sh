@@ -15,6 +15,8 @@ usage: llms.sh status [--tsv]                      each provider: connected, ava
        llms.sh refresh [provider]                  generate the models again for the connected tools
        llms.sh models [--runnable] [--tsv] [--provider <p>]
                                                    the models of the connected tools
+       llms.sh versions [<family>] [--tsv]         claude's specific versions by family (sonnet, opus, haiku,
+                                                   fable), newest first, for the backend in use: family, label, id
 
 providers: claude | copilot | codex
 A model is runnable when a tt-* skill can use it for a subagent. Only claude
@@ -228,6 +230,25 @@ cmd_models() {
 		END { if (!n && !tsv) print (p != "" ? "No models found in " p "'"'"'s --help. Add some in models.d/" p ".tsv." : "No models yet. Connect a tool: llms.sh connect <provider>") }'
 }
 
+cmd_versions() {
+	local tsv=0 fam="" a vl vid
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--tsv) tsv=1 ;;
+		sonnet | opus | haiku | fable) fam=$1 ;;
+		*) usage; exit 2 ;;
+		esac
+		shift
+	done
+	for a in ${fam:-sonnet opus haiku fable}; do
+		versions_of "$a" | while IFS=$'\t' read -r vl vid; do
+			if [ $tsv -eq 1 ]; then printf '%s\t%s\t%s\n' "$a" "$vl" "$vid"
+			else printf '%-7s %-14s %s\n' "$a" "$vl" "$vid"; fi
+		done
+	done
+	return 0
+}
+
 cmd_status() {
 	local tsv=0 p state ver bin n r
 	[ "${1:-}" = "--tsv" ] && tsv=1
@@ -301,6 +322,7 @@ case "$cmd" in
 	disconnect) cmd_disconnect "$@" ;;
 	refresh) cmd_refresh "$@" ;;
 	models) cmd_models "$@" ;;
+	versions) cmd_versions "$@" ;;
 	-h | --help | help | "") usage; [ -n "$cmd" ] && exit 0 || exit 2 ;;
 	*) usage; exit 2 ;;
 esac

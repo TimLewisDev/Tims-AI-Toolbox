@@ -20,6 +20,11 @@ usage: model-config.sh get <role>                    model=<m> effort=<e> for th
        model-config.sh stage-note <skill>            one line for a main-thread stage, if configured
        model-config.sh args [--model m] [--effort e]  the flags that start claude on that model and effort
                                                      (values left out come from the `session` role)
+       model-config.sh family list [--tsv]           which version each alias (sonnet, opus, haiku, fable) means:
+                                                     family chosen effective label source (chosen|own|newest)
+       model-config.sh family set <family> <id|->    pin an alias to a specific version; - goes back to the newest
+       model-config.sh family env                    the NAME=value lines a launcher exports so the aliases mean
+                                                     those versions (ANTHROPIC_DEFAULT_<FAMILY>_MODEL)
        model-config.sh status                        active mode, changes, warnings
 
 model: sonnet | opus | haiku | fable | -     effort: low | medium | high | xhigh | max | -
@@ -27,7 +32,9 @@ model: sonnet | opus | haiku | fable | -     effort: low | medium | high | xhigh
 The models offered are the runnable ones of the connected LLMs (tt-connections: llms.sh models);
 without that script, the Claude aliases above. The `session` role (and `args`) may also name a
 specific version (e.g. claude-sonnet-5-5); every other role takes the aliases only, because the
-Agent tool, which runs a subagent, takes no specific version.
+Agent tool, which runs a subagent, takes no specific version. A subagent's alias means whatever
+ANTHROPIC_DEFAULT_<FAMILY>_MODEL says in the session's environment, so `family` is how a specific
+version is chosen for the aliases: a launcher exports `family env` when it starts claude.
 TT_CONFIG_DIR overrides the state folder (default ~/.claude/tt-config).
 Exit: 0 ok, 1 nothing to report / refused, 2 usage or environment error.
 EOF
@@ -281,6 +288,93 @@ cmd_stage_note() {
 	echo "Configured for this stage (mode $mode): model ${m/#-/session default}, effort ${e/#-/session default}. To match, run $cmds."
 }
 
+# ---- family versions: what each alias (sonnet, opus, haiku, fable) means --------------------
+# A subagent is started with an alias, and the alias means whatever
+# ANTHROPIC_DEFAULT_<FAMILY>_MODEL says in the environment of the claude that spawns it. Where
+# nothing sets it (a session started by a launcher that is not itself a claude session) Claude
+# Code falls back to an older model. The choice is machine-wide, not part of a mode:
+# $CFG/family-versions.tsv holds `family TAB id` for the pinned ones.
+FAMILIES="sonnet opus haiku fable"
+FAMFILE="$CFG/family-versions.tsv"
+
+# family_var <family>: ANTHROPIC_DEFAULT_SONNET_MODEL, ...
+family_var() { printf 'ANTHROPIC_DEFAULT_%s_MODEL' "$(printf '%s' "$1" | tr 'a-z' 'A-Z')"; }
+
+# family_own <family>: the id the user's own setup already gives the alias (environment, then settings.json)
+family_own() {
+	local var v settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+	var=$(family_var "$1"); v=${!var:-}
+	if [ -z "$v" ] && [ -f "$settings" ]; then
+		v=$(sed -n "s/.*\"$var\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$settings" | head -1)
+	fi
+	printf '%s' "$v"
+}
+
+# family_versions: family, label, id of every version for the backend in use, newest first
+family_versions() {
+	[ -n "$LLMS" ] && bash "$LLMS" versions --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' 'NF >= 3'
+}
+
+# family_rows: one row per family: family chosen effective label source
+#   chosen: the pinned id, or "-" (none, or one this backend doesn't list)
+#   source: chosen = pinned; own = the user's environment/settings.json already say; newest = the newest listed
+#   effective: "-" when nothing is known (no version list and no choice)
+family_rows() {
+	local vers f chosen own newest eff src label
+	vers=$(family_versions)
+	for f in $FAMILIES; do
+		chosen=$([ -f "$FAMFILE" ] && awk -F'\t' -v f="$f" '{ sub(/\r$/, "") } $1 == f { print $2; exit }' "$FAMFILE")
+		[ -n "$chosen" ] && printf '%s\n' "$vers" | awk -F'\t' -v f="$f" -v i="$chosen" '$1 == f && $3 == i { k = 1 } END { exit !k }' || chosen="-"
+		own=$(family_own "$f")
+		newest=$(printf '%s\n' "$vers" | awk -F'\t' -v f="$f" '$1 == f { print $3; exit }')
+		if [ "$chosen" != "-" ]; then eff=$chosen; src=chosen
+		elif [ -n "$own" ]; then eff=$own; src=own
+		elif [ -n "$newest" ]; then eff=$newest; src=newest
+		else eff="-"; src=newest; fi
+		label=$(printf '%s\n' "$vers" | awk -F'\t' -v f="$f" -v i="$eff" '$1 == f && $3 == i { print $2; exit }')
+		printf '%s\t%s\t%s\t%s\t%s\n' "$f" "$chosen" "$eff" "${label:--}" "$src"
+	done
+}
+
+cmd_family() {
+	local sub=${1:-}
+	[ $# -gt 0 ] && shift
+	case "$sub" in
+	list)
+		local tsv=0
+		[ "${1:-}" = "--tsv" ] && tsv=1
+		[ -z "$LLMS" ] && die "family versions need the tt-connections skill (llms.sh); update the core plugin"
+		if [ $tsv -eq 1 ]; then family_rows
+		else
+			family_rows | awk -F'\t' 'BEGIN { printf "%-7s %-14s %-9s %s\n", "Family", "Version", "From", "Id" }
+				{ printf "%-7s %-14s %-9s %s\n", $1, $4, $5, $3 }'
+		fi ;;
+	set)
+		[ $# -eq 2 ] || { usage; exit 2; }
+		[ -z "$LLMS" ] && die "family versions need the tt-connections skill (llms.sh); update the core plugin"
+		in_list "$1" "$FAMILIES" || die "family must be one of: $FAMILIES"
+		if [ "$2" != "-" ]; then
+			family_versions | awk -F'\t' -v f="$1" -v i="$2" '$1 == f && $3 == i { k = 1 } END { exit !k }' ||
+				die "'$2' is not a version of $1 here; one of: $(family_versions | awk -F'\t' -v f="$1" '$1 == f { printf "%s ", $3 }')"
+		fi
+		local tmp
+		mkdir -p "$CFG" || die "cannot create $CFG"
+		tmp=$(mktemp "$FAMFILE.XXXXXX") || die "cannot write $FAMFILE"
+		{
+			[ -f "$FAMFILE" ] && awk -F'\t' -v f="$1" '{ sub(/\r$/, "") } $1 != f'
+			[ "$2" = "-" ] || printf '%s\t%s\n' "$1" "$2"
+		} >"$tmp" && mv "$tmp" "$FAMFILE"
+		if [ "$2" = "-" ]; then echo "family $1: back to the newest"; else echo "family $1: $2"; fi ;;
+	env)
+		[ -z "$LLMS" ] && exit 0
+		# A pinned family always; any other only when the user's own setup leaves the alias open.
+		family_rows | awk -F'\t' '$3 != "-" && ($5 == "chosen" || $5 == "newest") { print $1 "\t" $3 }' | while IFS=$'\t' read -r f id; do
+			printf '%s=%s\n' "$(family_var "$f")" "$id"
+		done ;;
+	*) usage; exit 2 ;;
+	esac
+}
+
 cmd_status() {
 	local mode kind changed opus settings=~/.claude/settings.json bedrock="" alias=""
 	mode=$(active_mode)
@@ -319,6 +413,7 @@ case "$cmd" in
 	delete) cmd_delete "$@" ;;
 	stage-note) cmd_stage_note "$@" ;;
 	args) cmd_args "$@" ;;
+	family) cmd_family "$@" ;;
 	status) cmd_status ;;
 	-h | --help | help | "") usage; [ -n "$cmd" ] && exit 0 || exit 2 ;;
 	*) usage; exit 2 ;;
