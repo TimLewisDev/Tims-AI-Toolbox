@@ -1203,6 +1203,7 @@ expect "family list needs a subcommand" 2 MC family
 expect "family list, nothing chosen" 0 FAMENV bash "$S/model-config.sh" family list --tsv
 has "sonnet follows the newest" "$T/out" "sonnet	-	us.anthropic.claude-sonnet-5-5	Sonnet 5.5	newest"
 has "fable follows the newest" "$T/out" "fable	-	us.anthropic.claude-fable-5-1	Fable 5.1	newest"
+has "each row lists the versions of the family" "$T/out" "us.anthropic.claude-sonnet-5-5=Sonnet 5.5;us.anthropic.claude-sonnet-5=Sonnet 5;"
 expect "family env pins every alias to the newest" 0 FAMENV bash "$S/model-config.sh" family env
 has "sonnet exported" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5"
 has "opus exported" "$T/out" "ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-5-5"
@@ -1221,6 +1222,7 @@ env -u CLAUDE_CODE_USE_BEDROCK -u ANTHROPIC_DEFAULT_SONNET_MODEL -u ANTHROPIC_DE
 has "a pin this backend doesn't list is ignored" "$T/out" "sonnet	-	claude-sonnet-5-5	Sonnet 5.5	newest"
 expect "a version of another family is refused" 2 FAMENV bash "$S/model-config.sh" family set opus us.anthropic.claude-sonnet-4-6
 expect "an unknown version is refused" 2 FAMENV bash "$S/model-config.sh" family set sonnet claude-nonsense-9
+has "and lists the ones it has" "$T/out" "one of: us.anthropic.claude-sonnet-5-5 us.anthropic.claude-sonnet-5 "
 expect "an unknown family is refused" 2 FAMENV bash "$S/model-config.sh" family set cat x
 expect "family set needs two arguments" 2 FAMENV bash "$S/model-config.sh" family set sonnet
 expect "clear a pin" 0 FAMENV bash "$S/model-config.sh" family set sonnet -

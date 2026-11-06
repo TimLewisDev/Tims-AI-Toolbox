@@ -15,3 +15,7 @@ A subagent is started with an alias (`sonnet`), which the Agent tool can't give 
 - A launcher has to export `family env` when it starts `claude`; the toolbox's own `new-session.sh` and `session-handoff.sh` run from inside a Claude session, which already carries the variable, and are unchanged.
 - A pinned id the backend doesn't list (for example after switching between Bedrock and first-party) is ignored until it is pinned again.
 - Sessions already running keep the version they started with.
+
+## 0.7.1
+- `model-config.sh family` and `llms.sh versions` do their work in one awk pass over the files' contents instead of a dozen forks: `family env` went from about 6 seconds to about 1.5 on Windows, where each process costs about 0.1s. A launcher asks for it at every start.
+- `family list --tsv` has a sixth column, the versions of the family (`id=label;id=label`, newest first), so a launcher needs no second call.

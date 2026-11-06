@@ -294,46 +294,71 @@ cmd_stage_note() {
 # nothing sets it (a session started by a launcher that is not itself a claude session) Claude
 # Code falls back to an older model. The choice is machine-wide, not part of a mode:
 # $CFG/family-versions.tsv holds `family TAB id` for the pinned ones.
+# Everything is worked out in one awk call over the files' contents (read with $(<file), which
+# forks nothing): a launcher asks for this at every start, and on Windows each process costs ~0.1s.
 FAMILIES="sonnet opus haiku fable"
 FAMFILE="$CFG/family-versions.tsv"
 
-# family_var <family>: ANTHROPIC_DEFAULT_SONNET_MODEL, ...
-family_var() { printf 'ANTHROPIC_DEFAULT_%s_MODEL' "$(printf '%s' "$1" | tr 'a-z' 'A-Z')"; }
-
-# family_own <family>: the id the user's own setup already gives the alias (environment, then settings.json)
-family_own() {
-	local var v settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
-	var=$(family_var "$1"); v=${!var:-}
-	if [ -z "$v" ] && [ -f "$settings" ]; then
-		v=$(sed -n "s/.*\"$var\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$settings" | head -1)
-	fi
-	printf '%s' "$v"
-}
-
-# family_versions: family, label, id of every version for the backend in use, newest first
-family_versions() {
-	[ -n "$LLMS" ] && bash "$LLMS" versions --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' 'NF >= 3'
-}
-
-# family_rows: one row per family: family chosen effective label source
-#   chosen: the pinned id, or "-" (none, or one this backend doesn't list)
-#   source: chosen = pinned; own = the user's environment/settings.json already say; newest = the newest listed
-#   effective: "-" when nothing is known (no version list and no choice)
-family_rows() {
-	local vers f chosen own newest eff src label
-	vers=$(family_versions)
-	for f in $FAMILIES; do
-		chosen=$([ -f "$FAMFILE" ] && awk -F'\t' -v f="$f" '{ sub(/\r$/, "") } $1 == f { print $2; exit }' "$FAMFILE")
-		[ -n "$chosen" ] && printf '%s\n' "$vers" | awk -F'\t' -v f="$f" -v i="$chosen" '$1 == f && $3 == i { k = 1 } END { exit !k }' || chosen="-"
-		own=$(family_own "$f")
-		newest=$(printf '%s\n' "$vers" | awk -F'\t' -v f="$f" '$1 == f { print $3; exit }')
-		if [ "$chosen" != "-" ]; then eff=$chosen; src=chosen
-		elif [ -n "$own" ]; then eff=$own; src=own
-		elif [ -n "$newest" ]; then eff=$newest; src=newest
-		else eff="-"; src=newest; fi
-		label=$(printf '%s\n' "$vers" | awk -F'\t' -v f="$f" -v i="$eff" '$1 == f && $3 == i { print $2; exit }')
-		printf '%s\t%s\t%s\t%s\t%s\n' "$f" "$chosen" "$eff" "${label:--}" "$src"
-	done
+# family_table <rows|env>: rows are `family chosen effective label source versions`, one per family:
+#   chosen    the pinned id, or "-" (none, or one this backend doesn't list)
+#   source    chosen = pinned; own = the user's environment/settings.json already say; newest = the newest listed
+#   effective "-" when nothing is known (no version list and no choice)
+#   versions  `id=label;id=label`, newest first, the ids of the backend in use (Bedrock when
+#             CLAUDE_CODE_USE_BEDROCK is 1 in the environment, else in settings.json)
+# env is the NAME=value lines to export: a pinned family always, any other only when the user's own
+# setup leaves the alias open.
+family_table() {
+	local st="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" models="" pins="" settings=""
+	[ -n "${conn:-}" ] && [ -f "$conn/claude-models.tsv" ] && models=$(<"$conn/claude-models.tsv")
+	[ -f "$FAMFILE" ] && pins=$(<"$FAMFILE")
+	[ -f "$st" ] && settings=$(<"$st")
+	FM_MODE=$1 FM_FAMILIES="$FAMILIES" FM_MODELS="$models" FM_PINS="$pins" FM_SETTINGS="$settings" \
+		FM_BEDROCK="${CLAUDE_CODE_USE_BEDROCK-unset}" \
+		FM_OWN_sonnet="${ANTHROPIC_DEFAULT_SONNET_MODEL:-}" FM_OWN_opus="${ANTHROPIC_DEFAULT_OPUS_MODEL:-}" \
+		FM_OWN_haiku="${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}" FM_OWN_fable="${ANTHROPIC_DEFAULT_FABLE_MODEL:-}" \
+		awk 'BEGIN {
+			bedrock = (ENVIRON["FM_BEDROCK"] != "unset") ? (ENVIRON["FM_BEDROCK"] == "1") \
+				: (ENVIRON["FM_SETTINGS"] ~ /"CLAUDE_CODE_USE_BEDROCK"[ \t]*:[ \t]*"?1/)
+			col = bedrock ? 4 : 3
+			n = split(ENVIRON["FM_MODELS"], ml, "\n")
+			for (i = 1; i <= n; i++) {
+				line = ml[i]; sub(/\r$/, "", line)
+				if (line == "" || line ~ /^#/) continue
+				split(line, c, "\t")
+				if (c[col] == "" || c[col] == "-") continue
+				f = c[1]
+				if (!(f in newest)) newest[f] = c[col]
+				label[f SUBSEP c[col]] = c[2]
+				vl[f] = vl[f] (vl[f] == "" ? "" : ";") c[col] "=" c[2]
+			}
+			n = split(ENVIRON["FM_PINS"], pl, "\n")
+			for (i = 1; i <= n; i++) {
+				line = pl[i]; sub(/\r$/, "", line)
+				if (line == "" || line ~ /^#/) continue
+				split(line, c, "\t"); pin[c[1]] = c[2]
+			}
+			nf = split(ENVIRON["FM_FAMILIES"], fa, " ")
+			for (j = 1; j <= nf; j++) {
+				f = fa[j]
+				chosen = ((f SUBSEP pin[f]) in label) ? pin[f] : "-"
+				own = ENVIRON["FM_OWN_" f]
+				if (own == "") {
+					pat = "\"ANTHROPIC_DEFAULT_" toupper(f) "_MODEL\"[ \t]*:[ \t]*\"[^\"]*\""
+					if (match(ENVIRON["FM_SETTINGS"], pat)) {
+						own = substr(ENVIRON["FM_SETTINGS"], RSTART, RLENGTH)
+						sub(/^[^:]*:[ \t]*"/, "", own); sub(/"$/, "", own)
+					}
+				}
+				if (chosen != "-") { eff = chosen; src = "chosen" }
+				else if (own != "") { eff = own; src = "own" }
+				else if (f in newest) { eff = newest[f]; src = "newest" }
+				else { eff = "-"; src = "newest" }
+				lb = ((f SUBSEP eff) in label) ? label[f SUBSEP eff] : "-"
+				if (ENVIRON["FM_MODE"] == "env") {
+					if (eff != "-" && (src == "chosen" || src == "newest")) printf "ANTHROPIC_DEFAULT_%s_MODEL=%s\n", toupper(f), eff
+				} else printf "%s\t%s\t%s\t%s\t%s\t%s\n", f, chosen, eff, lb, src, vl[f]
+			}
+		}'
 }
 
 cmd_family() {
@@ -341,36 +366,37 @@ cmd_family() {
 	[ $# -gt 0 ] && shift
 	case "$sub" in
 	list)
-		local tsv=0
-		[ "${1:-}" = "--tsv" ] && tsv=1
-		[ -z "$LLMS" ] && die "family versions need the tt-connections skill (llms.sh); update the core plugin"
-		if [ $tsv -eq 1 ]; then family_rows
+		[ -n "${conn:-}" ] || die "family versions need the tt-connections skill; update the core plugin"
+		if [ "${1:-}" = "--tsv" ]; then family_table rows
 		else
-			family_rows | awk -F'\t' 'BEGIN { printf "%-7s %-14s %-9s %s\n", "Family", "Version", "From", "Id" }
+			family_table rows | awk -F'\t' 'BEGIN { printf "%-7s %-14s %-9s %s\n", "Family", "Version", "From", "Id" }
 				{ printf "%-7s %-14s %-9s %s\n", $1, $4, $5, $3 }'
 		fi ;;
 	set)
 		[ $# -eq 2 ] || { usage; exit 2; }
-		[ -z "$LLMS" ] && die "family versions need the tt-connections skill (llms.sh); update the core plugin"
+		[ -n "${conn:-}" ] || die "family versions need the tt-connections skill; update the core plugin"
 		in_list "$1" "$FAMILIES" || die "family must be one of: $FAMILIES"
+		local row vers ids tmp
 		if [ "$2" != "-" ]; then
-			family_versions | awk -F'\t' -v f="$1" -v i="$2" '$1 == f && $3 == i { k = 1 } END { exit !k }' ||
-				die "'$2' is not a version of $1 here; one of: $(family_versions | awk -F'\t' -v f="$1" '$1 == f { printf "%s ", $3 }')"
+			row=$(family_table rows | awk -F'\t' -v f="$1" '$1 == f')
+			vers=${row##*$'\t'}
+			case ";$vers" in
+			*";$2="*) ;;
+			*) ids=""; while IFS= read -r row; do ids="$ids ${row%%=*}"; done <<<"${vers//;/$'
+'}"
+				die "'$2' is not a version of $1 here; one of:$ids" ;;
+			esac
 		fi
-		local tmp
 		mkdir -p "$CFG" || die "cannot create $CFG"
 		tmp=$(mktemp "$FAMFILE.XXXXXX") || die "cannot write $FAMFILE"
 		{
-			[ -f "$FAMFILE" ] && awk -F'\t' -v f="$1" '{ sub(/\r$/, "") } $1 != f'
+			[ -f "$FAMFILE" ] && awk -F'\t' -v f="$1" '{ sub(/\r$/, "") } $1 != f' "$FAMFILE"
 			[ "$2" = "-" ] || printf '%s\t%s\n' "$1" "$2"
 		} >"$tmp" && mv "$tmp" "$FAMFILE"
 		if [ "$2" = "-" ]; then echo "family $1: back to the newest"; else echo "family $1: $2"; fi ;;
 	env)
-		[ -z "$LLMS" ] && exit 0
-		# A pinned family always; any other only when the user's own setup leaves the alias open.
-		family_rows | awk -F'\t' '$3 != "-" && ($5 == "chosen" || $5 == "newest") { print $1 "\t" $3 }' | while IFS=$'\t' read -r f id; do
-			printf '%s=%s\n' "$(family_var "$f")" "$id"
-		done ;;
+		[ -n "${conn:-}" ] || exit 0
+		family_table env ;;
 	*) usage; exit 2 ;;
 	esac
 }

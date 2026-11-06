@@ -231,7 +231,7 @@ cmd_models() {
 }
 
 cmd_versions() {
-	local tsv=0 fam="" a vl vid
+	local tsv=0 fam="" list="$here/../claude-models.tsv" col=3
 	while [ $# -gt 0 ]; do
 		case $1 in
 		--tsv) tsv=1 ;;
@@ -240,13 +240,12 @@ cmd_versions() {
 		esac
 		shift
 	done
-	for a in ${fam:-sonnet opus haiku fable}; do
-		versions_of "$a" | while IFS=$'\t' read -r vl vid; do
-			if [ $tsv -eq 1 ]; then printf '%s\t%s\t%s\n' "$a" "$vl" "$vid"
-			else printf '%-7s %-14s %s\n' "$a" "$vl" "$vid"; fi
-		done
-	done
-	return 0
+	[ -f "$list" ] || return 0
+	on_bedrock && col=4
+	awk -F'\t' -v OFS='\t' -v f="$fam" -v c=$col -v tsv=$tsv '
+		{ sub(/\r$/, "") }
+		/^#/ || $1 == "" || (f != "" && $1 != f) { next }
+		$c != "" && $c != "-" { if (tsv) print $1, $2, $c; else printf "%-7s %-14s %s\n", $1, $2, $c }' "$list"
 }
 
 cmd_status() {
