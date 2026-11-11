@@ -48,7 +48,8 @@ Exit: 0 ok, 1 refused or problems found, 2 usage error or missing file.
 EOF
 }
 
-here=$(cd "$(dirname "$0")" && pwd)
+here=${0%[/\\]*}
+[ "$here" = "$0" ] && here=.
 . "$here/decide-lib.sh"
 me=questions.sh
 die() { echo "$me: $*" >&2; exit "${2:-1}"; }
@@ -58,42 +59,7 @@ SEP=$'\001' # joins a field's lines in the model
 #   H title feature for
 #   Q id title ref context take decision note applied
 #   O id key title detail recommended needs-note
-model() {
-	awk -v OFS='\t' '
-	function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-	function v(s) { s = trim(s); return (s == "—" || s == "-") ? "" : s }
-	function endq() { if (id != "") print "Q", id, qt, ref, ctx, take, dec, note, app; id = "" }
-	{ sub(/\r$/, ""); if (NR == 1) sub(/^\357\273\277/, ""); gsub(/\t/, " ") }
-	/^# / && !h { h = 1; title = substr($0, 3); next }
-	/^## Q[0-9]+ / {
-		if (!hp) { print "H", title, feature, forwhat; hp = 1 }
-		endq(); id = $2; p = index($0, " — "); qt = p ? substr($0, p + length(" — ")) : ""
-		ref = ""; ctx = ""; take = ""; dec = ""; note = ""; app = ""; mode = ""; next
-	}
-	id == "" && /^- \*\*Feature:\*\*/ { feature = v(substr($0, index($0, ":**") + 3)); next }
-	id == "" && /^- \*\*For:\*\*/ { forwhat = v(substr($0, index($0, ":**") + 3)); next }
-	id == "" { next }
-	/^- \*\*[A-Za-z]+:\*\*/ {
-		f = substr($0, 5); name = substr(f, 1, index(f, ":**") - 1); val = substr(f, index(f, ":**") + 3); mode = ""
-		if (name == "Ref") ref = v(val)
-		else if (name == "Context") { mode = "ctx"; if (v(val) != "") ctx = v(val) }
-		else if (name == "Take") take = v(val)
-		else if (name == "Options") mode = "opt"
-		else if (name == "Decision") { dec = v(val); sub(/ .*/, "", dec) }
-		else if (name == "Note") note = v(val)
-		else if (name == "Applied") app = v(val)
-		next
-	}
-	mode == "opt" && /^  - \*\*[^*]+\*\* — / {
-		s = substr($0, 7); k = substr(s, 1, index(s, "**") - 1); r = substr(s, index(s, "**") + 2); sub(/^ — /, "", r)
-		rec = (r ~ /\*\(recommended\)\*/); nn = (r ~ /\*\(needs a note\)\*/)
-		gsub(/ *\*\((recommended|needs a note)\)\*/, "", r)
-		p = index(r, ": "); t = p ? substr(r, 1, p - 1) : r; d = p ? substr(r, p + 2) : ""
-		print "O", id, k, trim(t), trim(d), rec, nn; next
-	}
-	mode == "ctx" && /^  / { l = substr($0, 3); ctx = (ctx == "" ? l : ctx "\001" l); next }
-	END { if (!hp) print "H", title, feature, forwhat; endq() }' "$1"
-}
+model() { dl_qs_model "$@"; }
 
 # render <model> <crlf> <bom>: the list's document
 render() {
@@ -166,7 +132,7 @@ applied) [ $# -ge 2 ] && [ $# -le 3 ] || { usage; exit 2; } ;;
 esac
 list=$1
 oneline() { printf '%s' "$1" | tr '\r\n\t' '   ' | awk '{ gsub(/^[ \t]+|[ \t]+$/, ""); print }'; }
-note=$(oneline "$note")
+[ -n "$note" ] && note=$(oneline "$note")
 
 if [ "$cmd" = init ]; then
 	[ -e "$list" ] && die "the list already exists: $list"
@@ -179,8 +145,10 @@ if [ "$cmd" = init ]; then
 fi
 [ -f "$list" ] || die "no such list: $list" 2
 M="$list.model.$$"
-DL_CLEAN='rm -f "$M" "$M.2"'
-trap 'eval "$DL_CLEAN"' EXIT
+case $cmd in show | check | add | decide | applied)
+	DL_CLEAN='rm -f "$M" "$M.2"'
+	trap 'eval "$DL_CLEAN"' EXIT ;;
+esac
 
 case $cmd in
 list)
@@ -188,8 +156,7 @@ list)
 		s = ($7 == "") ? "open" : ($9 == "") ? "apply" : "done"
 		if (tsv) print $2, s, $7, $4, $3; else printf "%-4s %-6s %-10s %s\n", $2, s, ($7 == "" ? "—" : $7), $3 }' ;;
 status)
-	model "$list" | awk -F'\t' '$1 == "H" { t = $2; f = $4 } $1 == "Q" { n++; if ($7 == "") o++; else if ($9 == "") a++; else d++ }
-		END { printf "total=%d\nopen=%d\napply=%d\ndone=%d\ntitle=%s\nfor=%s\n", n, o, a, d, t, f }' ;;
+	dl_qs_status "$list" ;;
 show)
 	model "$list" >"$M"
 	r=$(qrec "$M" "$2"); [ -n "$r" ] || die "no question $2 in $list"

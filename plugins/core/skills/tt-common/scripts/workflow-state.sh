@@ -36,11 +36,34 @@ case ${1:-} in -h | --help) usage; exit 0 ;; esac
 dir=$1; [ "${dir%/}" != "" ] && dir=${dir%/}
 [ -d "$dir" ] || { echo "workflow-state.sh: no such folder: $dir" >&2; exit 2; }
 
-# rel <path>: the path as the user would type it
-rel() { case $1 in ./*) printf '%s' "${1#./}" ;; *) printf '%s' "$1" ;; esac; }
+here=${0%[/\\]*}
+[ "$here" = "$0" ] && here=.
+. "$here/decide-lib.sh"
 
-# field <file> <regex>: the first line matching the regex, without CR
-field() { awk -v re="$2" '{ sub(/\r$/, "") } $0 ~ re { print; exit }' "$1"; }
+# field <file> <regex>: sets REPLY to the first line matching the regex, without
+# CR (empty when none does)
+field() {
+	local l
+	REPLY=""
+	while IFS= read -r l || [ -n "$l" ]; do
+		l=${l%$'\r'}
+		if [[ $l =~ $2 ]]; then REPLY=$l; return 0; fi
+	done <"$1"
+	return 0
+}
+
+# num_after <label>: sets REPLY to the digits after the last "<label>" on the
+# line in REPLY (after any * or space); if that one has none, the one before it
+num_after() {
+	local s=$REPLY re='^[* ]*([0-9]+)' after
+	REPLY=""
+	while [[ $s == *"$1"* ]]; do
+		after=${s##*"$1"}
+		if [[ $after =~ $re ]]; then REPLY=${BASH_REMATCH[1]}; return 0; fi
+		s=${s%"$1"*}
+	done
+	return 0
+}
 
 # left_out <stage>: the folder's stage profile (stages.sh) leaves this stage out
 left_out() { [ -f "$dir/.tt/workflow-stages.tsv" ] && awk -F'\t' -v k="$1" '{ sub(/\r$/, "") } $1 == k && $2 == "off" { f = 1 } END { exit !f }' "$dir/.tt/workflow-stages.tsv"; }
@@ -59,143 +82,132 @@ stage() {
 		on && NF && !/^\|/ { exit }' "$1"
 }
 
-# waiting <prefix>: " 2 challenges and 1 proposal wait for a decision." (or, once
-# decided, for the session to apply them); nothing when none do
-waiting() {
-	local c="$dir/$1 - Challenges.md" p="$dir/$1 - Tech Proposals.md" s=$(dirname "$0") q
-	{
-		[ -f "$c" ] && bash "$s/challenges.sh" status "$c" 2>/dev/null | sed 's/^/challenge /'
-		[ -f "$p" ] && bash "$s/proposals.sh" status "$p" 2>/dev/null | sed 's/^/proposal /'
-		for q in "$dir/.tt/$1 - Questions"/*.md; do
-			[ -f "$q" ] && bash "$s/questions.sh" status "$q" 2>/dev/null | grep -E '^(open|apply)=' | sed 's/^/question /'
-		done
-	} | awk '
-		{ split($2, kv, "="); n[$1, kv[1]] += kv[2] + 0 }
-		function say(what,   k, t, parts, m, s) {
-			t = 0; m = 0
-			for (k = 1; k <= 3; k++) { kind = (k == 1 ? "challenge" : k == 2 ? "proposal" : "question"); v = n[kind, what]
-				if (v > 0) { parts[++m] = v " " kind (v == 1 ? "" : "s"); t += v } }
-			if (!m) return ""
-			s = parts[1]; for (k = 2; k <= m; k++) s = s (k == m ? " and " : ", ") parts[k]
-			return " " s " wait" (t == 1 ? "s" : "")
-		}
-		END {
-			o = say("open"); if (o != "") { printf "%s for a decision.", o; exit }
-			a = say("apply"); if (a != "") printf "%s to be applied.", a
-		}'
-}
-
-# stage_of <phase>: the label of the stage the next session works on
+# stage_of <phase>: sets REPLY to the label of the stage the next session works on
 stage_of() {
+	REPLY=""
 	case $1 in
-	empty | explored) echo "Planning" ;;
-	exploring | lite-exploring) echo "Familiarise" ;;
-	planning) echo "Planning" ;;
-	signed-off | breakdown-draft | breakdown-written | breakdown-orphan) echo "Task Breakdown" ;;
-	building | lite-brief) echo "Build" ;;
-	lite-focus) echo "Lite Brief" ;;
-	debugging) echo "Debug" ;;
-	debug-done) echo "Debug Report" ;;
-	debugged) echo "Fix" ;;
+	empty | explored) REPLY="Planning" ;;
+	exploring | lite-exploring) REPLY="Familiarise" ;;
+	planning) REPLY="Planning" ;;
+	signed-off | breakdown-draft | breakdown-written | breakdown-orphan) REPLY="Task Breakdown" ;;
+	building | lite-brief) REPLY="Build" ;;
+	lite-focus) REPLY="Lite Brief" ;;
+	debugging) REPLY="Debug" ;;
+	debug-done) REPLY="Debug Report" ;;
+	debugged) REPLY="Fix" ;;
 	esac
 }
 
 # row <prefix> <kind> <phase> <skill> <verb> <arg> <text> [hint] [stage]
 # stage defaults to the phase's label (stage_of); "complete" has none.
 rows=""
-row() { rows+=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "${8:-}" "${9:-$(stage_of "$3")}")$'\n'; }
+row() {
+	local line stage=${9:-}
+	if [ -z "$stage" ]; then stage_of "$3"; stage=$REPLY; fi
+	printf -v line '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "${8:-}" "$stage"
+	rows+=$line$'\n'
+}
 
-prefixes=$(
-	for f in "$dir"/*" - "*.md; do
-		[ -f "$f" ] || continue
-		b=${f##*/}
-		case $b in
-		*" - Comprehensive Tech Plan.md" | *" - Task Status.md" | *" - Task Breakdown.md" | *" - Familiarisation.md" | *" - Lite Brief.md" | *" - Debug Report.md")
-			echo "${b% - *}" ;;
-		esac
+list=()
+for f in "$dir"/*" - "*.md; do
+	[ -f "$f" ] || continue
+	b=${f##*/}
+	case $b in
+	*" - Comprehensive Tech Plan.md" | *" - Task Status.md" | *" - Task Breakdown.md" | *" - Familiarisation.md" | *" - Lite Brief.md" | *" - Debug Report.md")
+		list+=("${b% - *}") ;;
+	esac
+done
+for d in "$dir"/.tt/*" - Familiarisation"; do
+	[ -f "$d/focus-log.md" ] && b=${d##*/} && list+=("${b% - Familiarisation}")
+done
+for d in "$dir"/.tt/*" - Debug"; do
+	[ -f "$d/debug-log.md" ] && b=${d##*/} && list+=("${b% - Debug}")
+done
+kept=()
+if [ ${#list[@]} -gt 0 ]; then
+	for b in "${list[@]}"; do
+		[[ $b =~ [^[:space:]] ]] && kept+=("$b")
 	done
-	for d in "$dir"/.tt/*" - Familiarisation"; do
-		[ -f "$d/focus-log.md" ] && b=${d##*/} && echo "${b% - Familiarisation}"
-	done
-	for d in "$dir"/.tt/*" - Debug"; do
-		[ -f "$d/debug-log.md" ] && b=${d##*/} && echo "${b% - Debug}"
-	done
-)
-prefixes=$(printf '%s\n' "$prefixes" | awk 'NF' | sort -u)
+fi
+prefixes=""
+if [ ${#kept[@]} -gt 0 ]; then prefixes=$(printf '%s\n' "${kept[@]}" | sort -u); fi
 
 if [ -z "$prefixes" ]; then
-	if [ "$dir" = . ]; then here="here"; else here="in $(rel "$dir")"; fi
-	row "" primary empty tt-adversarial-plan "" "" "No tt documents $here." "<idea, spec or ticket>"
+	if [ "$dir" = . ]; then at="here"; else at="in ${dir#./}"; fi
+	row "" primary empty tt-adversarial-plan "" "" "No tt documents $at." "<idea, spec or ticket>"
 else
+	dl_waiting_all "$dir"
 	while IFS= read -r p; do
 		plan="$dir/$p - Comprehensive Tech Plan.md"; st="$dir/$p - Task Status.md"
 		bd="$dir/$p - Task Breakdown.md"; tp="$dir/$p - Tech Plan.md"
 		fam="$dir/$p - Familiarisation.md"; log="$dir/.tt/$p - Familiarisation/focus-log.md"
 		lb="$dir/$p - Lite Brief.md"; dlog="$dir/.tt/$p - Debug/debug-log.md"; drep="$dir/$p - Debug Report.md"
 		if [ -f "$st" ]; then
-			state=$(field "$st" '^- State:'); state=${state#- State: }
-			prog=$(field "$st" '^- Progress:'); prog=${prog#- Progress: }
-			next=$(field "$st" '^4[.] Next action:'); next=${next#4. Next action: }
+			field "$st" '^- State:'; state=${REPLY#- State: }
+			field "$st" '^- Progress:'; prog=${REPLY#- Progress: }
+			field "$st" '^4[.] Next action:'; next=${REPLY#4. Next action: }
 			if [ "$state" = Complete ]; then
 				row "$p" primary complete - "" "" "built and validated ($prog). Commit it yourself, then review the branch."
 				left_out review || row "$p" alt complete tt-branch-review "" "" "review the branch:" "[branch]"
 			else
-				if [ -f "$lb" ]; then ex=tt-execute-lite; exa=$(rel "$lb"); else ex=tt-execute; exa=$(rel "$st"); fi
-				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}$(waiting "$p")"
+				if [ -f "$lb" ]; then ex=tt-execute-lite; exa=${lb#./}; else ex=tt-execute; exa=${st#./}; fi
+				row "$p" primary building "$ex" "" "$exa" "building (${state:-state unknown}${prog:+; $prog}).${next:+ Next: $next}${DL_WAIT[$p]-}"
 			fi
 		elif [ -f "$lb" ]; then
-			row "$p" primary lite-brief tt-execute-lite "" "$(rel "$lb")" "lite brief written; not started.$(waiting "$p")"
+			row "$p" primary lite-brief tt-execute-lite "" "${lb#./}" "lite brief written; not started.${DL_WAIT[$p]-}"
 		elif [ -f "$plan" ]; then
-			status=$(field "$plan" 'Status:')
-			if printf '%s' "$status" | grep -q Draft; then
+			field "$plan" 'Status:'; status=$REPLY
+			if [[ $status == *Draft* ]]; then
 				s=$(stage "$plan")
-				row "$p" primary planning tt-adversarial-plan resume "$(rel "$plan")" "planning, draft plan${s:+ at $s}.$(waiting "$p")" "" "${s% (*}"
+				row "$p" primary planning tt-adversarial-plan resume "${plan#./}" "planning, draft plan${s:+ at $s}.${DL_WAIT[$p]-}" "" "${s% (*}"
 			elif [ -d "$dir/.tt/$p - Task Breakdown" ]; then
-				row "$p" primary breakdown-draft tt-task-breakdown "" "$(rel "$plan")" "signed off; a breakdown is part-written." "(picks up the draft)"
+				row "$p" primary breakdown-draft tt-task-breakdown "" "${plan#./}" "signed off; a breakdown is part-written." "(picks up the draft)"
 			elif [ -f "$bd" ]; then
-				row "$p" primary breakdown-written tt-task-status "" "$(rel "$bd")" "breakdown written, but no Task Status yet."
+				row "$p" primary breakdown-written tt-task-status "" "${bd#./}" "breakdown written, but no Task Status yet."
 			else
-				row "$p" primary signed-off tt-task-breakdown "" "$(rel "$plan")" "plan signed off; ready to break down.$(waiting "$p")"
-				row "$p" alt signed-off tt-tech-plan-review "" "$(rel "$plan")" "or review or change the plan first:"
+				row "$p" primary signed-off tt-task-breakdown "" "${plan#./}" "plan signed off; ready to break down.${DL_WAIT[$p]-}"
+				row "$p" alt signed-off tt-tech-plan-review "" "${plan#./}" "or review or change the plan first:"
 			fi
-			rev=$(field "$plan" 'Revision:' | sed -n 's/.*Revision:[* ]*\([0-9][0-9]*\).*/\1/p')
+			field "$plan" 'Revision:'; num_after 'Revision:'; rev=$REPLY
 			if [ -f "$tp" ] && [ -n "$rev" ]; then
-				mir=$(field "$tp" 'Mirrors revision' | sed -n 's/.*Mirrors revision:[* ]*\([0-9][0-9]*\).*/\1/p')
+				field "$tp" 'Mirrors revision'; num_after 'Mirrors revision:'; mir=$REPLY
 				[ -n "$mir" ] && [ "$mir" -lt "$rev" ] &&
-					row "$p" warn signed-off tt-tech-plan "" "$(rel "$plan")" "The Tech Plan mirrors revision $mir; the plan is at $rev."
+					row "$p" warn signed-off tt-tech-plan "" "${plan#./}" "The Tech Plan mirrors revision $mir; the plan is at $rev."
 			fi
 		elif [ -f "$fam" ]; then
-			row "$p" primary explored tt-adversarial-plan "" "$(rel "$fam")" "explored and written up; no plan yet."
-		elif [ -f "$log" ] && grep -q 'Mode:\*\* lite' "$log"; then
-			if grep -q '^- \*\*Status:\*\* *Focus confirmed' "$log"; then
-				row "$p" primary lite-focus tt-lite-brief "" "$(rel "$log")" "lite exploration done; ready for the brief.$(waiting "$p")"
+			row "$p" primary explored tt-adversarial-plan "" "${fam#./}" "explored and written up; no plan yet."
+		elif [ -f "$log" ] && { field "$log" 'Mode:[*][*] lite'; [ -n "$REPLY" ]; }; then
+			field "$log" '^- [*][*]Status:[*][*] *Focus confirmed'
+			if [ -n "$REPLY" ]; then
+				row "$p" primary lite-focus tt-lite-brief "" "${log#./}" "lite exploration done; ready for the brief.${DL_WAIT[$p]-}"
 			else
-				row "$p" primary exploring tt-familiarise resume "$(rel "$log")" "exploring (lite; the focus is not yet confirmed)."
+				row "$p" primary exploring tt-familiarise resume "${log#./}" "exploring (lite; the focus is not yet confirmed)."
 			fi
 		elif [ -f "$log" ]; then
-			row "$p" primary exploring tt-familiarise resume "$(rel "$log")" "exploring (a Focus Log, not yet written up)."
-			row "$p" alt exploring tt-familiarisation-doc "" "$(rel "$log")" "or write it up:"
+			row "$p" primary exploring tt-familiarise resume "${log#./}" "exploring (a Focus Log, not yet written up)."
+			row "$p" alt exploring tt-familiarisation-doc "" "${log#./}" "or write it up:"
 		elif [ -f "$drep" ]; then
 			row "$p" primary debugged - "" "" "debugged; the report is written."
-			if [ -f "$dlog" ] && field "$dlog" '^- [*][*]Status:[*][*]' | grep -q 'Root cause confirmed'; then
-				row "$p" alt debugged tt-lite-brief "" "$(rel "$dlog")" "or fix it:"
+			if [ -f "$dlog" ] && { field "$dlog" '^- [*][*]Status:[*][*]'; [[ $REPLY == *'Root cause confirmed'* ]]; }; then
+				row "$p" alt debugged tt-lite-brief "" "${dlog#./}" "or fix it:"
 			fi
 		elif [ -f "$dlog" ]; then
-			dst=$(field "$dlog" '^- [*][*]Status:[*][*]')
-			if printf '%s' "$dst" | grep -Eq 'Root cause confirmed|Unresolved'; then
-				row "$p" primary debug-done tt-debug-doc "" "$(rel "$dlog")" "debugging finished; no report yet."
-				printf '%s' "$dst" | grep -q 'Root cause confirmed' &&
-					row "$p" alt debug-done tt-lite-brief "" "$(rel "$dlog")" "or fix it:"
+			field "$dlog" '^- [*][*]Status:[*][*]'; dst=$REPLY
+			if [[ $dst == *'Root cause confirmed'* || $dst == *Unresolved* ]]; then
+				row "$p" primary debug-done tt-debug-doc "" "${dlog#./}" "debugging finished; no report yet."
+				[[ $dst == *'Root cause confirmed'* ]] &&
+					row "$p" alt debug-done tt-lite-brief "" "${dlog#./}" "or fix it:"
 			else
-				row "$p" primary debugging tt-debug resume "$(rel "$dlog")" "debugging (the root cause is not yet confirmed)."
+				row "$p" primary debugging tt-debug resume "${dlog#./}" "debugging (the root cause is not yet confirmed)."
 			fi
 		elif [ -f "$bd" ]; then
-			row "$p" primary breakdown-orphan tt-task-status "" "$(rel "$bd")" "a Task Breakdown with no plan or Task Status beside it."
+			row "$p" primary breakdown-orphan tt-task-status "" "${bd#./}" "a Task Breakdown with no plan or Task Status beside it."
 		fi
 		# A fix may be planned or built before the debugging is written up: keep offering the report.
 		if [ -f "$lb" ] && [ -f "$dlog" ] && [ ! -f "$drep" ] &&
-			field "$dlog" '^- [*][*]Status:[*][*]' | grep -Eq 'Root cause confirmed|Unresolved'; then
-			row "$p" alt debug-done tt-debug-doc "" "$(rel "$dlog")" "or write up the debugging:"
+			field "$dlog" '^- [*][*]Status:[*][*]' &&
+		[[ $REPLY == *'Root cause confirmed'* || $REPLY == *Unresolved* ]]; then
+			row "$p" alt debug-done tt-debug-doc "" "${dlog#./}" "or write up the debugging:"
 		fi
 	done <<<"$prefixes"
 fi

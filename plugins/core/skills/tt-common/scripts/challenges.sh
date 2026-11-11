@@ -54,7 +54,8 @@ Exit: 0 ok, 1 refused or problems found, 2 usage error or missing file.
 EOF
 }
 
-here=$(cd "$(dirname "$0")" && pwd)
+here=${0%[/\\]*}
+[ "$here" = "$0" ] && here=.
 . "$here/decide-lib.sh"
 MARK='<!-- tt:end -->'
 me=challenges.sh
@@ -64,48 +65,7 @@ die() { echo "$me: $*" >&2; exit "${2:-1}"; }
 # model <file>: one TSV line per challenge:
 #   1 id 2 stage 3 title 4 severity 5 target 6 assumption 7 why 8 evidence
 #   9 question 10 recommended 11 take 12 outcome 13 resolution
-model() {
-	awk -v OFS='\t' '
-	function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-	function clean(s) { gsub(/\t/, " ", s); return trim(s) }
-	function endfield() { if (fname != "") val[fname] = trim(fval); fname = "" }
-	function endblock(   rec, tk) {
-		endfield()
-		if (id != "") {
-			rec = ""; tk = val["Take"]
-			if (match(tk, /^\*Recommend [a-z]+\.\*/)) { rec = substr(tk, 12, RLENGTH - 13); tk = trim(substr(tk, RLENGTH + 1)) }
-			print id, stage, clean(title), clean(sev), clean(target), clean(val["Assumption attacked"]), clean(val["Why it may be wrong"]), clean(val["Evidence"]), clean(val["Question for the engineer"]), rec, clean(tk), clean(val["Outcome"]), clean(val["Resolution"])
-		}
-		id = ""; sev = ""; target = ""; title = ""; split("", val)
-	}
-	{ sub(/\r$/, ""); if (NR == 1) sub(/^\357\273\277/, "") }
-	/^```/ { fence = !fence }
-	fence { next }
-	/^## / {
-		endblock(); s = substr($0, 4); p = index(s, " — challenged")
-		stage = p ? substr(s, 1, p - 1) : ""; next
-	}
-	/^### CH[0-9]+/ {
-		endblock(); id = $2; sub(/[^A-Za-z0-9]+$/, "", id)
-		p = index($0, " — "); title = p ? substr($0, p + length(" — ")) : ""; next
-	}
-	/^#/ { endblock(); next }
-	id == "" { next }
-	/^\*\*/ { endblock(); next }
-	/^[ \t]*$/ { endfield(); next }
-	/^- \*\*[^*]+:\*\*/ {
-		endfield(); s = substr($0, 5); p = index(s, ":**")
-		fname = substr(s, 1, p - 1); fval = substr(s, p + 3)
-		if (fname == "Severity") {
-			q = index(fval, "**Target:**")
-			if (q) { target = substr(fval, q + 11); sev = substr(fval, 1, q - 1) } else sev = fval
-			gsub(/·/, "", sev); sev = trim(sev)
-		}
-		next
-	}
-	fname != "" { fval = fval " " trim($0) }
-	END { endblock() }' "$1"
-}
+model() { dl_ch_model "$@"; }
 
 # rec_of <id>: the challenge's model line (empty if it isn't there)
 rec_of() { model "$doc" | awk -F'\t' -v id="$1" '$1 == id { print; exit }'; }
@@ -217,10 +177,7 @@ list)
 		  if (tsv) print $1, $2, $4, $5, $12, s, $3
 		  else printf "%-6s %-12s %-10s %s\n", $1, $4, $12 (s == "apply" ? " (to apply)" : ""), $3 }' ;;
 status)
-	model "$doc" | awk -F'\t' -v st="$stage" '
-		st != "" && $2 != st { next }
-		{ t++; if ($12 == "Open" || $12 == "") o++; else if ($12 == "Accepted" && $13 ~ /^To apply/) a++; else d++ }
-		END { printf "total=%d\nopen=%d\napply=%d\ndone=%d\n", t, o, a, d }' ;;
+	dl_ch_status "$doc" "$stage" ;;
 show)
 	r=$(rec_of "$2"); [ -n "$r" ] || die "no challenge $2 in $doc"
 	printf '%s\n' "$r" | awk -F'\t' -v OFS='\t' '{

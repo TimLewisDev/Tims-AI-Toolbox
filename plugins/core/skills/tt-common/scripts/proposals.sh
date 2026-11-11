@@ -51,7 +51,8 @@ Exit: 0 ok, 1 refused or problems found, 2 usage error or missing file.
 EOF
 }
 
-here=$(cd "$(dirname "$0")" && pwd)
+here=${0%[/\\]*}
+[ "$here" = "$0" ] && here=.
 . "$here/decide-lib.sh"
 MARK='<!-- tt:end -->'
 me=proposals.sh
@@ -60,79 +61,7 @@ die() { echo "$me: $*" >&2; exit "${2:-1}"; }
 # model <file>: one P line per proposal, then one O line per option:
 #   P id question type status statusfull decides context recommendation chosen applied asked
 #   O id key title recommended oneline benefit risk chosen
-model() {
-	awk -v OFS='\t' '
-	function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-	function clean(s) { gsub(/\t/, " ", s); return trim(s) }
-	# split a table row into c[1..n], keeping a "|" inside [[...|...]] links
-	function cells(line,   s, i, n, out, inl) {
-		s = line; out = ""; inl = 0
-		for (i = 1; i <= length(s); i++) {
-			ch = substr(s, i, 1)
-			if (substr(s, i, 2) == "[[") inl = 1
-			if (substr(s, i, 2) == "]]") inl = 0
-			out = out ((ch == "|" && inl) ? "\001" : ch)
-		}
-		sub(/^[ \t]*\|/, "", out); sub(/\|[ \t]*$/, "", out)
-		n = split(out, c, "|")
-		for (i = 1; i <= n; i++) { gsub(/\001/, "|", c[i]); c[i] = trim(c[i]) }
-		return n
-	}
-	function word(s) {
-		if (s ~ /^Default applied/) return "Default applied"
-		if (s ~ /^Open/) return "Open"; if (s ~ /^Decided/) return "Decided"; if (s ~ /^Superseded/) return "Superseded"
-		return s
-	}
-	function endsec(   i) {
-		if (id == "") return
-		print "P", id, clean(q), clean(type), word(clean(st)), clean(st), clean(dec), clean(ctx), clean(rec), clean(chosen), applied + 0, asked + 0
-		for (i = 1; i <= nk; i++) print "O", id, key[i], clean(otitle[i]), orec[i] + 0, clean(one[key[i]]), clean(ben[key[i]]), clean(risk[key[i]]), ochosen[i] + 0
-		id = ""
-	}
-	{ sub(/\r$/, ""); if (NR == 1) sub(/^\357\273\277/, "") }
-	/^```/ { fence = !fence }
-	fence { next }
-	/^## P[0-9]+ / {
-		endsec(); id = $2; p = index($0, " — "); q = p ? substr($0, p + length(" — ")) : ""
-		type = ""; st = ""; dec = ""; ctx = ""; rec = ""; chosen = ""; applied = 0; asked = 0; sub_ = ""; nk = 0; hdr = 0
-		split("", one); split("", ben); split("", risk); next
-	}
-	/^## / { endsec(); next }
-	id == "" { next }
-	/^### / { sub_ = substr($0, 5); next }
-	sub_ == "" && /^\| \*\*(Status|Type|Decides)\*\* \|/ {
-		f = $0; sub(/^\| \*\*/, "", f); name = substr(f, 1, index(f, "**") - 1); v = substr(f, index(f, "**") + 2)
-		sub(/^ *\| */, "", v); sub(/ *\| *$/, "", v)
-		if (name == "Status") st = v; else if (name == "Type") type = v; else dec = v
-		next
-	}
-	st == "" && /\*\*Status:\*\*/ { s = $0; sub(/.*\*\*Status:\*\* */, "", s); sub(/ *·.*/, "", s); st = s }
-	sub_ == "The question" && NF { ctx = ctx " " $0; next }
-	sub_ == "Recommendation" && NF { rec = rec " " $0; next }
-	sub_ == "Options at a glance" && /^\|/ {
-		n = cells($0)
-		if (!hdr) {
-			hdr = 1
-			for (i = 1; i <= n; i++) if (match(c[i], /^[A-Z]: /)) {
-				t = substr(c[i], 4); nk++; key[nk] = substr(c[i], 1, 1)
-				orec[nk] = (t ~ /\(Recommended\)/); ochosen[nk] = (t ~ /\(Chosen\)/)
-				gsub(/ *\((Recommended|Chosen)\)/, "", t); otitle[nk] = t; col[i] = key[nk]
-			}
-			next
-		}
-		r = c[1]; gsub(/\*/, "", r)
-		for (i = 2; i <= n; i++) if (col[i] != "") {
-			if (r == "In one line") one[col[i]] = c[i]
-			else if (r == "Main benefit") ben[col[i]] = c[i]
-			else if (r == "Main risk") risk[col[i]] = c[i]
-		}
-		next
-	}
-	sub_ == "Decision" && /^- \*\*Chosen:\*\*/ { chosen = substr($0, index($0, ":**") + 3) }
-	sub_ == "Decision" && /^- \*\*Applied:\*\* *not yet/ { applied = 1 }
-	sub_ == "Decision" && /^- \*\*Asked:\*\*/ { asked = 1 }
-	END { endsec() }' "$1"
-}
+model() { dl_pr_model "$@"; }
 
 state_of() { # <status> <applied> <asked>
 	if [ "$2" = 1 ]; then echo apply; return; fi
@@ -238,7 +167,7 @@ list | status | check) [ $# -eq 1 ] || { usage; exit 2; } ;;
 esac
 doc=$1
 [ -f "$doc" ] || die "no such document: $doc" 2
-note=$(printf '%s' "$note" | tr '\r\n' '  ' | awk '{ gsub(/^[ \t]+|[ \t]+$/, ""); print }')
+[ -n "$note" ] && note=$(printf '%s' "$note" | tr '\r\n' '  ' | awk '{ gsub(/^[ \t]+|[ \t]+$/, ""); print }')
 export R_STATUS="" R_MARK="" R_DEC_MODE="" R_DEC="" R_GSTATUS="" R_GCHOSEN=""
 
 case $cmd in
@@ -255,8 +184,7 @@ list)
 			}
 		}' ;;
 status)
-	model "$doc" | awk -F'\t' '$1 == "P" { t++; if ($11 == 1) a++; else if ($5 == "Open" || ($5 == "Default applied" && $12 == 1)) o++; else d++ }
-		END { printf "total=%d\nopen=%d\napply=%d\ndone=%d\n", t, o, a, d }' ;;
+	dl_pr_status "$doc" ;;
 show)
 	r=$(prec "$2"); [ -n "$r" ] || die "no proposal $2 in $doc"
 	printf '%s\n' "$r" | awk -F'\t' -v OFS='\t' '{ print "id", $2; print "question", $3; print "type", $4; print "status", $6
