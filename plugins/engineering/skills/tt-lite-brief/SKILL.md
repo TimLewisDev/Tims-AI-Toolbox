@@ -10,9 +10,12 @@ description: >
   one work unit with its checks, and the task cards), checks it mechanically,
   has one independent subagent test it against the code, and hands over the
   tt-execute-lite command. Never writes production code and never commits.
+  In quick mode (run by tt-workflow-quick, after the engineer's go-ahead) it
+  asks nothing about the shape: the recommended answer is taken for small
+  design choices and recorded; a Critical Decision is still put to the engineer.
   Use when a small feature or a bug fix needs a plan before it is built, and a
   full tt-adversarial-plan would be too heavy.
-argument-hint: "<focus log | debug log> | revise <lite brief>"
+argument-hint: "<focus log | debug log> [quick] | revise <lite brief>"
 metadata:
   version: "1.0"
 ---
@@ -23,6 +26,7 @@ metadata:
 
 ```
 /tt-lite-brief <focus log or debug log>   # write the brief
+/tt-lite-brief <focus log> quick          # as above, with no questions about its shape (see Quick mode)
 /tt-lite-brief revise <lite brief>        # change an existing brief (bumps the revision)
 ```
 
@@ -63,6 +67,41 @@ choice are the engineer's; the tasks are your slicing of them.
 - **Slice, don't redesign.** If the engineer's wanted change conflicts with the
   code, say so and let them decide; don't reconcile it quietly.
 - Never write production code. Never stage, commit or push.
+
+## Quick mode
+
+When the arguments end with `quick` (from `tt-workflow-quick`), or the Focus Log's
+header has `**Pace:** quick`. The engineer has already said Go to the report of
+what the exploration found, so nobody is asked about the brief's shape. The
+template, the checks and every rule above stand, **including the Critical
+Decision rule**: it cannot be waived by being quick. The differences from Flow:
+
+- **Step 1.** The log is confirmed by that go-ahead: don't ask to confirm it. Its
+  acceptance items marked `(proposed)` were shown at the go-ahead: record them as
+  the brief's Acceptance without the prefix. If the wanted change, the
+  acceptance or the build method is missing, don't ask: stop and hand back, saying
+  which.
+- **Step 2.** A choice with more than one reasonable option and a recommended one
+  takes the recommended; record it in **The change**, in that section's usual
+  bullet (what was chosen, the options considered, who chose), with "chosen by
+  default (quick)" as who: `Default applied (quick): <the choice>: <the option
+  taken>; considered: <the others>`. A choice on
+  `tt-coder`'s Critical Decision list, or with no sound recommendation, is a
+  question as normal (the question list; put it to the engineer, carry it out),
+  and the brief goes on after it.
+- **Step 3.** Skip the outline: the go-ahead stood in for it.
+- **Size.** More than about six tasks, or a second work unit that isn't an
+  Engineer-in-a-tool step, means it isn't quick: write nothing, and hand back
+  saying so (the caller offers the lite route).
+- **Step 6.** Skip the independent check, and say so as the last bullet of
+  **The change**: `Independent check: skipped (quick).` The mechanical checks of
+  step 5 still run.
+- **Step 7.** Record the event and delete the draft folder as usual, then report
+  the Goal, the Acceptance, the task list and each default applied in a few lines
+  of chat. Ask no what-next question, recommend no fresh session and offer no
+  hand-off, and do not end the turn: `tt-workflow-quick` reads this section and
+  runs it as its own step 5 (it does not start this skill), and its step 6, the
+  build with `tt-execute-lite`, follows in this same response.
 
 ## Flow
 

@@ -45,7 +45,7 @@ prints the path.
 
 | Event | Route | Meaning | Recorded by |
 |---|---|---|---|
-| `explore.focus_confirmed` | full, lite | The engineer confirmed what they care about in an exploration | `tt-familiarise` |
+| `explore.focus_confirmed` | full, lite | The engineer confirmed what they care about in an exploration (a quick task: said Go to its report) | `tt-familiarise`; `quick.sh confirm` in `tt-workflow-quick` |
 | `explore.documented` | full | The Familiarisation doc was written | `tt-familiarisation-doc` |
 | `plan.familiarisation_closed` | full | The Familiarisation stage was challenged and closed | `tt-adversarial-plan` |
 | `plan.requirements_closed` | full | Requirements stage closed | `tt-adversarial-plan` |

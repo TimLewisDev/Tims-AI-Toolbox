@@ -3,7 +3,8 @@
 Plan, build, debug and review code with the engineer in control: familiarise,
 adversarial planning (requirements, scope, approach, technical design,
 sign-off), tech plan and proposals, task breakdown, execute, the lite route,
-debugging, and local git branch review. Needs `core` (the plugin manager installs
+the quick route (one report, one go-ahead, then it builds), debugging, and
+local git branch review. Needs `core` (the plugin manager installs
 it for you).
 
 ```

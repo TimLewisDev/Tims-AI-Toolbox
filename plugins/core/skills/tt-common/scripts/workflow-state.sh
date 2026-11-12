@@ -24,6 +24,9 @@ where it stands and the command to run next:
          building complete breakdown-orphan empty
          lite-focus lite-brief debugging debug-done debugged (the lite route)
   skill is "-" when nothing is left to run (complete).
+  A lite Focus Log whose header has "**Pace:** quick" (tt-workflow-quick) names
+  tt-workflow-quick, with the folder as its argument, in place of tt-lite-brief
+  (focus confirmed) or tt-familiarise resume (not yet confirmed).
 
 Exit: 0 found something, 1 no tt documents in the folder, 2 usage error.
 EOF
@@ -177,9 +180,17 @@ else
 		elif [ -f "$fam" ]; then
 			row "$p" primary explored tt-adversarial-plan "" "${fam#./}" "explored and written up; no plan yet."
 		elif [ -f "$log" ] && { field "$log" 'Mode:[*][*] lite'; [ -n "$REPLY" ]; }; then
+			# A log marked **Pace:** quick belongs to tt-workflow-quick, which carries it on without a conversation.
+			field "$log" '^- [*][*]Pace:[*][*] *quick'; quick=$REPLY
 			field "$log" '^- [*][*]Status:[*][*] *Focus confirmed'
 			if [ -n "$REPLY" ]; then
-				row "$p" primary lite-focus tt-lite-brief "" "${log#./}" "lite exploration done; ready for the brief.${DL_WAIT[$p]-}"
+				if [ -n "$quick" ]; then
+					row "$p" primary lite-focus tt-workflow-quick "" "${dir#./}" "quick exploration done; ready for the brief.${DL_WAIT[$p]-}"
+				else
+					row "$p" primary lite-focus tt-lite-brief "" "${log#./}" "lite exploration done; ready for the brief.${DL_WAIT[$p]-}"
+				fi
+			elif [ -n "$quick" ]; then
+				row "$p" primary exploring tt-workflow-quick "" "${dir#./}" "exploring (quick; the go-ahead is not yet given)."
 			else
 				row "$p" primary exploring tt-familiarise resume "${log#./}" "exploring (lite; the focus is not yet confirmed)."
 			fi

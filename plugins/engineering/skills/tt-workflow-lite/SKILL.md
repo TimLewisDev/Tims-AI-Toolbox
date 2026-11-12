@@ -95,6 +95,7 @@ ends here with the block.
   |---|---|
   | exploring (lite) | `/tt-familiarise resume <focus log>` |
   | lite exploration done | `/tt-lite-brief <focus log>` |
+  | exploring (quick) · quick exploration done | `/tt-workflow-quick "<folder>"`: a task started on the quick route carries on there; its arrow names it |
   | lite brief written; not started · building | `/tt-execute-lite <lite brief>` |
   | debugging | `/tt-debug resume <debug log>` |
   | debugging finished | `/tt-debug-doc <debug log>`, or the fix: `/tt-lite-brief <debug log>` |

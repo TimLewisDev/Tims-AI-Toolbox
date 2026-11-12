@@ -86,6 +86,7 @@ need_readme() {
   build ................... /tt-execute <task status>
   small change, no plan ... /tt-coder <plan, spec or ticket>
   small feature or a bug .. /tt-workflow-lite [bug | feature]
+  smallest change ......... /tt-workflow-quick [the task, in words]
   chase a bug ............. /tt-debug <symptom>
   build a lite brief ...... /tt-execute-lite <lite brief>
   review a branch ......... /tt-branch-review [branch]

@@ -1019,6 +1019,66 @@ expect "nothing left to run" 2 hf --show "$HF/done"
 expect "no such folder" 2 hf --show "$HF/none"
 wf unlink >/dev/null; lw unlink >/dev/null
 
+echo "# quick.sh (tt-workflow-quick)"
+QK="$eng/tt-workflow-quick/scripts/quick.sh"
+qw() { (cd "$T/wf proj" && bash "$QK" "$@"); }
+expect "quick: nothing linked" 1 qw state
+expect "quick: -h" 0 qw -h
+expect "quick: new folder" 0 qw new "$T/wf proj" "Quick A"
+[ -f "$TT_WORKFLOW_HOME/lite-links.tsv" ] && grep -q 'Quick A' "$TT_WORKFLOW_HOME/lite-links.tsv" && ok "quick uses the lite links file" || bad "quick uses the lite links file"
+expect "quick: tt-workflow's link is untouched" 1 wf linked
+expect "quick: an empty task folder" 0 qw state
+has "quick: asks for the change" "$T/out" "a new task: what is the change?"
+hasnt "quick: no bug-or-feature question" "$T/out" "is it a bug or a feature?"
+hasnt "quick: no full-pipeline suggestion" "$T/out" "tt-adversarial-plan"
+Q="$T/wf proj/Quick A"; QL="$Q/.tt/Quick A - Familiarisation/focus-log.md"; mkdir -p "$(dirname "$QL")"
+printf -- '# Focus Log: x\n\n- **Mode:** lite\n- **Folder:** `f` · **Prefix:** Quick A\n- **Status:** Exploring · **Next:** go-ahead\n' >"$QL"
+expect "quick: confirm a log" 0 qw confirm "$QL"
+has "quick: status is Focus confirmed" "$QL" "- **Status:** Focus confirmed "
+has "quick: pace marker added after the mode" "$QL" "- **Pace:** quick"
+hasnt "quick: the old status is gone" "$QL" "Exploring"
+has "quick: the rest of the log is kept" "$QL" '- **Folder:** `f` · **Prefix:** Quick A'
+expect "quick: confirm again" 0 qw confirm "$QL"
+has "quick: already confirmed" "$T/out" "Already confirmed"
+has "quick: the go-ahead is in the ledger" "$TT_EVENTS_HOME/events.jsonl" "explore.focus_confirmed"
+bash "$WS" --tsv "$Q" >"$T/rows"
+has "quick: confirmed names tt-workflow-quick" "$T/rows" "Quick A	primary	lite-focus	tt-workflow-quick		$Q	"
+hasnt "quick: not the interactive brief" "$T/rows" "Quick A	primary	lite-focus	tt-lite-brief"
+mkdir -p "$T/qcrlf/.tt/B - Familiarisation"; QC="$T/qcrlf/.tt/B - Familiarisation/focus-log.md"
+printf -- '# Focus Log: x\r\n\r\n- **Mode:** lite\r\n- **Pace:** quick\r\n- **Status:** Exploring\r\n' >"$QC"
+expect "quick: confirm a CRLF log" 0 qw confirm "$QC"
+[ "$(tr -cd '\r' <"$QC" | wc -c)" -eq "$(wc -l <"$QC")" ] && ok "quick: CRLF kept on every line" || bad "quick: CRLF kept on every line" "$(tr -cd '\r' <"$QC" | wc -c) CRs, $(wc -l <"$QC") lines"
+has "quick: a CRLF log is confirmed" "$QC" "Focus confirmed"
+bash "$WS" --tsv "$T/qcrlf" >"$T/rows"
+has "quick: a CRLF log is read as confirmed" "$T/rows" "B	primary	lite-focus	tt-workflow-quick"
+printf -- '- **Status:** Exploring\n' >"$T/notlite.md"
+expect "quick: confirm refuses a log that is not lite" 2 qw confirm "$T/notlite.md"
+printf -- '- **Mode:** lite\n' >"$T/nostatus.md"
+expect "quick: confirm refuses a log with no status line" 2 qw confirm "$T/nostatus.md"
+expect "quick: confirm refuses a missing file" 2 qw confirm "$T/nope.md"
+expect "quick: confirm needs the log" 2 qw confirm
+Q3="$T/qstate"; mkdir -p "$Q3/.tt/U - Familiarisation" "$Q3/.tt/V - Familiarisation"
+printf -- '- **Mode:** lite\n- **Pace:** quick\n- **Status:** Exploring · **Next:** go-ahead\n' >"$Q3/.tt/U - Familiarisation/focus-log.md"
+printf -- '- **Mode:** lite\n- **Pace:** quick\n- **Status:** Focus confirmed 2026-11-12\n' >"$Q3/.tt/V - Familiarisation/focus-log.md"
+: >"$Q3/V - Lite Brief.md"
+bash "$WS" --tsv "$Q3" >"$T/rows"
+has "quick: not yet confirmed names tt-workflow-quick" "$T/rows" "U	primary	exploring	tt-workflow-quick		$Q3	"
+hasnt "quick: not yet confirmed is not the interactive skill" "$T/rows" "U	primary	exploring	tt-familiarise"
+has "quick: a written brief goes on to tt-execute-lite" "$T/rows" "V	primary	lite-brief	tt-execute-lite"
+bash "$WS" "$Q3" >"$T/out"
+has "quick: the arrow names the folder" "$T/out" "→ /tt-workflow-quick \"$Q3\""
+QH="$T/wf proj/qhand"; mkdir -p "$QH/.tt/H - Familiarisation"
+printf -- '- **Mode:** lite\n- **Pace:** quick\n- **Status:** Focus confirmed 2026-11-12\n' >"$QH/.tt/H - Familiarisation/focus-log.md"
+lw link "$QH" >/dev/null
+expect "quick: hand-off for a quick task" 0 hf --show "$QH"
+has "quick: named for the stage" "$T/out" "Name: H : Lite Brief"
+has "quick: starts tt-workflow-quick on the folder" "$T/out" 'Prompt: /tt-workflow-quick "'
+hasnt "quick: not through the lite entry" "$T/out" "tt-workflow-lite"
+expect "quick: --entry still wins" 0 hf --show --entry tt-workflow-lite "$QH"
+has "quick: --entry honoured" "$T/out" "Prompt: /tt-workflow-lite"
+rm -rf "$T/wf proj/Quick A" "$QH"
+lw unlink >/dev/null; qw unlink >/dev/null
+
 unset TT_WORKFLOW_HOME
 
 echo "# knowledge.sh and project-context.sh"

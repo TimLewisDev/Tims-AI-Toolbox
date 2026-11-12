@@ -37,7 +37,9 @@ bash "<common>/scripts/session-handoff.sh" [--entry tt-workflow|tt-workflow-lite
   carries on: `/tt-workflow` or `/tt-workflow-lite` (they read the folder link
   and the documents, then ask their usual one question), or, when the folder
   isn't linked, the next step's own command such as
-  `/tt-adversarial-plan resume "<plan>"`.
+  `/tt-adversarial-plan resume "<plan>"`. A quick task (a lite Focus Log marked
+  `**Pace:** quick`) whose next step is `tt-workflow-quick` is started on that
+  directly, with the folder: `/tt-workflow-quick "<folder>"`.
 
 `tt-workflow` passes `--entry tt-workflow` and `tt-workflow-lite` passes
 `--entry tt-workflow-lite`. Every other skill passes no `--entry`: the script

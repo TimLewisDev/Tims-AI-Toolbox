@@ -17,6 +17,7 @@ every discipline; the design and engineering skills need it to run.
 | [`tt-guide`](../tt-guide/SKILL.md) | New here? Tatty, the toolbox's guide: says where your documents stand, which command comes next, and answers "how do I…". |
 | [`tt-workflow`](../../../engineering/skills/tt-workflow/SKILL.md) | One entry point: link a feature folder, type `tt-workflow`, and it works out the stage and runs the skill that comes next. |
 | [`tt-workflow-lite`](../../../engineering/skills/tt-workflow-lite/SKILL.md) | The same single entry for small work: asks bug or feature, then runs the lite route below. |
+| [`tt-workflow-quick`](../../../engineering/skills/tt-workflow-quick/SKILL.md) | The lowest-effort route for one small request: it reads the code itself, tells you what it found, you say Go, and it briefs and builds. |
 | [`tt-familiarise`](../../../engineering/skills/tt-familiarise/SKILL.md) | Explores a part of the codebase with you, a question at a time, until you've pinned down what you actually care about. |
 | [`tt-familiarisation-doc`](../../../engineering/skills/tt-familiarisation-doc/SKILL.md) | Writes up only the part of that exploration you said you're interested in, as a readable doc. |
 | [`tt-adversarial-plan`](../../../engineering/skills/tt-adversarial-plan/SKILL.md) | Runs planning stage by stage, has an adversary challenge each stage, and gets you to a signed-off plan. |
@@ -141,12 +142,34 @@ to the goal, the acceptance or a decision goes back through
 `tt-lite-brief revise`. If the change grows past about six tasks, use
 `tt-workflow`.
 
+### The quick route (the smallest change)
+
+For one small request where even the lite route's conversation is more than the
+work needs, `tt-workflow-quick` runs the same documents with nobody to talk to:
+
+```text
+tt-workflow-quick "<task>"
+  ├─ tt-familiarise (quick mode): subagents read the code, fill in the change facts
+  ├─ one report to you: what it found, where the change attaches, what it assumes
+  │     └─ you answer Go · Adjust · Stop   (the only question before the build)
+  ├─ tt-lite-brief (quick mode): the recommended answer to small design choices is
+  │     taken and recorded; a Critical Decision still stops and asks you
+  └─ tt-execute-lite: builds, checks, gives you your validation checklist
+Review (tt-branch-review) is offered at the end, never run for you.
+```
+
+It uses the lite route's folder link and documents, so `tt-workflow-lite` can take
+a quick task over at any point (for example when it turns out to need a
+conversation). A bug does not go this way (use `tt-workflow-lite`), nor does a
+change of more than about six tasks.
+
 ## Where to start
 
 | You want to… | Run |
 |---|---|
 | start or carry on a feature without picking the skill yourself | `/tt-workflow [feature folder \| new]` |
 | start or carry on a small feature or a bug fix | `/tt-workflow-lite [bug \| feature \| task folder]` |
+| get one small change done with the least back-and-forth | `/tt-workflow-quick [task folder] [the task, in words]` |
 | find out which skill to use, or where you left off | `/tt-guide [question]` |
 | initialize or refresh the project's selective context/index cache | `/tt-guide init [folder]` or `/tt-guide refresh [folder]` |
 | check whether the cached project context is current | `/tt-guide context [folder]` |
@@ -669,6 +692,27 @@ stand with the same script, and runs the next skill after one confirmation.
   clear its own session, but it can start another. `tt-workflow`, the planning
   break points, the end of an exploration or a debugging session, a lite
   brief and each finished work unit offer the same.
+
+#### [`tt-workflow-quick`](../../../engineering/skills/tt-workflow-quick/SKILL.md): the smallest change, with one question
+
+For one small request. It links a folder the way `tt-workflow-lite` does (the same
+`lite-links.tsv`) and runs `tt-familiarise` in quick mode, which asks nothing:
+subagents map and trace the code and the skill fills in the change facts itself.
+It then reports what it found and assumes, and asks once: **Go** · **Adjust** ·
+**Stop**. After Go it runs `tt-lite-brief` in quick mode (the recommended answer
+is taken for small design choices and recorded as "Default applied (quick)"; a
+Critical Decision is still put to you; no outline question and no independent
+check) and `tt-execute-lite` with `confirmed`. Review is offered at the end.
+
+- **Run it:** `/tt-workflow-quick <the task, in words>`, or with a folder first;
+  `status`, `unlink` and no argument (carry on) work as in `tt-workflow-lite`.
+- **Marker:** the Focus Log header carries `**Pace:** quick`, so the state script
+  (and so `tt-guide where`) names `tt-workflow-quick` as the next step, and
+  `tt-workflow-lite` hands such a task back to it.
+- **Not for:** a bug, a change that needs more than about six tasks, or anything
+  you want to talk through. Say **Move up to the lite route** at the report, or
+  run `/tt-workflow-lite "<folder>"`; the documents are the same.
+- **Won't:** resolve a Critical Decision, stage or commit.
 
 #### [`tt-lite-brief`](../../../engineering/skills/tt-lite-brief/SKILL.md): plan the small change
 

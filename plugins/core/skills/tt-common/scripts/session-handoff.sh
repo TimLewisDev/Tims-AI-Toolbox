@@ -130,6 +130,8 @@ if [ -z "$entry" ]; then
 	elif [ $lite = 1 ]; then entry=tt-workflow-lite
 	elif [ $full = 1 ]; then entry=tt-workflow
 	fi
+	# A quick task's next step is its own entry skill: start it on the folder, not through the lite entry.
+	[ "$skill" = tt-workflow-quick ] && entry=""
 fi
 
 if [ -n "$run_over" ]; then

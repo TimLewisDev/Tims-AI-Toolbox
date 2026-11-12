@@ -10,7 +10,9 @@ description: >
   Never designs, recommends or plans. Hands off to tt-familiarisation-doc
   for a standalone write-up or the foundation for tt-adversarial-plan.
   In lite mode (a small change), also records the change facts needed for a
-  brief and hands the log to tt-lite-brief instead.
+  brief and hands the log to tt-lite-brief instead. In quick mode (run by
+  tt-workflow-quick) it asks nothing: subagents read the code, it fills in the
+  change facts itself and returns for the caller to report.
   Use when the engineer wants to explore, understand or get familiar with how
   part of the codebase works.
 metadata:
@@ -31,7 +33,9 @@ With no seed, ask one open question: "What would you like to explore?"
 
 `lite` (or "Mode: lite" in the invoking prompt, as `tt-workflow-lite` gives it, or
 `**Mode:** lite` in the header of the Focus Log being resumed) is for a small change that will go to `tt-lite-brief` rather than a full plan:
-read **Lite mode** below.
+read **Lite mode** below. `Pace: quick` in the invoking prompt (as
+`tt-workflow-quick` gives it) is lite mode with nobody to talk to: read
+**Quick mode** below too.
 
 ## How to run this skill
 
@@ -96,6 +100,44 @@ How to talk and Flow below all still apply; these are the differences:
   `<common>/session-handoff.md`; the session starts the lite brief) ·
   **stop here**. Don't offer
   `tt-familiarisation-doc` unless the engineer asks.
+
+## Quick mode
+
+For `tt-workflow-quick`: the invoking prompt says `Pace: quick` (after `Mode: lite`).
+It is lite mode run **without a conversation**: ask nothing, offer nothing, and
+return to the caller, which reports to the engineer and asks for the go-ahead.
+The Role and How to talk sections above describe the conversation you are *not*
+having; the Focus Log, its Change facts and the citation rule still apply. The
+differences from Lite mode:
+
+- **Open.** The task is the sentence in the prompt, or the document it names
+  (read it; a ticket's description and acceptance criteria are the engineer's
+  words). The folder and prefix are given: don't ask. Pin `BASE_SHA` as in Open
+  step 3 (the repo's default branch, `git fetch` once, say so in one line).
+  Create the log from the template with **both** header lines, `- **Mode:** lite`
+  and `- **Pace:** quick` (the second is what sends a resume back to
+  `tt-workflow-quick`). Seed is the task verbatim; Purpose is `change: "<the task>"`.
+- **Map.** At most 2 mapping subagents, and 1 when the task names a single place.
+- **Fill in the Change facts without asking.** In parallel, up to 3 `trace`
+  subagents (same brief and `model-config.sh get explore`): the **seams and
+  precedents**; the **tool-managed files** the change would touch; the **build or
+  check method** (the repo's agent instructions, else the nearest build file; say
+  "unknown" rather than guess). Then write the facts, each cited `path:line`.
+  **Wanted change** is the task, quoted. **Acceptance** is what the task itself
+  says it should do when it works, quoted. If the task states none, write one to
+  three statements that follow only from the task's own words, each prefixed
+  `(proposed)`; the engineer sees them in the caller's report and Go confirms them.
+  Never invent a requirement the task doesn't imply.
+- **Rate the topics yourself.** A topic the traces relied on is `Focus`, one the
+  change only reads is `Context`; leave none `Unrated`. Write the focus statement
+  as one sentence of what the change is, `(draft)`.
+- **Close.** Skip the Close steps: no focus-summary question, no hand-off offer.
+  Leave **Status** as `Exploring · **Next:** go-ahead`. `tt-workflow-quick` reads
+  this section and runs it as its own step 3 (it does not start this skill), so
+  you are not finished when the log is written: you do not report the findings
+  and you do not end the turn. The next thing is that skill's step 4, the report
+  to the engineer, in this same response. `quick.sh confirm` writes `Focus
+  confirmed` after the engineer says Go.
 
 ## Role
 
@@ -234,7 +276,10 @@ resume command.
 Focus Log (and nothing else until needed), tell the engineer in three lines
 where things stand (the purpose, the draft focus statement, the last topic),
 and carry on from `Next`. If the log's header says
-`**Mode:** lite`, stay in lite mode (see above). The pinned `BASE_SHA` is in the log's header; keep
+`**Mode:** lite`, stay in lite mode (see above); if it also says `**Pace:** quick`
+and you were not started by `tt-workflow-quick`, say so in one line (it carries
+a quick task on, with `/tt-workflow-quick "<folder>"`) and carry on in lite mode
+with the engineer. The pinned `BASE_SHA` is in the log's header; keep
 using it unless the engineer asks to move on (then re-pin and say so).
 
 A long exploration's context grows with every turn. Once it is very large,

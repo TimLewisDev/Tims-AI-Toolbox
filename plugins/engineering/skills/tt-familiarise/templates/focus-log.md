@@ -40,6 +40,10 @@ In lite mode (see `SKILL.md`) the header gains `- **Mode:** lite` (above
 in as the exploration goes; `tt-lite-brief` reads it. The wanted change and the
 acceptance are the engineer's words, quoted. Everything else is a cited fact.
 
+In quick mode the header also has `- **Pace:** quick` on the line after
+`**Mode:**`. Acceptance the task did not state is written `(proposed) …`, until
+the engineer's go-ahead confirms it.
+
 ```markdown
 ## Change facts
 - **Wanted change:** "<the engineer's words>"
