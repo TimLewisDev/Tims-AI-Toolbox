@@ -111,7 +111,10 @@ only the engineer can change the session's model. A session started with
 when present, is what a new session from step 3 starts on.
 Then invoke the skill with the Skill tool, in this conversation, with the arguments
 the arrow gave (the same way `tt-adversarial-plan` runs its stages). Do nothing
-of that skill's work yourself.
+of that skill's work yourself. For `tt-execute`, add `confirmed` after the
+arguments: step 3 was the confirmation. A skill run this way ends by reporting
+what it finished and asks no what-next question of its own
+(`<common>/orchestration.md` §8); step 3 asks it.
 
 ## 5. When it hands back
 

@@ -218,10 +218,14 @@ look at), summarise:
 - the session's revision, if anything changed, and each change with its IDs;
 - proposals decided;
 - the documents that changed;
-- if a Task Breakdown exists: run `/tt-execute <task status
-  doc>` next, which will flag the Change Log rows that affect the current unit.
-  (If it has no Task Status doc, say so: the breakdown hasn't been started, and
-  its cards should be checked against this revision before it is.)
+- if a Task Breakdown exists with a Task Status doc, `/tt-execute` will flag
+  the Change Log rows that affect the current unit. Ask what next
+  (`AskUserQuestion`, `<common>/orchestration.md` §8): **Carry on with the
+  build** (invoke `tt-execute` with the Task Status doc) · **Continue in a new
+  session** (`<common>/session-handoff.md`) · **Not now** (give
+  `/tt-execute <task status doc>` once). If it has no Task Status doc, say so:
+  the breakdown hasn't been started, and its cards should be checked against
+  this revision before it is.
 
 ## Session revision
 

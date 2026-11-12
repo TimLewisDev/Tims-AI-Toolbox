@@ -167,10 +167,12 @@ After a stage closes:
 1. Summarise in at most five lines: what the stage settled (IDs, each with
    its words from `ids.sh gloss`), the challenges by outcome (each `CH` with its
    title), and what comes next.
-2. Give the resume command: `/tt-adversarial-plan resume <plan>`.
-3. Ask with `AskUserQuestion`: **Continue now** · **Continue in a new session**
-   · **Stop here** (everything is on disk). Recommend a new session once this
-   conversation has run through two or more stages, or is very long.
+2. Ask with `AskUserQuestion` (`<common>/orchestration.md` §8): **Continue
+   now** (name the stage that comes next) · **Continue in a new session** ·
+   **Stop here** (everything is on disk; give the resume command
+   `/tt-adversarial-plan resume <plan>` once, then stop). Recommend a new
+   session once this conversation has run through two or more stages, or is
+   very long.
    On **Continue in a new session**, follow `<common>/session-handoff.md` (no
    `--entry`; give `--prefix` for this plan's feature). The stage is already
    recorded in the plan's Stages table, so the session is named after the stage

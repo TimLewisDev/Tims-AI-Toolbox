@@ -82,7 +82,8 @@ remote's default branch (`origin/HEAD`), else the only one of `main`, `master`,
 
 Tell the user the branch, the base and how it was chosen (`base_how`), in one
 line. When the base was found rather than given (`origin-head` or
-`only-candidate`), ask them to confirm it before continuing. When `dirty=yes`,
+`only-candidate`), ask them before continuing (`<common>/orchestration.md` §8):
+**Review against <base>** · **Choose another branch**. When `dirty=yes`,
 say that uncommitted changes are not part of the review.
 
 The diff is `git diff <merge_base> <head>`: what the branch changed, not what the

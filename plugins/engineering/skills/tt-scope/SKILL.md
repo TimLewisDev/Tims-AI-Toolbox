@@ -86,5 +86,5 @@ an addition to a `Closed` stage: follow the protocol's Contradiction handling.
 ## Stage exit
 
 When scope and constraints feel complete to you, show the `S` and `C` IDs with
-one line each (the words from `ids.sh gloss`) and the **In scope** line, and ask the engineer to confirm that
-Scope & Constraints are complete. Then hand over (Stage contract step 6).
+one line each (the words from `ids.sh gloss`) and the **In scope** line, and ask the stage-exit question
+(protocol, Stage contract step 5): **Scope & Constraints are complete** · **Not yet**. Then hand over (Stage contract step 6).

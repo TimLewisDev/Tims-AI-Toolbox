@@ -18,6 +18,6 @@ The lite route still asks for a conversation: an exploration a question at a tim
 - `tt-workflow-lite` hands a quick task back to `tt-workflow-quick`; `toolbox.md`, the guide's fallback list, the READMEs and `model-roles.tsv` list the new skill.
 
 ## Notes
-- `tt-workflow-quick` calls `tt-execute-lite "<brief>" confirmed`. The `confirmed` argument arrives with the "questions are asked with options" change (`2026-11-12-ask-with-buttons.md`, also core 0.8.0 / engineering 0.6.0). Without it `tt-execute-lite` still works and asks its one Start question. Release the two together, or renumber the second.
+- `tt-workflow-quick` calls `tt-execute-lite "<brief>" confirmed`. The `confirmed` argument arrives with the "questions are asked with options" change (`2026-11-12-ask-with-buttons.md`, core 0.9.0 / engineering 0.7.0). On the quick route's own release (core 0.8.0 / engineering 0.6.0) `tt-execute-lite` still works without it and asks its one Start question.
 - Nothing in the quick route is specific to a front end. A caller starts it with `/tt-workflow-quick "<folder>" <the task, or a document naming it>`.
 - A bug does not go this way: use `/tt-workflow-lite bug`.

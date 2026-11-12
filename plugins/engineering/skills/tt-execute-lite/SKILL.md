@@ -23,7 +23,11 @@ metadata:
 ```
 /tt-execute-lite <lite brief>          # report, then work the unit
 /tt-execute-lite status <lite brief>   # report only (steps 1–3)
+/tt-execute-lite <lite brief> confirmed  # as the first, but step 3 doesn't ask
 ```
+
+`confirmed` is for a skill that has just asked the engineer to start the build
+(`tt-lite-brief`), so they are not asked twice.
 
 If the argument is missing, or isn't a Lite Brief (its title doesn't end
 "Lite Brief", or `lite-check.sh` can't read it), ask and stop. A Comprehensive
@@ -89,8 +93,9 @@ files, validation evidence made stale by later commits, and the header's derived
 fields. The plan line will say the document is its own plan; ignore it.
 
 - `derived` rows: fix with `status-set.sh <status> --refresh`, no confirmation.
-- `fact` rows: present each with its proposed correction; apply it only after
-  the engineer confirms (through the scripts), and log it with
+- `fact` rows: present each with its proposed correction and ask
+  (`<common>/orchestration.md` §8): **Apply it** · **Leave it**. Apply it only
+  after **Apply it** (through the scripts), and log it with
   `status-record.sh <status> change …`.
 - `judge` rows (an In Progress task): read `git diff` on that task's card files
   against its Steps and say how far it got.
@@ -108,7 +113,12 @@ straight to step 5. With `status`, stop here: it never creates anything, so if n
 yet (step 1), say so, give the `lite-check.sh` result and the task list from the
 brief, and stop.
 
-Otherwise ask **once** (`AskUserQuestion`): **Start** · **Stop**. After that,
+Otherwise ask **once** (`AskUserQuestion`, `<common>/orchestration.md` §8),
+naming the unit: **Start <WU>** (recommended) · **Continue in a new session**
+(`<common>/session-handoff.md`; leave it out when this session began with this
+command) · **Not now**. On **Not now**, say where it stands and give
+`/tt-execute-lite <brief>` once, then stop. With `confirmed`, don't ask: the
+engineer has just chosen to start. After **Start**,
 work the tasks in ID order as their dependencies allow, back to back, without
 per-task confirmation. Stop at every Critical Decision and every Engineer task.
 Tasks run one at a time.
@@ -126,13 +136,15 @@ Tasks run one at a time.
      (general-purpose, foreground) with that output, unchanged. It reads the
      card from the brief and writes `<run>/results/T01.md`. If the script
      fails, fill in `<skill>/../tt-execute/templates/handoff.md` by hand.
-   - **Engineer task:** show the card's Steps as a checklist and wait. Then
+   - **Engineer task:** show the card's Steps as a checklist and wait (not an
+     `AskUserQuestion`: §8). Then
      `result-scaffold.sh "<brief>" T01 --run "<run>" > "<run>/results/T01.md"`,
      fill in its markers with what the engineer reports.
 4. **Scope check.** `task-files.sh diff "<brief>" "<run>" T01`. Exit `1` means a
-   file changed that isn't on the card: name it; the engineer keeps it (log a
-   card correction) or reverts it. A card file left `untouched` with the task
-   `implemented` is worth one question.
+   file changed that isn't on the card: name it and ask (§8): **Keep it** (log
+   a card correction) · **Revert it**. A card file left `untouched` with the
+   task `implemented` is worth one question the same way: **It's fine** (log
+   why) · **Send it back to the coder**.
 5. **Record.** `status-log.sh "<status>" "<run>/results/T01.md"`. Don't read the
    result file back unless the script reports a critical decision or fails.
 6. **Escalation.** If it reports `critical decision: yes`: read only that
@@ -144,7 +156,9 @@ Tasks run one at a time.
    SendMessage, giving the decision; if it can't be continued, spawn a new one
    with the handoff, the decision and "inspect `git diff` on the card's Files to
    see the work so far". If the decision changes the goal, the acceptance or an
-   earlier decision, stop and send the engineer to `/tt-lite-brief revise`.
+   earlier decision, stop and ask (§8): **Revise the brief now** (invoke
+   `tt-lite-brief` with `revise "<brief>"`) · **Stop here** (give
+   `/tt-lite-brief revise "<brief>"` once).
 7. **Next.** The unit's next task, or step 5 if this was the last.
 
 ## 5. Validate the unit
@@ -174,7 +188,9 @@ current unit. When every task in it is `Implemented`:
    and what to report back; concrete file paths, menu items, field names and
    values (look the target up with a quick `git grep` if the draft is vague);
    edge cases as their own items; end with "Ask me about any step if you need
-   more detail." An **Agent + Engineer** check passes only when both parts pass.
+   more detail." This is not an `AskUserQuestion` (`<common>/orchestration.md`
+   §8): end the turn with the checklist and take the results as they come. An
+   **Agent + Engineer** check passes only when both parts pass.
    When `decide.sh mode` says **`elsewhere`**, write it instead as the question
    list `<feature folder>/.tt/<Prefix> - Questions/validation-<WU>.md`
    (`<common>/question-lists.md`): one question per check (`ref`
@@ -192,15 +208,17 @@ current unit. When every task in it is `Implemented`:
    rows for the tables and boards, and the card with the known fields filled.
    Fill in the rest (card rules in `tt-task-breakdown/templates/task-card.md`),
    dropping the **Plan step** and **Traces to** rows and the plan lines under
-   **Read first**, which a Lite Brief doesn't have, and once the engineer approves, add the card to the brief, run
-   `lite-index.sh "<brief>"`, add the board rows, and log it with
+   **Read first**, which a Lite Brief doesn't have. Show it and ask (§8): **Add
+   the fix task** · **I'll change it first**. On the first, add the card to the
+   brief, run `lite-index.sh "<brief>"`, add the board rows, and log it with
    `status-record.sh … change …`. When it is implemented, re-run the **whole**
    unit's validation as a new attempt.
 
 ## 6. Done
 
 If the brief has a later unit whose dependencies are now `Done`, report it as the
-next one and, after the engineer confirms, go back to step 4 for it. Otherwise
+next one and finish with step 3's question for it (**Start <WU>** · **Continue
+in a new session** · **Not now**); on **Start**, go back to step 4 for it. Otherwise
 say what was built, what the checks showed, and anything left (risks and
 improvements recorded in the Step Log). Do not offer to commit: the engineer
 decides what to commit and when.

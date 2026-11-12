@@ -230,5 +230,12 @@ following `<skill>/../tt-task-status/briefs/init.md`.
 
 ## 13. Finish
 
-Delete `<draft>` and say so. Report the two paths and the unit count, and offer
-to start the first ready unit with `/tt-execute <task status doc>`. Never offer to commit.
+Delete `<draft>` and say so. Report the two paths and the unit count, then ask
+(`AskUserQuestion`, `<common>/orchestration.md` §8), naming the first ready unit:
+**Start WU1** · **Continue in a new session** (`<common>/session-handoff.md`;
+put it first, as recommended, when this conversation also ran the planning or
+was long, which a breakdown usually is) · **Not now**. On **Start WU1**, invoke
+`tt-execute` with the Task Status document and `confirmed`
+(`<status doc> confirmed`): it doesn't ask again, and it, not this skill,
+starts the unit. On **Not now**, give `/tt-execute <task status
+doc>` once. Never offer to commit.

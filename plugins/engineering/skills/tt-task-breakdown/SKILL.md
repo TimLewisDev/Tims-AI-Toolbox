@@ -86,4 +86,4 @@ addition:
 
 - Follow the output budget: never write the breakdown in one response.
 - Don't start any work unit yourself. When the breakdown is written, hand off
-  to `/tt-execute`.
+  to `/tt-execute` with the question in `breakdown-mode.md` step 13.

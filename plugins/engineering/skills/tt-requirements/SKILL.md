@@ -101,7 +101,7 @@ agrees they are. Before asking (protocol, Stage contract step 5):
   question goes in the Status line's `Next` for Scope, a dropped one is
   recorded in `fi-notes.md` if it's excluded work.
 - Show the requirement IDs with one line each (the words from `ids.sh gloss`,
-  per the planning protocol), and ask for confirmation that the Requirements
-  are complete.
+  per the planning protocol), and ask the stage-exit question (protocol, Stage
+  contract step 5): **Requirements are complete** · **Not yet**.
 
 Then hand over (Stage contract step 6).

@@ -7,11 +7,13 @@ it can start another, named and started with the command that carries on.
 ## When to offer
 
 At every point where a skill stops and says "carry on in a fresh session" or
-asks "continue now, or stop": a planning stage's break point, the close of an
-exploration or a debugging session, a lite brief's hand-off, a finished work
-unit, and the confirmation in `tt-workflow` and `tt-workflow-lite`. Add the
-option **Continue in a new session** beside the others. Recommend it once the
-conversation has run two or more skills or stages, or is long.
+asks "continue now, or stop": a planning stage's break point, a plan's sign-off,
+a breakdown's hand-off, the close of an exploration, a Familiarisation doc or a
+debugging session, a lite brief's hand-off, a finished work unit, and the
+confirmation in `tt-workflow` and `tt-workflow-lite`. Add the option
+**Continue in a new session** beside the others, as one of the options of the
+question (`orchestration.md` §8). Recommend it once the conversation has run
+two or more skills or stages, or is long.
 
 Write the state first (close the stage, set the status, save the log): the
 new session reads it from disk, and the session's name is the stage it will

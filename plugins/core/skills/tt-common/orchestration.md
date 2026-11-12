@@ -146,3 +146,43 @@ If you can't spawn subagents, do each brief yourself, in the same order, still
 one part per response. If `${CLAUDE_SKILL_DIR}` isn't expanded, `<common>` is
 `../tt-common/` relative to the skill's own `SKILL.md` when the skills are
 linked into one folder, else the core pointer above.
+
+## 8. Asking the engineer
+
+Whenever a skill waits on the engineer's answer, it asks with `AskUserQuestion`.
+It never ends a turn on a question in prose ("Should we start WU2?", "Want me
+to…?", "Say the word and I'll…", "Let me know"): a question with a few
+answers should be one pick, not a reply to type.
+
+- **Name the options.** Two to four, each a short action (**Start WU2**, not
+  "Yes"), the recommended one first, each with a line on what it leads to.
+  The question names the thing it is about (IDs with their words), so it
+  reads alone.
+- **One next step is still a question.** Where the skill would have said
+  "tell me when and I'll do X", ask **X** · **Not now**. Where this
+  conversation has run two or more skills or stages, or is long, add
+  **Continue in a new session** (`<common>/session-handoff.md`).
+- **Do the step; don't dictate it.** On a yes, run the next step yourself (invoke
+  the next skill) instead of printing a `/tt-…` command to type. Give the
+  command only after **Not now** or **Stop here**, as the way back in, once.
+- **Answers that are words stay words.** A name, a path, what a check showed,
+  why something failed: offer the options that lead there (**It failed**),
+  then ask for the words in a plain chat question. Never replace a real
+  choice with an open question to avoid listing options.
+- **Work the engineer does away from the chat is not a question.** A
+  validation checklist, or an Engineer task's steps, can take a while and
+  invites "what does step 3 mean?". Give it, end the turn, and take the
+  results as they come back. (Where the skill's question lists apply, those
+  are the buttons.)
+- **The outermost skill asks what comes next.** A skill that `tt-workflow` or
+  `tt-workflow-lite` invoked ends by saying what it finished and leaves the
+  what-next question to the workflow's step 3; a stage that `tt-adversarial-plan`
+  invoked returns to its break point the same way. Every other end asks its own:
+  a skill the engineer started themselves, and `tt-plan-signoff`, which closes
+  `tt-adversarial-plan`. Questions inside a skill's work (a scope check, a fix
+  task, a stage's exit) are always its own.
+- **Say the question once.** Don't repeat in prose, before or after the tool
+  call, what the question already says. Context that the answer depends on
+  (the findings, the diff, the checklist) goes above it; the ask itself does not.
+- **No `AskUserQuestion` in this agent?** Ask the same question once, as a
+  lettered list with the recommended option marked, and stop.

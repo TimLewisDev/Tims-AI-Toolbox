@@ -18,8 +18,10 @@ metadata:
 Support files for the `tt-*` skills. Nothing here runs on its own.
 
 - [`orchestration.md`](orchestration.md): the rules every `tt-*` skill follows
-  for output size, drafts on disk, stall recovery, subagents and models. Skills
-  that orchestrate read it before they start.
+  for output size, drafts on disk, stall recovery, subagents and models, and
+  for asking the engineer (always `AskUserQuestion` with named options, never a
+  question in prose; section 8). Skills that orchestrate read it before they
+  start.
 - [`subagent-rules.md`](subagent-rules.md): the short subset a subagent
   follows (no talking to the engineer, no git writes, one part per Write, the
   RESULT block). Every brief and handoff points subagents here instead of at

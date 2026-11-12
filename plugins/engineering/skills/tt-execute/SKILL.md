@@ -21,7 +21,11 @@ metadata:
 ```
 /tt-execute <task status doc>          # report, then work the current unit
 /tt-execute status <task status doc>   # report only (steps 1–3)
+/tt-execute <task status doc> confirmed  # as the first, but step 4 doesn't ask
 ```
+
+`confirmed` is for a skill that has just asked the engineer to start this unit
+(`tt-task-breakdown`), so they are not asked twice.
 
 If the argument is missing, or isn't a Task Status document, ask and stop. Do
 not guess from the working tree. If you're handed a Comprehensive Tech Plan,
@@ -86,8 +90,9 @@ its two summary lines.
 
 - `derived` rows: fix with `status-set.sh <status> --refresh`, no confirmation
   needed.
-- `fact` rows: present each with its proposed correction; apply it only after
-  the engineer confirms (through the scripts, and log it with
+- `fact` rows: present each with its proposed correction and ask
+  (`<common>/orchestration.md` §8): **Apply it** · **Leave it**. Apply it only
+  after **Apply it** (through the scripts, and log it with
   `status-record.sh <status> change …`).
 - `judge` rows (an In Progress task): read `git diff` on that task's card files
   against its Steps and say how far it got.
@@ -123,7 +128,15 @@ With `status`, stop here.
 - Finish the current unit (all its tasks, then its validation) before starting
   another.
 - Otherwise take the first `Todo` unit whose dependencies are all `Done`.
-  Confirm with the engineer **once, before starting the unit**.
+  Ask **once, before starting the unit**, with `AskUserQuestion`
+  (`<common>/orchestration.md` §8), naming the unit (ID and outcome): **Start
+  WU2** (recommended) · **Continue in a new session**
+  (`<common>/session-handoff.md`; the status is already written, so the
+  session is named `<Prefix> : Build` and resumes from it) · **Not now**. On
+  **Start WU2**, begin; don't ask again. On **Not now**, say where it stands and
+  give `/tt-execute <status doc>` once, then stop. Leave out **Continue in a new
+  session** when this session began with this command. With `confirmed`, don't
+  ask: the engineer has just chosen to start this unit.
 - Within the unit, work its tasks in ID order as their dependencies allow,
   back to back, without per-task confirmation. Stop at every Critical Decision
   and every Engineer task. Pause between tasks only if the engineer asks.
@@ -143,14 +156,17 @@ With `status`, stop here.
      (general-purpose, foreground) with that output, unchanged. It reads the
      card from the breakdown and writes its result to `<run>/results/T07.md`.
      If the script fails, fill in `<skill>/templates/handoff.md` by hand.
-   - **Engineer task:** show the card's Steps as a checklist and wait. Then
+   - **Engineer task:** show the card's Steps as a checklist and wait (not an
+     `AskUserQuestion`: `<common>/orchestration.md` §8). Then
      `result-scaffold.sh <breakdown> T07 --run <run> > <run>/results/T07.md`,
      fill in its markers with what the engineer reports, and record it as in
      step 4.
 4. **Scope check.** `task-files.sh diff <breakdown> <run> T07`. Exit `1` means
-   the task changed a file that isn't on its card: name it to the engineer,
-   who decides whether to keep it (log a card correction) or revert it. A card
-   file left `untouched` with the task `implemented` is worth one question.
+   the task changed a file that isn't on its card: name it to the engineer and
+   ask (`<common>/orchestration.md` §8): **Keep it** (log a card correction) ·
+   **Revert it**. A card file left `untouched` with the task `implemented` is
+   worth one question the same way: **It's fine** (log why) · **Send it back
+   to the coder**.
 5. **Record.** `status-log.sh <status> <run>/results/T07.md`. It writes the
    Step Log entry, adds each risk and improvement, and sets the task
    `Implemented` (`Blocked` or `In Progress` if it stopped early). Don't read
@@ -216,6 +232,9 @@ When every task in the unit is `Implemented`:
    - edge cases worth trying, as their own items;
    - end with: "Ask me about any step if you need more detail."
 
+   This is not an `AskUserQuestion` (`<common>/orchestration.md` §8): end the
+   turn with the checklist and take the results as they come.
+
    A check marked **Agent + Engineer** passes only when both parts pass.
    When `decide.sh mode` says **`elsewhere`**, write the checklist instead as
    the question list `<feature folder>/.tt/<Prefix> - Questions/validation-WU3.md`
@@ -238,13 +257,16 @@ When every task in the unit is `Implemented`:
    the rows for the Task Map, the Work Units table and both status boards, and
    the card with every known field filled in. Fill in the rest of the card
    (the card-writing rules in `tt-task-breakdown/templates/task-card.md`
-   apply), and once the engineer approves, add it through the amendment rules.
+   apply), show it and ask (`<common>/orchestration.md` §8): **Add the fix
+   task** · **I'll change it first**. On the first, add it through the
+   amendment rules.
    Once it's implemented, re-run the **whole** unit's validation as a new
    attempt.
 8. Stop and report: the unit's check results, what changed, and the next unit.
-   If there is a next unit, offer **Continue in a new session**
-   (`<common>/session-handoff.md`; the status is already written, so the
-   session is named `<Prefix> : Build` and resumes from it).
+   If there is a next unit, finish with step 4's question for it (**Start
+   WU4** · **Continue in a new session** · **Not now**; the status is already
+   written, so a new session is named `<Prefix> : Build` and resumes from it).
+   That question is the confirmation for the unit, so step 4 doesn't ask again.
 9. **The last unit.** If `status-set.sh` reported `header State: Complete`, the
    feature is finished. Run `bash "<scripts>/tatty.sh" celebrate` and show its
    output in a code block, then congratulate the engineer in a sentence or two:

@@ -67,11 +67,14 @@ Before ending:
   (accepted, rebutted, deferred, dismissed), and the draft plan's path, where
   the whole Ledger can be read. Offer to show any section in full, one per
   turn.
-- Ask for explicit sign-off of the **whole** draft.
+- Ask for explicit sign-off of the **whole** draft with `AskUserQuestion`
+  (`<common>/orchestration.md` §8): **Sign off the plan** · **Show me a
+  section** · **I have changes**. **Show me a section** shows it (one per turn)
+  and asks again; **I have changes** is the hesitation below.
 
-Silence, "looks fine", "sure", or your own sense that it looks complete are
-**not** sufficient — require an affirmative confirmation that they are happy
-with the whole thing. If any hesitation or new information surfaces, treat it
+Silence, "looks fine", "sure" typed instead of a choice, or your own sense that
+it looks complete are **not** sufficient — only **Sign off the plan** is the
+affirmative confirmation that they are happy with the whole thing. If any hesitation or new information surfaces, treat it
 as another answer: settle it under the owning stage's rules (and the
 protocol's Contradiction handling), then return to the gate.
 

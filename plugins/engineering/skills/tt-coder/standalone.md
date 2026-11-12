@@ -36,7 +36,9 @@ and run the compile check and inline validation yourself at the end. If you
 can't spawn subagents, do the steps yourself in order.
 
 A plan that big is often better broken down with `/tt-task-breakdown` and run
-with `/tt-execute`. Suggest it once.
+with `/tt-execute`. Suggest it once, as a question (`<common>/orchestration.md`
+§8): **Break it down first** (invoke `tt-task-breakdown` with the plan) ·
+**Carry on with this plan**.
 
 ## Validation
 

@@ -186,7 +186,8 @@ Given a comprehensive plan with no proposals doc, **backfill**:
 4. Then link back: add each proposal's `P` link to the plan entries it decides
    (Chosen Approach, Rejected Alternatives, and the `CD` and `NB` tables). This
    is linking only, so it changes no meaning and no `Revision`. Show the
-   engineer the list of links first and add them once they confirm.
+   engineer the list of links first, ask (`<common>/orchestration.md` §8)
+   **Add the links** · **Leave them out**, and add them on the first.
 5. If a Tech Plan exists, have `tt-tech-plan` update it (Update mode, with
    the new `P` IDs) so its Options column and **Open for review** pick them up.
 

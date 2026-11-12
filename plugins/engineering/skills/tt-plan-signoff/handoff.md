@@ -97,11 +97,19 @@ Delete `<draft>` and, if there is one, the Familiarisation draft folder
 (`.tt/<Prefix> - Familiarisation/`, holding the Focus Log), and say so. Never
 delete the Familiarisation or Challenges docs. Give the engineer the paths of
 every document in the set (plan, Tech Plan, Tech Proposals, Future Iterations if
-written, Familiarisation if any, Challenges) and the next steps:
+written, Familiarisation if any, Challenges), then ask what next
+(`AskUserQuestion`, `<common>/orchestration.md` §8):
 
-- review the Tech Plan and the Tech Proposals;
-- amend anything with `/tt-tech-plan-review <tech plan> <comprehensive tech plan>`;
-- then `/tt-task-breakdown <comprehensive tech plan>`.
+- **Break it into tasks now**: invoke `tt-task-breakdown` with the
+  comprehensive tech plan;
+- **Review the plan first**: invoke `tt-tech-plan-review` with the Tech Plan and
+  the comprehensive tech plan (the engineer reads the Tech Plan and the Tech
+  Proposals, and amends anything there);
+- **Continue in a new session** (`<common>/session-handoff.md`; recommended,
+  and listed first, because planning has made this conversation long);
+- **Not now**: give the two commands once, `/tt-tech-plan-review <tech plan>
+  <comprehensive tech plan>` and `/tt-task-breakdown <comprehensive tech plan>`,
+  and stop.
 
 ## Resume
 

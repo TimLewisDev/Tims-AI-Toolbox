@@ -115,7 +115,8 @@ observations and the fix direction. Check:
 
 - the log is confirmed (its Status line starts `Focus confirmed …`, or contains
   `Root cause confirmed …`). If
-  not, show what's draft and ask the engineer to confirm or correct it;
+  not, show what's draft and ask (`<common>/orchestration.md` §8): **Confirm
+  it** · **Correct it**;
 - no topic is `Unrated`;
 - the wanted change and its acceptance are recorded, in the engineer's words.
   If either is missing, ask for it now (one `AskUserQuestion`);
@@ -144,8 +145,8 @@ from it. Never put the choices to the engineer as one wall of text.
 At most 15 lines: the unit's outcome, the tasks (title, executor, files, one
 line each), the checks, and what is out of scope. Usually one unit and 1–4
 tasks; a second unit only when an Engineer-in-a-tool step must happen midway.
-Ask the engineer to confirm or adjust. This is the last cheap point to change
-the shape.
+Then ask (§8): **Write the brief** · **Adjust the outline**. This is the last
+cheap point to change the shape.
 
 ### 4. Write (one part per response)
 
@@ -199,15 +200,20 @@ Record that the brief is written (silent, best-effort; `<common>/events.md`):
 `bash "<common>/scripts/tt-event.sh" emit lite.brief_written --prefix "<Prefix>" --folder "<feature folder>" --skill tt-lite-brief`.
 
 Delete the draft folder (say so). Give the path and the **Goal**,
-**Acceptance** and task list in chat, then:
+**Acceptance** and task list in chat, then ask (`AskUserQuestion`,
+`<common>/orchestration.md` §8): **Start building now** · **Continue in a new
+session** · **Not now**. Recommend **Continue in a new session** (and list it
+first) once the conversation has run two or more skills or is long, which a
+brief usually has.
 
-- the command: `/tt-execute-lite "<brief>"`;
-- recommend running it in a **fresh session** (`/clear`, or a new terminal);
-- offer **Continue in a new session**: follow `<common>/session-handoff.md`
+- **Start building now:** invoke `tt-execute-lite` with the brief and
+  `confirmed` (`"<brief>" confirmed`), so it doesn't ask again.
+- **Continue in a new session:** follow `<common>/session-handoff.md`
   (no `--entry`, `--prefix` for this brief's feature). The brief is written,
   so the session is named `<Prefix> : Build` and starts with the command that
   carries on (`/tt-workflow-lite` if the folder is linked, else
   `/tt-execute-lite "<brief>"`).
+- **Not now:** give the command once, `/tt-execute-lite "<brief>"`, and stop.
 
 ## Revising
 

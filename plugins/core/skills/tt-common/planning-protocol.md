@@ -240,8 +240,9 @@ proposal as usual). The engineer can change the selection only for stages not
 yet begun: `stages.sh set <folder> <stage> on|off` also updates this table.
 
 1. **Entry check.** Read the plan's Status line and Stages table. If any
-   earlier stage isn't `Closed` or `Skipped`, say which and ask whether to go
-   back to it or carry on anyway (record the answer in `Next`). If there is no
+   earlier stage isn't `Closed` or `Skipped`, say which and ask
+   (`<common>/orchestration.md` §8): **Go back to <stage>** · **Carry on
+   anyway** (record the answer in `Next`). If there is no
    plan, run **Setup**.
 2. **Read narrowly.** Read only the sections the stage's skill lists, with
    `md-section.sh get "<plan>" "## <Section>"`, plus the Familiarisation doc
@@ -252,15 +253,18 @@ yet begun: `stages.sh set <folder> <stage> on|off` also updates this table.
    keeping `Next` current after every agreed item.
 5. **Stage exit.** When the stage's sections feel complete to you, show their
    IDs, one line each with the ID's words from `ids.sh gloss` (or the section
-   on request), and ask the engineer to
-   confirm *this stage's* sections are complete. This is not the whole-plan
-   sign-off, but the same rule applies: "looks fine" or silence isn't
-   confirmation, and any hesitation is another answer.
+   on request), and ask with `AskUserQuestion` (`<common>/orchestration.md`
+   §8): **<Stage> is complete** · **Not yet** (then ask what is missing, in a
+   plain question). This is not the whole-plan sign-off, but the same rule
+   applies: only the first option confirms the stage; "looks fine" typed
+   instead, or silence, isn't confirmation, and any hesitation is another
+   answer.
 6. **Hand over.** Set the stage `Challenge pending` and `Next: challenge
    <stage>`. If you were run by `tt-adversarial-plan`, return to it. If you
-   were run on your own, end by telling the engineer to run
-   `/tt-adversarial-plan resume <plan>`, which challenges the stage before the
-   next one starts.
+   were run on your own, ask (§8): **Challenge this stage now** (invoke
+   `tt-adversarial-plan` with `resume <plan>`, which challenges the stage before
+   the next one starts) · **Not now** (give `/tt-adversarial-plan resume
+   <plan>` once, and stop).
 
 A stage is `Closed` only by the orchestrator, after its challenges are
 resolved (see **Challenge resolution**).

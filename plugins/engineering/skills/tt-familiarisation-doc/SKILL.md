@@ -75,8 +75,9 @@ only. Check:
 ### 2. Outline (one response)
 
 Propose the outline in at most 15 lines: the doc's title, the focus statement,
-and which topics go under each template heading. Ask the engineer to confirm
-or adjust it. This is the last cheap point to correct the focus.
+and which topics go under each template heading. Then ask
+(`<common>/orchestration.md` §8): **Write the doc** · **Adjust the outline**.
+This is the last cheap point to correct the focus.
 
 ### 3. Fill gaps (only if needed)
 
@@ -106,7 +107,8 @@ Match sibling documents' header or tag block and link style.
 ### 6. Show and correct
 
 Give the path and the **In short** section in chat. Ask whether anything is
-wrong or missing. Apply corrections with targeted Edits (a new fact still needs
+wrong or missing (§8): **It's right** · **Something is wrong or missing** (then
+ask what, in a plain question). Apply corrections with targeted Edits (a new fact still needs
 a cite). Then set the Focus Log's Status to `Documented <YYYY-MM-DD>: <doc
 path>`.
 
@@ -119,11 +121,12 @@ engineer can delete it whenever they like (say so).
 Record that the doc is written (silent, best-effort; `<common>/events.md`):
 `bash "<common>/scripts/tt-event.sh" emit explore.documented --prefix "<Prefix>" --folder "<feature folder>" --skill tt-familiarisation-doc`.
 
-Tell the engineer:
-
-- to plan from this: `/tt-adversarial-plan <familiarisation doc>`. It first
-  has an adversary challenge the doc, then starts requirements from it;
-- otherwise the doc stands on its own.
+Ask what next (`AskUserQuestion`, §8): **Plan from this now** (invoke
+`tt-adversarial-plan` with the familiarisation doc: it first has an adversary
+challenge the doc, then starts requirements from it) · **Continue in a new
+session** (`<common>/session-handoff.md`) · **Not now** (give
+`/tt-adversarial-plan <familiarisation doc>` once; otherwise the doc stands on
+its own).
 
 ## Resuming
 
