@@ -200,10 +200,13 @@ When every task in the unit is `Implemented`:
 3. **Record and report.** `status-record.sh <status> validation WU3 --file <run>/validation/WU3-attempt<n>/attempt.md`.
    Report the agent results inline: the check, what was run, passed or failed,
    and the evidence (the rows `run-checks.sh` printed).
-4. If the unit needs the engineer, draft the checklist with
+4. If the unit needs the engineer, run `bash "<scripts>/decide.sh" mode` first,
+   then draft the checklist with
    `validation-checklist.sh <breakdown> <status> WU3`. It gathers the open
    Engineer checks, the unit's engineer steps and its tasks' To validate notes.
-   Turn it into the inline checklist, **in chat**:
+   **In `elsewhere` mode, never print the checklist in the chat**: write it as
+   the question list described below (the person is given a page for it). In
+   `chat` mode turn it into the inline checklist, **in chat**:
    - a numbered list, one check per item;
    - each item: what to open and do (exact steps), what they should see, and
      what to report back;

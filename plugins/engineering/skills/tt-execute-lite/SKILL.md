@@ -164,9 +164,12 @@ current unit. When every task in it is `Implemented`:
    attempt file in the same format.
 3. **Record and report.** `status-record.sh "<status>" validation <WU> --file "<run>/validation/<WU>-attempt<n>/attempt.md"`;
    report each agent check inline: what was run, passed or failed, the evidence.
-4. If the unit needs the engineer, `validation-checklist.sh "<brief>" "<status>" <WU>`
+4. If the unit needs the engineer, run `bash "<scripts>/decide.sh" mode` first,
+   then `validation-checklist.sh "<brief>" "<status>" <WU>`, which
    gathers the open Engineer checks, the unit's engineer steps and the tasks'
-   To validate notes. Turn it into the checklist **in chat**: numbered, one
+   To validate notes. **In `elsewhere` mode, never print the checklist in the
+   chat**: write it as the question list below (the person is given a page for
+   it). In `chat` mode turn it into the checklist **in chat**: numbered, one
    check per item; for each, exactly what to open and do, what they should see
    and what to report back; concrete file paths, menu items, field names and
    values (look the target up with a quick `git grep` if the draft is vague);
