@@ -21,6 +21,11 @@
       "description": "The design discipline's skills: user stories from a design document. Needs core."
     },
     {
+      "name": "qa",
+      "source": "./plugins/qa",
+      "description": "The QA discipline's skills: write a bug from a plain-English description, break a feature into areas to test and work through them. Needs core."
+    },
+    {
       "name": "production",
       "source": "./plugins/production",
       "description": "Placeholder for the production discipline's skills. Needs core."

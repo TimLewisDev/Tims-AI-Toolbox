@@ -5,10 +5,11 @@ and the ideas behind them. `tt-guide` reads this file to answer "how do I…",
 so keep its headings; the install and update steps are in the repository's
 top-level `README.md`.
 
-Skills come in three plugins today: **core** (`tt-guide`, `tt-config`,
+Skills come in four plugins today: **core** (`tt-guide`, `tt-config`,
 `tt-connections`, `tt-metrics`, and the shared `tt-common`), **design**
-(`tt-user-stories`) and **engineering** (everything else). Core is needed by
-every discipline; the design and engineering skills need it to run.
+(`tt-user-stories`), **qa** (`tt-qa-bug`, `tt-qa-test-plan`, `tt-qa-test-run`)
+and **engineering** (everything else). Core is needed by every discipline; the
+design, qa and engineering skills need it to run.
 
 ## The skills
 
@@ -39,6 +40,9 @@ every discipline; the design and engineering skills need it to run.
 | [`tt-debug-doc`](../../../engineering/skills/tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
 | [`tt-branch-review`](../../../engineering/skills/tt-branch-review/SKILL.md) | Reviews a git branch locally, in any repository, and writes the findings to a report. Posts nothing. |
 | [`tt-user-stories`](../../../design/skills/tt-user-stories/SKILL.md) | Design: turns a design document into grouped user stories, proposes merges and missed stories for you to accept, reject or alter, and writes every story from one template by script. |
+| [`tt-qa-bug`](../../../qa/skills/tt-qa-bug/SKILL.md) | QA: turns a plain-English description of a bug into a formatted bug (title, severity, steps to reproduce, expected and actual), asking only for what is missing, and writes it from one template by script. |
+| [`tt-qa-test-plan`](../../../qa/skills/tt-qa-test-plan/SKILL.md) | QA: breaks a feature into areas to validate, each with test items (how to test, what a pass looks like), and writes the Test Plan by script. |
+| [`tt-qa-test-run`](../../../qa/skills/tt-qa-test-run/SKILL.md) | QA: works through a Test Plan one area at a time, records each item's pass, fail, blocked or skip by script, turns failures into bugs and reports what is tested. |
 | [`tt-config`](../tt-config/SKILL.md) | Chooses the model and thinking effort for each stage, ranked by where a stronger model pays off, and saves the choices as modes you can swap. |
 | [`tt-connections`](../tt-connections/SKILL.md) | Checks the MCP servers, logins and git settings a project needs, from a connection pack kept outside the repo, and sets up the missing ones one at a time (yes or skip). |
 | [`tt-common`](../tt-common/SKILL.md) | Not run directly: the shared rules for long runs and for planning, shared templates, and the helper scripts the other skills call. |
@@ -193,6 +197,9 @@ change of more than about six tasks.
 | tidy a proposals doc, or create one for an existing plan | `/tt-tech-proposals <proposals doc or comprehensive tech plan>` |
 | review a git branch | `/tt-branch-review [branch] [against <base>]` |
 | write user stories from a design document, or review the proposed ones | `/tt-user-stories <design doc> [stories doc]` or `/tt-user-stories resume <stories doc>` |
+| write up a bug from a description | `/tt-qa-bug <bug folder> [description]` |
+| plan the testing of a feature | `/tt-qa-test-plan <plan.md> <feature documents...>` |
+| test a feature against its plan | `/tt-qa-test-run <plan.md> [bug folder]` |
 
 `[…]` is optional and `<…>` is required. If you're new to these skills, start with
 `/tt-guide`, or go straight to `tt-adversarial-plan`; it offers to explore the

@@ -18,7 +18,7 @@ export TT_PLUGINS_HOME="$T/tt-plugins"
 # Keep the LLM connections out of the real home too.
 export TT_LLMS_HOME="$T/llms"
 export CLAUDE_CODE_USE_BEDROCK=0 # first-party model ids, whatever this machine's environment or settings.json says
-for p in core engineering design production; do
+for p in core engineering design qa production; do
 	CLAUDE_PLUGIN_ROOT="$root/plugins/$p" bash "$root/plugins/$p/hooks/register.sh" "$p"
 done
 pass=0; fail=0
@@ -1944,6 +1944,108 @@ has "pending: a proposal" "$T/out" "$DF/Ch - Tech Proposals.md	proposal	P2	open	
 expect "set a proposal through decide.sh" 0 bash "$DEC" set "$DF/Ch - Tech Proposals.md" P2 A --note "a toast is enough"
 has "the proposal is decided" "$DF/Ch - Tech Proposals.md" "- **Why:** a toast is enough"
 bash "$WS" --tsv "$DF" >"$T/rows"; has "workflow-state: both wait to be applied" "$T/rows" "2 challenges and 1 proposal wait to be applied."
+
+echo "# bug.sh"
+BUG="$root/plugins/qa/skills/tt-qa-bug/scripts/bug.sh"
+BD2="$T/qa-bugs"
+cat >"$T/bug-spec.txt" <<'EOF'
+title: Login button does nothing on second tap
+severity: Critical
+feature: T-0042
+area: Login
+source: A1.2
+environment: Android 14, build 1.2.3
+summary:
+  Tapping Login a second time after a failed attempt does nothing.
+steps:
+  1. Open the app
+  - Enter a wrong password and tap Login
+  3. Tap Login again
+expected:
+  The login is retried.
+actual:
+  Nothing happens; no spinner.
+EOF
+expect "bug: validate a good spec" 0 bash "$BUG" validate "$T/bug-spec.txt"
+expect "bug: validate refuses a thin spec" 1 bash "$BUG" validate <(printf 'title: x\n')
+expect "bug: new" 0 bash "$BUG" new "$BD2" "$T/bug-spec.txt"
+has "bug: first ID" "$T/out" "BUG-01"
+BF="$BD2/BUG-01 - Login button does nothing on second tap.md"
+has "bug: title line" "$BF" "# BUG-01: Login button does nothing on second tap"
+has "bug: severity" "$BF" "- **Severity:** Critical"
+has "bug: status starts New" "$BF" "- **Status:** New"
+has "bug: steps are numbered" "$BF" "2. Enter a wrong password and tap Login"
+has "bug: no jira yet" "$BF" "- **Jira:** none"
+expect "bug: second bug gets the next ID" 0 bash "$BUG" new "$BD2" "$T/bug-spec.txt"
+has "bug: BUG-02" "$T/out" "BUG-02"
+expect "bug: check" 0 bash "$BUG" check "$BD2"
+bash "$BUG" list "$BD2" --tsv >"$T/out"
+has "bug: list row" "$T/out" "BUG-01	Login button does nothing on second tap	Critical	New	T-0042	Login	A1.2	none"
+BH=$(grep '^BUG-01' "$T/out" | cut -f11)
+expect "bug: set jira with the hash" 0 bash "$BUG" set "$BD2" BUG-01 jira STAR-9 --if "$BH"
+has "bug: jira set" "$BF" "- **Jira:** STAR-9"
+expect "bug: a stale hash is refused" 3 bash "$BUG" set "$BD2" BUG-01 status Fixed --if "$BH"
+expect "bug: bad status refused" 1 bash "$BUG" set "$BD2" BUG-01 status Done
+expect "bug: edit renames the file" 0 bash "$BUG" edit "$BD2" BUG-01 <(printf 'title: Login retry does nothing\nactual: still nothing\n')
+has "bug: edited actual" "$BD2/BUG-01 - Login retry does nothing.md" "still nothing"
+has "bug: edit keeps the steps" "$BD2/BUG-01 - Login retry does nothing.md" "3. Tap Login again"
+[ ! -e "$BF" ] && ok "bug: the old file name is gone" || bad "bug: the old file name is gone"
+expect "bug: unknown ID" 1 bash "$BUG" show "$BD2" BUG-99
+expect "bug: unknown spec field" 1 bash "$BUG" validate <(printf 'colour: red\n')
+bash "$BUG" show "$BD2" BUG-01 --tsv >"$T/out"; has "bug: show --tsv" "$T/out" "Tap Login again"
+rm "$BD2/BUG-01 - "*.md; bash "$BUG" new "$BD2" "$T/bug-spec.txt" >"$T/out"
+has "bug: a deleted lower ID is not reused" "$T/out" "BUG-03"
+
+echo "# test.sh"
+TST="$root/plugins/qa/skills/tt-qa-test-plan/scripts/test.sh"
+TP="$T/qa-plan/Login - Test Plan.md"
+expect "test: init" 0 bash "$TST" init "$TP" --feature T-0042 --title Login
+expect "test: init refuses an existing plan" 1 bash "$TST" init "$TP" --feature T-0042
+printf 'title: Login\nwhy: The core entry path.\n' | bash "$TST" area add "$TP" - >"$T/out"; has "test: first area" "$T/out" "A1"
+printf 'title: Profile\n' | bash "$TST" area add "$TP" - >"$T/out"; has "test: second area" "$T/out" "A2"
+bash "$TST" item add "$TP" A1 - >"$T/out" <<'EOF'
+title: Wrong password retry
+how:
+  1. Open the app
+  - Enter a wrong password
+  3. Tap Login twice
+expect:
+  The second tap retries.
+EOF
+has "test: first item" "$T/out" "A1.1"
+printf 'title: Right password\nhow: Log in with good credentials\nexpect: The home screen shows\n' | bash "$TST" item add "$TP" A1 - >"$T/out"
+has "test: second item" "$T/out" "A1.2"
+printf 'title: Avatar\nhow: Open the profile\nexpect: The avatar shows\n' | bash "$TST" item add "$TP" A2 - >"$T/out"
+has "test: item in the last area" "$T/out" "A2.1"
+has "test: area heading" "$TP" "## A2 - Profile"
+has "test: steps are numbered" "$TP" "2. Enter a wrong password"
+expect "test: item needs how and expect" 1 bash "$TST" item add "$TP" A1 <(printf 'title: x\n')
+expect "test: item in an unknown area" 1 bash "$TST" item add "$TP" A9 <(printf 'title: x\nhow: y\nexpect: z\n')
+expect "test: verify" 0 bash "$TST" verify "$TP"
+expect "test: check fail with a note and a bug" 0 bash "$TST" check "$TP" A1.1 fail --note "no spinner" --bug BUG-01
+expect "test: check pass" 0 bash "$TST" check "$TP" A1.2 pass
+expect "test: check blocked" 0 bash "$TST" check "$TP" A2.1 blocked --note "no test account"
+expect "test: unknown item" 1 bash "$TST" check "$TP" A1.9 pass
+expect "test: unknown result" 1 bash "$TST" check "$TP" A1.1 great
+bash "$TST" summary "$TP" --tsv >"$T/out"
+has "test: summary total" "$T/out" "total	3	1	1	1	0	0"
+has "test: summary area" "$T/out" "area	A1	Login	2	1	1	0	0	0"
+bash "$TST" list "$TP" --tsv >"$T/out"
+has "test: list a failed item" "$T/out" "item	A1.1	A1	Wrong password retry	1. Open the app\\n2. Enter a wrong password\\n3. Tap Login twice	The second tap retries.	fail	"
+has "test: the bug and note ride along" "$T/out" "BUG-01	no spinner"
+expect "test: remove refuses an item with results" 1 bash "$TST" remove "$TP" A1.1
+expect "test: edit an item" 0 bash "$TST" edit "$TP" A1.1 <(printf 'expect:\n  A spinner shows and a retry is sent.\n')
+has "test: edited expect" "$TP" "A spinner shows and a retry is sent."
+has "test: edit keeps the steps" "$TP" "3. Tap Login twice"
+expect "test: reset puts an item back" 0 bash "$TST" check "$TP" A1.1 reset
+bash "$TST" summary "$TP" --tsv >"$T/out"; has "test: reset counts as untested" "$T/out" "total	3	1	0	1	0	1"
+expect "test: remove an item without results" 0 bash "$TST" remove "$TP" A1.1
+printf 'title: Again\nhow: h\nexpect: e\n' | bash "$TST" item add "$TP" A1 - >"$T/out"
+has "test: item IDs are never reused" "$T/out" "A1.3"
+expect "test: status Ready" 0 bash "$TST" status "$TP" Ready
+has "test: status written" "$TP" "- **Status:** Ready"
+expect "test: remove an area with results is refused" 1 bash "$TST" remove "$TP" A2
+expect "test: verify after the edits" 0 bash "$TST" verify "$TP"
 
 echo
 echo "$pass passed, $fail failed"

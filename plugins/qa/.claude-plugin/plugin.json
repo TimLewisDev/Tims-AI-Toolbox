@@ -1,0 +1,9 @@
+{
+  "name": "qa",
+  "displayName": "TT QA",
+  "version": "0.1.0",
+  "description": "The QA discipline's skills: write a bug from a plain-English description (tt-qa-bug), break a feature into areas to test (tt-qa-test-plan) and work through them (tt-qa-test-run).",
+  "author": { "name": "Tim Lewis" },
+  "license": "MIT",
+  "dependencies": ["core"]
+}

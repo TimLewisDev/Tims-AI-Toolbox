@@ -57,6 +57,7 @@ plugin_hint() {
 	case $1 in
 	tt-guide | tt-common | tt-config | tt-connections | tt-metrics) echo "It is part of core: /plugin install core@tims-ai-toolbox" ;;
 	tt-user-stories) echo "It is part of design: /plugin install design@tims-ai-toolbox, then restart Claude Code" ;;
+	tt-qa-bug | tt-qa-test-plan | tt-qa-test-run) echo "It is part of qa: /plugin install qa@tims-ai-toolbox, then restart Claude Code" ;;
 	*) echo "It is part of engineering: /plugin install engineering@tims-ai-toolbox, then restart Claude Code" ;;
 	esac
 }

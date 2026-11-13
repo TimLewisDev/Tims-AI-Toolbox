@@ -36,8 +36,8 @@ In Claude Code:
 ```
 
 Restart Claude Code (or run `/reload-plugins`), then type `/tt-guide` to meet
-Tatty, the toolbox's guide. A producer or designer installs `production` or
-`design` instead of `engineering`.
+Tatty, the toolbox's guide. A producer, designer or tester installs `production`,
+`design` or `qa` instead of `engineering`.
 
 | Client | How | Split by discipline |
 |---|---|---|
