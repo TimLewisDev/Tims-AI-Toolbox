@@ -957,6 +957,90 @@ mkdir -p "$T/stg-new"; bash "$STG" set "$T/stg-new" plan off >/dev/null
 TT_WORKFLOW_HOME="$T/wfhome-stg" expect "state of a lite-profile folder" 0 bash "$WF" state "$T/stg-new"
 has "points at the lite route" "$T/out" "/tt-workflow-lite"
 
+echo "# stages.sh skip-challenge"
+mkdir -p "$T/stg-skip"; SP="$T/stg-skip/Sk - Comprehensive Tech Plan.md"
+skip_plan() { printf -- '- **Status:** Draft · **Stage:** Requirements\r\n\r\n**Stages**\r\n\r\n| Stage | Status | Output | Challenges |\r\n|---|---|---|---|\r\n| Familiarisation | Skipped | n/a | |\r\n| Requirements | Challenge pending | R | |\r\n| Scope & Constraints | Not started | S | |\r\n| Approach | Not started | A | |\r\n| Technical Design | Not started | T | |\r\n| Whole plan | Not started | w | |\r\n' >"$SP"; }
+skip_plan
+expect "skip-challenge --check: a pending challenge can be skipped" 0 bash "$STG" skip-challenge --check "$T/stg-skip" requirements
+has "--check changes nothing" "$SP" "| Requirements | Challenge pending | R | |"
+expect "a stage whose challenge isn't pending" 1 bash "$STG" skip-challenge "$T/stg-skip" scope
+has "says why" "$T/out" "not pending"
+expect "a stage with no challenge" 1 bash "$STG" skip-challenge "$T/stg-skip" signoff
+expect "an unknown stage" 1 bash "$STG" skip-challenge "$T/stg-skip" nonsense
+expect "no draft plan, nothing to skip" 1 bash "$STG" skip-challenge "$SF" requirements
+expect "skip the requirements challenge" 0 bash "$STG" skip-challenge "$T/stg-skip" requirements "no time | really"
+has "the row says it was skipped, with the reason" "$SP" "| Requirements | Closed (challenge skipped: no time  really) | R | |"
+[ "$(tr -cd '\r' <"$SP" | wc -c | tr -d ' ')" = "$(wc -l <"$SP" | tr -d ' ')" ] && ok "skip-challenge keeps the CRLFs" || bad "skip-challenge keeps the CRLFs"
+expect "skipped twice" 1 bash "$STG" skip-challenge "$T/stg-skip" requirements
+expect "skip-challenge needs a stage" 2 bash "$STG" skip-challenge "$T/stg-skip"
+
+echo "# breaks.sh"
+BRK="$S/breaks.sh"
+expect "mode: chat unless asked" 0 bash "$BRK" mode
+has "chat" "$T/out" "chat"
+TT_BREAK=elsewhere expect "mode: elsewhere" 0 bash "$BRK" mode
+has "elsewhere" "$T/out" "elsewhere"
+TT_BREAK=nonsense expect "an unknown mode is chat" 0 bash "$BRK" mode
+has "still chat" "$T/out" "chat"
+expect "no command" 2 bash "$BRK"
+expect "a folder that isn't there" 2 bash "$BRK" show "$T/nope"
+BF="$T/brk-plan"; mkdir -p "$BF"; SP="$BF/Br - Comprehensive Tech Plan.md"; skip_plan
+export TT_EVENTS_HOME="$T/ev-brk"; BL="$TT_EVENTS_HOME/events.jsonl"
+expect "nothing waiting: show prints nothing" 0 bash "$BRK" show --tsv "$BF"
+[ ! -s "$T/out" ] && ok "and says nothing" || bad "and says nothing"
+expect "take with nothing recorded" 0 bash "$BRK" take "$BF"
+has "none" "$T/out" "none"
+expect "answer with nothing waiting" 1 bash "$BRK" answer "$BF" continue
+expect "wait needs its words" 2 bash "$BRK" wait "$BF" --kind challenge --step requirements
+expect "wait with an unknown kind" 2 bash "$BRK" wait "$BF" --kind nonsense --step requirements --label x
+expect "wait before a challenge" 0 bash "$BRK" wait "$BF" --kind challenge --step requirements --label "the Requirements challenge" --prefix Br --skill tt-adversarial-plan
+has "it says what it waits for" "$T/out" "waiting: the Requirements challenge"
+bash "$BRK" show --tsv "$BF" >"$T/o2"
+has "show: the line" "$T/o2" "waiting	challenge	requirements	the Requirements challenge	1		"
+has "the wait is in the ledger" "$BL" '"event":"workflow.waiting"'
+has "keyed by what it waits for" "$BL" '"qualifier":"challenge:requirements"'
+expect "take before an answer" 0 bash "$BRK" take "$BF"
+has "keeps waiting" "$T/out" "waiting"
+[ -f "$BF/.tt/break" ] && ok "and keeps the wait" || bad "and keeps the wait"
+expect "answer: skip the challenge" 0 bash "$BRK" answer "$BF" skip
+has "the row says it was skipped" "$SP" "| Requirements | Closed (challenge skipped: skipped by the engineer) | R | |"
+has "and the stage's close is in the ledger" "$BL" '"event":"plan.requirements_closed"'
+expect "a second answer" 1 bash "$BRK" answer "$BF" continue
+expect "take the answer" 0 bash "$BRK" take "$BF"
+has "skip" "$T/out" "skip"
+[ ! -e "$BF/.tt/break" ] && ok "taking removes the wait" || bad "taking removes the wait"
+# a stage that can be left out, and one that can't
+skip_plan
+expect "wait before the next stage" 0 bash "$BRK" wait "$BF" --kind stage --step scope --label "Scope & Constraints"
+bash "$BRK" show --tsv "$BF" >"$T/o2"; has "scope can be skipped" "$T/o2" "waiting	stage	scope	Scope & Constraints	1"
+expect "answer: skip the stage" 0 bash "$BRK" answer "$BF" skip
+has "it is left out of the profile" "$BF/.tt/workflow-stages.tsv" "scope	off"
+has "and its row in the plan" "$SP" "| Scope & Constraints | Skipped: not selected | S | |"
+bash "$BRK" take "$BF" >/dev/null
+expect "wait before requirements again" 0 bash "$BRK" wait "$BF" --kind stage --step design --label "Technical Design"
+bash "$BRK" show --tsv "$BF" >"$T/o2"; has "technical design can't be skipped" "$T/o2" "waiting	stage	design	Technical Design	0	Always included"
+expect "so a skip is refused" 1 bash "$BRK" answer "$BF" skip
+has "with the reason" "$T/out" "Always included"
+expect "but continue is fine" 0 bash "$BRK" answer "$BF" continue
+bash "$BRK" take "$BF" >"$T/o2"; has "continue" "$T/o2" "continue"
+expect "stop is an answer too" 0 bash "$BRK" wait "$BF" --kind stage --step approach --label Approach
+expect "stop" 0 bash "$BRK" answer "$BF" stop
+bash "$BRK" take "$BF" >"$T/o2"; has "stopped" "$T/o2" "stop"
+# a skill about to run
+expect "wait before a skill" 0 bash "$BRK" wait "$BF" --kind skill --step tt-task-breakdown --label "the task breakdown"
+bash "$BRK" show --tsv "$BF" >"$T/o2"; has "the breakdown can't be skipped once planning has begun" "$T/o2" "tt-task-breakdown	the task breakdown	0"
+expect "an unknown skill can't be skipped" 0 bash "$BRK" wait "$BF" --kind skill --step tt-nothing --label "something"
+bash "$BRK" show --tsv "$BF" >"$T/o2"; has "no way to skip it" "$T/o2" "tt-nothing	something	0	This step can't be skipped."
+expect "show, for a person" 0 bash "$BRK" show "$BF"
+has "in words" "$T/out" "It can't be skipped"
+expect "clear" 0 bash "$BRK" clear "$BF"
+[ ! -e "$BF/.tt/break" ] && ok "clear removes it" || bad "clear removes it"
+# a challenge that is no longer pending can't be skipped
+expect "wait before a challenge not pending" 0 bash "$BRK" wait "$BF" --kind challenge --step approach --label "the Approach challenge"
+bash "$BRK" show --tsv "$BF" >"$T/o2"; has "not skippable, with the reason" "$T/o2" "not pending"
+bash "$BRK" clear "$BF" >/dev/null
+unset TT_EVENTS_HOME; export TT_EVENTS_HOME="$T/events"
+
 echo "# workflow.sh linked, session-handoff.sh"
 SHF="$S/session-handoff.sh"
 hf() { (cd "$T/wf proj" && bash "$SHF" "$@"); }

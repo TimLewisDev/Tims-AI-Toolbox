@@ -125,6 +125,12 @@ After each stage is `Closed`, take a **Break point**.
 
 ## Challenge
 
+0. **Breaks answered elsewhere.** If `bash "<common>/scripts/breaks.sh" mode`
+   prints `elsewhere`, do not start the adversary yet: record the wait before
+   the challenge (`<common>/breaks.md`, kind `challenge`, step the stage's key)
+   and end your turn. On `continue`, go on with step 1. On `skip`, the stage is
+   already `Closed (challenge skipped: ...)`: take the **Break point** and do
+   not run steps 1 to 5. In `chat` mode this step does not exist.
 1. **Number.** The first `CH` number is one more than the highest in the
    Challenges doc (`ids.sh defined "<challenges>" | grep '^CH'`), or `CH1`.
 2. **Spawn the adversary**: one subagent, in the foreground (model and effort
@@ -167,7 +173,12 @@ After a stage closes:
 1. Summarise in at most five lines: what the stage settled (IDs, each with
    its words from `ids.sh gloss`), the challenges by outcome (each `CH` with its
    title), and what comes next.
-2. Ask with `AskUserQuestion` (`<common>/orchestration.md` §8): **Continue
+2. If `breaks.sh mode` prints `elsewhere`, do not ask: record the wait
+   (`<common>/breaks.md`, kind `stage`, step the key of the stage the loop does
+   next: `scope`, `approach`, `design`, `whole-plan` or `signoff`; or kind
+   `skill` for `tt-plan-signoff` when that is next) with the label the
+   summary's "what comes next" gives, say you are waiting, and end your turn.
+   Otherwise ask with `AskUserQuestion` (`<common>/orchestration.md` §8): **Continue
    now** (name the stage that comes next) · **Continue in a new session** ·
    **Stop here** (everything is on disk; give the resume command
    `/tt-adversarial-plan resume <plan>` once, then stop). Recommend a new

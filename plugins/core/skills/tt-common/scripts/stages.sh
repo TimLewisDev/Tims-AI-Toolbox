@@ -8,6 +8,7 @@ usage() {
 usage: stages.sh show [--tsv] [--phase <phase>] <folder>
        stages.sh set [--phase <phase>] <folder> <stage> on|off
        stages.sh check <folder>
+       stages.sh skip-challenge [--check] <folder> <stage> [reason]
 
 The profile is <folder>/.tt/workflow-stages.tsv: one "<stage><TAB>off" line per
 stage left out; no file means every stage is included.
@@ -28,6 +29,12 @@ Stages (key, in workflow order):
 
 A stage is locked once its work has begun. set refuses a locked stage, a stage
 that cannot be left out, or an unknown stage (exit 1; the reason on stderr).
+
+skip-challenge closes a stage of the draft plan whose adversary challenge is
+pending (explore, requirements, scope, approach, design, whole-plan) without
+running it: its Stages row becomes "Closed (challenge skipped: <reason>)". Only
+for the engineer's own choice. --check says whether it could (exit 0), changing
+nothing; exit 1 with the reason when the challenge isn't pending.
 
 show --tsv prints, per stage: key label level on locked why
   level: top, or plan for the planning stages (their parent is Plan)
@@ -102,7 +109,9 @@ if [ "$cmd" = show ] || [ "$cmd" = set ]; then
 		esac
 	done
 fi
-case $cmd in -h | --help) usage; exit 0 ;; show | check) [ $# -eq 1 ] || { usage; exit 2; } ;; set) [ $# -eq 3 ] || { usage; exit 2; } ;; *) usage; exit 2 ;; esac
+CHECK=0
+if [ "$cmd" = skip-challenge ] && [ "${1:-}" = --check ]; then CHECK=1; shift; fi
+case $cmd in -h | --help) usage; exit 0 ;; show | check) [ $# -eq 1 ] || { usage; exit 2; } ;; set) [ $# -eq 3 ] || { usage; exit 2; } ;; skip-challenge) { [ $# -eq 2 ] || [ $# -eq 3 ]; } || { usage; exit 2; } ;; *) usage; exit 2 ;; esac
 dir=$1; [ "${dir%/}" != "" ] && dir=${dir%/}
 [ -d "$dir" ] || { echo "stages.sh: no such folder: $dir" >&2; exit 2; }
 profile="$dir/.tt/workflow-stages.tsv"
@@ -316,4 +325,31 @@ set)
 		rm -f "$tmp"
 	fi
 	echo "$k is now $want" ;;
+skip-challenge)
+	# Close a stage whose adversary challenge is pending without running it, on the engineer's say-so:
+	# its Stages row becomes "Closed (challenge skipped: <reason>)", as tt-adversarial-plan records it.
+	k=$2
+	reason=$(printf '%s' "${3:-skipped by the engineer}" | tr -d '|\r\n')
+	case $k in
+	explore | requirements | scope | approach | design | whole-plan) ;;
+	*) echo "stages.sh: $k has no challenge to skip" >&2; exit 1 ;;
+	esac
+	[ -n "$draft" ] || { echo "stages.sh: there is no draft plan: only a plan being drafted has challenges" >&2; exit 1; }
+	label_of "$k"; rowname=$LABEL
+	row_status "$rowname"
+	[ "$ROWST" = "Challenge pending" ] || { echo "stages.sh: the challenge of $rowname is not pending (its row says: ${ROWST:-no such row})" >&2; exit 1; }
+	if [ $CHECK = 1 ]; then echo "ok"; exit 0; fi
+	tmp="$draft.tmp.$$"
+	crlf=0; [ "$(tr -cd '\r' <"$draft" | wc -c | tr -d ' ')" -gt 0 ] && crlf=1
+	awk -F'|' -v OFS='|' -v want="$rowname" -v to="Closed (challenge skipped: $reason)" -v cr="$crlf" '
+		{ sub(/\r$/, "") }
+		/^\*\*Stages\*\*/ { on = 1 }
+		on && /^\|/ {
+			s = $2; t = $3; gsub(/^ +| +$/, "", s); gsub(/^ +| +$/, "", t)
+			if (s == want && t == "Challenge pending") $3 = " " to " "
+		}
+		on && NF && !/^\|/ && !/^\*\*Stages\*\*/ { on = 0 }
+		{ print $0 (cr ? "\r" : "") }' "$draft" >"$tmp" && cat "$tmp" >"$draft"
+	rm -f "$tmp"
+	echo "$k: challenge skipped" ;;
 esac

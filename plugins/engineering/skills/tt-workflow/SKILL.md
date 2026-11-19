@@ -89,6 +89,12 @@ engineer describes work that small (one request, a few files, or a bug).
 
 ## 3. Confirm once
 
+If `bash "<common>/scripts/breaks.sh" mode` prints `elsewhere`, do not ask:
+record the wait (`<common>/breaks.md`, kind `skill`, step the next skill's name,
+label what it will do in a few words), say you are waiting for the engineer in
+the app, and end your turn. `continue` runs step 4; `skip` means the skill has
+been left out by script, so go back to step 2; `stop` stops. Otherwise:
+
 Ask with `AskUserQuestion`: the feature, where it stands, the exact command
 (one line), and the options **Continue** · **Continue in a new session** ·
 each `→ or …` step · **Stop** (all of it is on disk). A `!` problem is

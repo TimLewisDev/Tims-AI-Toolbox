@@ -226,6 +226,16 @@ inspection rather than trusting a cached summary.
 
 ## Key ideas
 
+### Breaks answered outside the chat
+
+Where a skill would stop and ask "Continue, or stop here?", a session started
+with `TT_BREAK=elsewhere` (a companion app does this) records the wait with
+`breaks.sh` and ends its turn instead; the engineer's Continue, Skip or Stop is
+recorded by `breaks.sh answer`, and a skip is carried out by script
+(`stages.sh skip-challenge` for an adversary challenge, `stages.sh set <stage>
+off` for a stage). Without `TT_BREAK` nothing changes. The protocol is
+`tt-common/breaks.md`.
+
 ### The documents
 
 All the documents for a feature sit in one folder (an Obsidian vault or a

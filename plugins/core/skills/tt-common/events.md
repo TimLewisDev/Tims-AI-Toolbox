@@ -60,6 +60,7 @@ prints the path.
 | `build.complete` | full, lite | Every work unit is done | `status-set.sh` |
 | `debug.root_cause_confirmed` | debug | The engineer confirmed the root cause | `tt-debug` |
 | `debug.report_written` | debug | The Debug Report was written | `tt-debug-doc` |
+| `workflow.waiting` | full, lite | The workflow stopped at a break for the engineer to continue, skip or stop (`qualifier` is `<kind>:<step>`, see `breaks.md`); only when the break is answered outside the chat | `breaks.sh` |
 
 Not events: skipped stages, a stage reopening, individual tasks, plan
 amendments, branch reviews.

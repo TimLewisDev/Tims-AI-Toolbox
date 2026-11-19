@@ -43,7 +43,7 @@ EVENTS="explore.focus_confirmed explore.documented
 plan.familiarisation_closed plan.requirements_closed plan.scope_closed plan.approach_closed
 plan.design_closed plan.whole_closed plan.signed_off
 breakdown.written lite.brief_written build.unit_validated build.complete
-debug.root_cause_confirmed debug.report_written"
+debug.root_cause_confirmed debug.report_written workflow.waiting"
 
 off() { case "${TT_EVENTS:-on}" in off | OFF | 0 | false | no) return 0 ;; esac; return 1; }
 
