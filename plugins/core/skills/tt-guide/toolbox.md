@@ -437,7 +437,7 @@ project gets a different list.
   every check; the model only asks and runs the commands you approve. MCP setup
   uses the `claude` CLI, so it is Claude Code only.
 - **LLM tools:** `/tt-connections llms` (script `llms.sh`: `status`, `models`,
-  `connect <tool>`, `disconnect <tool>`, `refresh`) is about the machine, not
+  `connect <tool>`, `disconnect <tool>`, `refresh`, `capabilities`) is about the machine, not
   the project. It connects `claude`, `copilot` and `codex` and generates the
   models each offers from the tool's own `--help` (kept in `~/.claude/tt-llms/`;
   add models by hand in `models.d/<tool>.tsv`). The models are what
@@ -445,7 +445,9 @@ project gets a different list.
   (`tt-connections/claude-models.tsv`; `llms.sh versions` lists them by family);
   a version can start the main session but a subagent takes an alias, whose
   version is set per family (see `/tt-config`). Only Claude's are runnable today; the others are listed,
-  not yet usable for a stage.
+  not yet usable for a stage. A model is named `provider:model-id`
+  (`claude:sonnet`) wherever `/tt-config` takes or shows one, and `status --tsv`
+  tells a program which actions each tool supports.
 - **Won't:** accept a secret, edit settings files by hand, or run a setup
   command you haven't said yes to.
 

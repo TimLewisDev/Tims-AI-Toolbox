@@ -17,6 +17,7 @@ usage: llms.sh status [--tsv]                      each provider: connected, ava
                                                    the models of the connected tools
        llms.sh versions [<family>] [--tsv]         claude's specific versions by family (sonnet, opus, haiku,
                                                    fable), newest first, for the backend in use: family, label, id
+       llms.sh capabilities [--tsv]                the versioned features this toolbox supports, one token a line
 
 providers: claude | copilot | codex
 A model is runnable when a tt-* skill can use it for a subagent. Only claude
@@ -31,7 +32,10 @@ Extra models for a provider go in <home>/models.d/<provider>.tsv, one per line:
 State lives in ${TT_LLMS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-llms}
 TT_CLAUDE_BIN, TT_COPILOT_BIN and TT_CODEX_BIN name the executables.
 --tsv output: models: provider, id, label, efforts, runnable, scope (any | session);
-              status: provider, state, version, models, runnable models.
+              status: provider, state, version, models, runnable models, actions (comma separated, "-" for none).
+Capabilities: provider-model-config-v1 (model-config.sh works in provider:model-id choices checked against the
+runnable catalog) and provider-actions-v1 (each status row ends with the actions it supports: install, sign-in,
+connect, disconnect, refresh).
 Exit: 0 ok, 1 refused or not installed, 2 usage error.
 EOF
 }
@@ -248,6 +252,25 @@ cmd_versions() {
 		$c != "" && $c != "-" { if (tsv) print $1, $2, $c; else printf "%-7s %-14s %s\n", $1, $2, $c }' "$list"
 }
 
+# actions_for <provider> <state>: what a program may offer for a provider in this state. A tool that is not
+# installed can be installed; one that is installed can be signed in to and connected; a connected one can be
+# refreshed and (claude stays: it runs the skills) disconnected; one whose command is gone can be installed again
+# or forgotten. Tatty and other programs map each to a fixed button; the toolbox never runs text taken from here.
+actions_for() {
+	case $2 in
+	"not installed") echo "install" ;;
+	available) echo "sign-in,connect" ;;
+	connected) if [ "$1" = claude ]; then echo "refresh"; else echo "refresh,disconnect"; fi ;;
+	missing) if [ "$1" = claude ]; then echo "install"; else echo "install,disconnect"; fi ;;
+	*) echo "-" ;;
+	esac
+}
+
+cmd_capabilities() {
+	case "${1:-}" in "" | --tsv) ;; *) usage; exit 2 ;; esac
+	printf '%s\n' provider-model-config-v1 provider-actions-v1
+}
+
 cmd_status() {
 	local tsv=0 p state ver bin n r
 	[ "${1:-}" = "--tsv" ] && tsv=1
@@ -268,7 +291,7 @@ cmd_status() {
 			n=$(all_models | awk -F'\t' -v p="$p" '$1 == p' | wc -l | tr -d ' ')
 			r=$(all_models | awk -F'\t' -v p="$p" '$1 == p && $5 == "yes"' | wc -l | tr -d ' ')
 		fi
-		if [ $tsv -eq 1 ]; then printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$state" "$ver" "$n" "$r"
+		if [ $tsv -eq 1 ]; then printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$p" "$state" "$ver" "$n" "$r" "$(actions_for "$p" "$state")"
 		else printf '%-9s %-14s %-24s %s (%s)\n' "$p" "$state" "${ver:--}" "$n" "$r"; fi
 	done
 	return 0
@@ -322,6 +345,7 @@ case "$cmd" in
 	refresh) cmd_refresh "$@" ;;
 	models) cmd_models "$@" ;;
 	versions) cmd_versions "$@" ;;
+	capabilities) cmd_capabilities "$@" ;;
 	-h | --help | help | "") usage; [ -n "$cmd" ] && exit 0 || exit 2 ;;
 	*) usage; exit 2 ;;
 esac

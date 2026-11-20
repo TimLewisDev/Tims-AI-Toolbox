@@ -1,5 +1,5 @@
 # economy: everything on Sonnet, no thinking-effort overrides. Overrides only: role, model, effort.
-adversary	sonnet	-
-branch-refute	sonnet	-
-tt-approach	sonnet	-
-tt-technical-design	sonnet	-
+adversary	claude:sonnet	-
+branch-refute	claude:sonnet	-
+tt-approach	claude:sonnet	-
+tt-technical-design	claude:sonnet	-

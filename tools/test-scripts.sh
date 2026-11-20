@@ -1255,9 +1255,12 @@ expect "set rejects a model that is not runnable" 2 MC set coder gpt-5 low
 LL connect copilot >/dev/null
 expect "set rejects a connected tool's model that is not runnable" 2 MC set coder gpt-5 low
 LL disconnect copilot >/dev/null
-expect "the session role is inherit by default" 0 MC get session
-has "session default" "$T/out" "model=- effort=-"
+expect "the session role is Sonnet by default" 0 MC get session
+has "session default" "$T/out" "model=sonnet effort=-"
 expect "args with nothing set" 0 MC args
+has "the shipped session setting starts claude on Sonnet" "$T/out" "--model sonnet"
+expect "a session left to Claude Code gets no flags" 0 MC set session - -
+expect "args for it" 0 MC args
 [ ! -s "$T/out" ] && ok "no flags when left to the session" || bad "no flags when left to the session" "$(cat "$T/out")"
 expect "args from explicit values" 0 MC args --model opus --effort high
 has "both flags" "$T/out" "--model opus --effort high"
@@ -1270,7 +1273,7 @@ expect "a step refuses a specific version" 2 MC set coder claude-sonnet-5-5 -
 has "and says only the session can use it" "$T/out" "only the session can use"
 expect "a step still takes an alias" 0 MC set coder haiku -
 expect "an unknown model is still refused for the session" 2 MC set session claude-nonsense-9 -
-expect "put the session back" 0 MC set session - -
+expect "put the session back" 0 MC set session claude:sonnet -
 expect "put the coder back" 0 MC set coder sonnet -
 expect "args with a model only" 0 MC args --model sonnet
 has "model flag" "$T/out" "--model sonnet"
@@ -1279,10 +1282,10 @@ expect "args rejects an unknown model" 2 MC args --model gpt-5
 expect "args rejects a bad effort" 2 MC args --model opus --effort loud
 expect "args needs a value" 2 MC args --model
 expect "list as rows for a program" 0 MC list --tsv
-has "a subagent row" "$T/out" "coder	sub	3	tt-execute, tt-execute-lite, tt-coder	Writes the code for one task	sonnet	-	sonnet	-"
+has "a subagent row" "$T/out" "coder	sub	3	tt-execute, tt-execute-lite, tt-coder	Writes the code for one task	claude:sonnet	-	claude:sonnet	-"
 has "the session row" "$T/out" "session	main	1	"
 expect "list --tsv for a named mode" 0 MC list --tsv --mode economy
-has "economy's adversary" "$T/out" "adversary	sub	1	tt-adversarial-plan	Attacks each planning stage's written reasoning	sonnet	-	opus	high"
+has "economy's adversary" "$T/out" "adversary	sub	1	tt-adversarial-plan	Attacks each planning stage's written reasoning	claude:sonnet	-	claude:opus	high"
 expect "list rejects an unknown flag" 2 MC list --nope
 expect "set an override" 0 MC set coder opus medium
 expect "get sees the override" 0 MC get coder
@@ -1307,7 +1310,7 @@ expect "and lists" 0 MC list
 hasnt "the retired role is not listed" "$T/out" "drift-check"
 rm -f "$TT_CONFIG_DIR/modes/old.tsv"; MC use cheap >/dev/null
 expect "economy has no opus" 0 MC use economy
-MC list >"$T/out"; hasnt "economy list has no opus" "$T/out" " opus "
+MC list >"$T/out"; hasnt "economy list has no opus" "$T/out" "claude:opus"
 MC use thorough >/dev/null; MC get plan-audit >"$T/out"; has "thorough gates on opus" "$T/out" "model=opus effort=high"
 MC set unit-writer opus low >/dev/null
 expect "editing a shipped mode shadows it" 0 MC modes
@@ -1345,9 +1348,10 @@ has "Bedrock haiku id" "$T/out" "haiku	Haiku 4.5	us.anthropic.claude-haiku-4-5-2
 expect "llms versions rejects a family it doesn't know" 2 LL versions gpt
 expect "family list needs a subcommand" 2 MC family
 expect "family list, nothing chosen" 0 FAMENV bash "$S/model-config.sh" family list --tsv
-has "sonnet follows the newest" "$T/out" "sonnet	-	us.anthropic.claude-sonnet-5-5	Sonnet 5.5	newest"
-has "fable follows the newest" "$T/out" "fable	-	us.anthropic.claude-fable-5-1	Fable 5.1	newest"
-has "each row lists the versions of the family" "$T/out" "us.anthropic.claude-sonnet-5-5=Sonnet 5.5;us.anthropic.claude-sonnet-5=Sonnet 5;"
+has "sonnet follows the newest" "$T/out" "sonnet	-	claude:us.anthropic.claude-sonnet-5-5	Sonnet 5.5	newest"
+has "fable follows the newest" "$T/out" "fable	-	claude:us.anthropic.claude-fable-5-1	Fable 5.1	newest"
+has "each row lists the versions of the family, qualified" "$T/out" "claude:us.anthropic.claude-sonnet-5-5=Sonnet 5.5;claude:us.anthropic.claude-sonnet-5=Sonnet 5;"
+has "and says a pin can be changed now" "$T/out" "	ok"
 expect "family env pins every alias to the newest" 0 FAMENV bash "$S/model-config.sh" family env
 has "sonnet exported" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5"
 has "opus exported" "$T/out" "ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-5-5"
@@ -1356,23 +1360,121 @@ expect "a user's own pin is left alone" 0 FAMENV ANTHROPIC_DEFAULT_SONNET_MODEL=
 hasnt "own sonnet not exported" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL"
 has "the rest still are" "$T/out" "ANTHROPIC_DEFAULT_OPUS_MODEL="
 FAMENV ANTHROPIC_DEFAULT_SONNET_MODEL=my-own-model bash "$S/model-config.sh" family list --tsv >"$T/out"
-has "listed as the user's own" "$T/out" "sonnet	-	my-own-model	-	own"
+has "listed as the user's own" "$T/out" "sonnet	-	claude:my-own-model	-	own"
 expect "pin a family" 0 FAMENV bash "$S/model-config.sh" family set sonnet us.anthropic.claude-sonnet-4-6
 FAMENV bash "$S/model-config.sh" family list --tsv >"$T/out"
-has "the pin is listed" "$T/out" "sonnet	us.anthropic.claude-sonnet-4-6	us.anthropic.claude-sonnet-4-6	Sonnet 4.6	chosen"
+has "the pin is listed, qualified" "$T/out" "sonnet	claude:us.anthropic.claude-sonnet-4-6	claude:us.anthropic.claude-sonnet-4-6	Sonnet 4.6	chosen"
+has "and kept qualified in the pin file" "$T/famconfig/family-versions.tsv" "sonnet	claude:us.anthropic.claude-sonnet-4-6"
 FAMENV ANTHROPIC_DEFAULT_SONNET_MODEL=my-own-model bash "$S/model-config.sh" family env >"$T/out"
 has "a pin beats the user's own setup" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6"
 env -u CLAUDE_CODE_USE_BEDROCK -u ANTHROPIC_DEFAULT_SONNET_MODEL -u ANTHROPIC_DEFAULT_OPUS_MODEL -u ANTHROPIC_DEFAULT_HAIKU_MODEL -u ANTHROPIC_DEFAULT_FABLE_MODEL HOME="$T/nohome" TT_CONFIG_DIR="$T/famconfig" bash "$S/model-config.sh" family list --tsv >"$T/out"
-has "a pin this backend doesn't list is ignored" "$T/out" "sonnet	-	claude-sonnet-5-5	Sonnet 5.5	newest"
+has "a pin this backend doesn't list is ignored" "$T/out" "sonnet	-	claude:claude-sonnet-5-5	Sonnet 5.5	newest"
 expect "a version of another family is refused" 2 FAMENV bash "$S/model-config.sh" family set opus us.anthropic.claude-sonnet-4-6
 expect "an unknown version is refused" 2 FAMENV bash "$S/model-config.sh" family set sonnet claude-nonsense-9
-has "and lists the ones it has" "$T/out" "one of: us.anthropic.claude-sonnet-5-5 us.anthropic.claude-sonnet-5 "
+has "and lists the ones it has" "$T/out" "one of: claude:us.anthropic.claude-sonnet-5-5 claude:us.anthropic.claude-sonnet-5 "
 expect "an unknown family is refused" 2 FAMENV bash "$S/model-config.sh" family set cat x
 expect "family set needs two arguments" 2 FAMENV bash "$S/model-config.sh" family set sonnet
 expect "clear a pin" 0 FAMENV bash "$S/model-config.sh" family set sonnet -
 FAMENV bash "$S/model-config.sh" family env >"$T/out"
 has "back to the newest" "$T/out" "ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5"
 [ ! -s "$T/famconfig/family-versions.tsv" ] && ok "the pin file is empty again" || bad "the pin file is empty again" "$(cat "$T/famconfig/family-versions.tsv")"
+# ---- the toolbox's half of the provider contract: capabilities, provider actions, provider:model-id choices
+echo "# provider-qualified models and actions"
+expect "llms capabilities" 0 LL capabilities --tsv
+has "the model-configuration token" "$T/out" "provider-model-config-v1"
+has "the provider-actions token" "$T/out" "provider-actions-v1"
+[ "$(wc -l <"$T/out" | tr -d ' ')" = 2 ] && ok "and nothing else" || bad "and nothing else" "$(cat "$T/out")"
+expect "capabilities takes no other argument" 2 LL capabilities --nope
+last_field() { awk -F'\t' -v p="$1" '$1 == p { print $NF }' "$T/out"; }
+TT_LLMS_HOME="$T/llms-act" TT_CODEX_BIN="$T/none-codex" expect "status rows end with the actions" 0 LL status --tsv
+[ "$(last_field claude)" = refresh ] && ok "claude connected: refresh only (it stays)" || bad "claude connected: refresh only" "$(last_field claude)"
+[ "$(last_field copilot)" = "sign-in,connect" ] && ok "an installed tool not connected: sign-in, connect" || bad "an installed tool not connected" "$(last_field copilot)"
+[ "$(last_field codex)" = install ] && ok "a tool that is not installed: install" || bad "a tool that is not installed" "$(last_field codex)"
+TT_LLMS_HOME="$T/llms-act" TT_CODEX_BIN="$T/none-codex" bash "$core/tt-connections/scripts/llms.sh" connect copilot >/dev/null
+TT_LLMS_HOME="$T/llms-act" TT_CODEX_BIN="$T/none-codex" expect "after connecting" 0 LL status --tsv
+[ "$(last_field copilot)" = "refresh,disconnect" ] && ok "a connected tool: refresh, disconnect" || bad "a connected tool" "$(last_field copilot)"
+TT_LLMS_HOME="$T/llms-act" TT_CODEX_BIN="$T/none-codex" TT_COPILOT_BIN="$T/none-copilot" expect "with the tool gone" 0 LL status --tsv
+[ "$(last_field copilot)" = "install,disconnect" ] && ok "connected but gone: install, disconnect" || bad "connected but gone" "$(last_field copilot)"
+TT_LLMS_HOME="$T/llms-act" TT_CLAUDE_BIN="$T/none-claude" expect "claude's command gone" 0 LL status --tsv
+[ "$(last_field claude)" = install ] && ok "claude gone: install (never disconnect)" || bad "claude gone" "$(last_field claude)"
+
+QC() { TT_CONFIG_DIR="$T/qcfg" bash "$S/model-config.sh" "$@"; }
+rm -rf "$T/qcfg"
+expect "the shipped session role is claude:sonnet" 0 QC list --tsv
+has "qualified in the table" "$T/out" "The main session itself: what a workflow start launches claude with	claude:sonnet	-	claude:sonnet	-"
+expect "get gives Claude's own id" 0 QC get session
+has "bare for the Agent tool" "$T/out" "model=sonnet effort=-"
+expect "set takes a qualified model" 0 QC set coder claude:opus low
+has "and says so" "$T/out" "model=claude:opus"
+grep -qF "coder	claude:opus	low" "$T/qcfg/modes/recommended.tsv" && ok "it is saved qualified" || bad "it is saved qualified" "$(cat "$T/qcfg/modes/recommended.tsv")"
+expect "a bare id with one match is accepted" 0 QC set coder haiku -
+grep -qF "coder	claude:haiku	-" "$T/qcfg/modes/recommended.tsv" && ok "and saved qualified" || bad "and saved qualified" "$(cat "$T/qcfg/modes/recommended.tsv")"
+expect "get still prints the alias" 0 QC get coder
+has "bare id" "$T/out" "model=haiku effort=-"
+expect "a model nobody offers is refused" 2 QC set coder claude:gpt-5 high
+has "naming the ones there are" "$T/out" "claude:sonnet"
+expect "a model of a provider that is not connected is refused" 2 QC set coder copilot:gpt-5 low
+expect "args takes a qualified model" 0 QC args --model claude:opus --effort high
+has "and passes Claude's id on" "$T/out" "--model opus --effort high"
+expect "args takes a qualified specific version" 0 QC args --model claude:claude-sonnet-5-5
+has "the version's own id" "$T/out" "--model claude-sonnet-5-5"
+# a second provider whose model can run, with an id Claude has too
+export AMB_HOME="$T/llms-amb"
+TT_LLMS_HOME="$AMB_HOME" bash "$core/tt-connections/scripts/llms.sh" connect codex >/dev/null
+mkdir -p "$AMB_HOME/models.d"; printf 'sonnet\tSonnet twin\t-\tyes\ngpt-5-codex\tGPT-5 Codex\tlow,high\tyes\n' >"$AMB_HOME/models.d/codex.tsv"
+QA() { TT_LLMS_HOME="$AMB_HOME" TT_CONFIG_DIR="$T/qcfg-amb" bash "$S/model-config.sh" "$@"; }
+rm -rf "$T/qcfg-amb"
+expect "an id two providers have is not guessed" 2 QA set coder sonnet -
+has "and says to name the provider" "$T/out" "provider:model-id"
+expect "the exact choice is taken" 0 QA set coder codex:sonnet -
+expect "list shows the other provider's model" 0 QA list --tsv
+has "qualified with its provider" "$T/out" "codex:sonnet"
+expect "get refuses a role set to another provider" 2 QA get coder
+has "and says what to do" "$T/out" "can't run a skill"
+expect "args refuses another provider's model" 2 QA args --model codex:gpt-5-codex
+has "saying it is not Claude's" "$T/out" "not a Claude model"
+expect "claude's own twin still works" 0 QA set coder claude:sonnet -
+# saved bare values from before: qualified when one model has them, unresolved otherwise
+mkdir -p "$T/qcfg/modes"; printf 'coder\topus\thigh\nadversary\tnonesuch\t-\n' >"$T/qcfg/modes/recommended.tsv"
+expect "a saved bare id with one match is read as qualified" 0 QC list --tsv
+has "coder is claude:opus" "$T/out" "claude:opus	high	claude:sonnet	-"
+has "an unmatched one stays as saved" "$T/out" "	nonesuch	-	claude:opus	high"
+expect "get still works for the resolved one" 0 QC get coder
+has "bare for the Agent tool" "$T/out" "model=opus effort=high"
+expect "get refuses the unresolved one" 2 QC get adversary
+has "asking for a new choice" "$T/out" "matches no model (or several)"
+expect "the text list marks it" 0 QC list
+has "unresolved" "$T/out" "(unresolved)"
+expect "save will not copy an unresolved model" 2 QC save mine
+has "naming the role" "$T/out" "adversary"
+expect "a new choice fixes it" 0 QC set adversary claude:opus high
+expect "and save works" 0 QC save mine
+grep -qF "coder	claude:opus	high" "$T/qcfg/modes/mine.tsv" && ok "saved qualified" || bad "saved qualified" "$(cat "$T/qcfg/modes/mine.tsv")"
+printf 'session\tnonesuch\t-\n' >"$T/qcfg/modes/mine.tsv"
+expect "args refuses an unresolved session model" 2 QC args
+mkdir -p "$T/qcfg-amb/modes"; printf 'tt-approach\tsonnet\t-\n' >"$T/qcfg-amb/modes/recommended.tsv"
+expect "a stage note refuses an ambiguous model" 1 QA stage-note tt-approach
+# family pins are Claude's, qualified, and kept while Claude's command is gone
+rm -rf "$T/famconfig2"
+FAM2() { env -u ANTHROPIC_DEFAULT_SONNET_MODEL -u ANTHROPIC_DEFAULT_OPUS_MODEL -u ANTHROPIC_DEFAULT_HAIKU_MODEL -u ANTHROPIC_DEFAULT_FABLE_MODEL \
+	HOME="$T/nohome" CLAUDE_CODE_USE_BEDROCK=1 TT_CONFIG_DIR="$T/famconfig2" "$@"; }
+expect "pin a family with a qualified version" 0 FAM2 bash "$S/model-config.sh" family set opus claude:us.anthropic.claude-opus-4-8
+has "the pin file keeps it qualified" "$T/famconfig2/family-versions.tsv" "opus	claude:us.anthropic.claude-opus-4-8"
+expect "another provider's version is refused" 2 FAM2 bash "$S/model-config.sh" family set opus codex:gpt-5
+has "saying only Claude's" "$T/out" "only Claude's versions"
+expect "family env prints bare ids" 0 FAM2 bash "$S/model-config.sh" family env
+has "the pinned alias" "$T/out" "ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-8"
+hasnt "never qualified" "$T/out" "claude:"
+FAM2 TT_CLAUDE_BIN="$T/none-claude" bash "$S/model-config.sh" family list --tsv >"$T/out"
+has "with Claude's command gone the pin is kept and shown" "$T/out" "opus	claude:us.anthropic.claude-opus-4-8	claude:us.anthropic.claude-opus-4-8	Opus 4.8	chosen"
+has "as unavailable" "$T/out" "	unavailable"
+expect "a pin can't be changed then" 2 FAM2 TT_CLAUDE_BIN="$T/none-claude" bash "$S/model-config.sh" family set sonnet claude:us.anthropic.claude-sonnet-4-6
+has "saying Claude's command is missing" "$T/out" "isn't installed"
+expect "family env is blocked then" 1 FAM2 TT_CLAUDE_BIN="$T/none-claude" bash "$S/model-config.sh" family env
+[ ! -s "$T/out" ] || has "with the reason" "$T/out" "isn't installed"
+printf 'haiku\tus.anthropic.claude-haiku-4-5-20251001-v1:0\n' >"$T/famconfig2/family-versions.tsv"
+expect "an older pin file with a bare id" 0 FAM2 bash "$S/model-config.sh" family list --tsv
+has "is read as Claude's" "$T/out" "haiku	claude:us.anthropic.claude-haiku-4-5-20251001-v1:0"
 # every role is wired into a skill, and every wired role exists
 roles=$(awk -F'\t' '$1 !~ /^#/ && $2 == "sub" { print $1 }' "$core/tt-common/model-roles.tsv")
 used=$(grep -rhoE 'model-config\.sh get [a-z][a-z-]*' "$root"/plugins/*/skills/tt-*/ --include=*.md | awk '{ print $3 }' | sort -u)

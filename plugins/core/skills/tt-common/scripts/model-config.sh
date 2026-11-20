@@ -7,10 +7,10 @@ set -u
 
 usage() {
 	cat >&2 <<'EOF'
-usage: model-config.sh get <role>                    model=<m> effort=<e> for the active mode
+usage: model-config.sh get <role>                    model=<id> effort=<e> for the active mode (Claude's own id)
        model-config.sh list [--mode <name>] [--tsv]  the ranked table, highest value first (--tsv: one row per role
                                                      for a program: role kind tier used-by label model effort
-                                                     default-model default-effort)
+                                                     default-model default-effort; models as provider:model-id)
        model-config.sh set <role> <model> <effort>   change one role in the active mode
        model-config.sh modes                         list modes; * marks the active one
        model-config.sh use <mode>                    make a mode the active one
@@ -22,16 +22,23 @@ usage: model-config.sh get <role>                    model=<m> effort=<e> for th
                                                      (values left out come from the `session` role)
        model-config.sh family list [--tsv]           which version each alias (sonnet, opus, haiku, fable) means:
                                                      family chosen effective label source (chosen|own|newest)
-       model-config.sh family set <family> <id|->    pin an alias to a specific version; - goes back to the newest
+       model-config.sh family set <family> <claude:id|->  pin an alias to a specific version; - goes back to the newest
        model-config.sh family env                    the NAME=value lines a launcher exports so the aliases mean
                                                      those versions (ANTHROPIC_DEFAULT_<FAMILY>_MODEL)
        model-config.sh status                        active mode, changes, warnings
 
-model: sonnet | opus | haiku | fable | -     effort: low | medium | high | xhigh | max | -
+model: provider:model-id, e.g. claude:sonnet claude:opus claude:haiku claude:fable | -
+effort: low | medium | high | xhigh | max | -
 "-" leaves the choice to the session. Roles are in tt-common/model-roles.tsv.
-The models offered are the runnable ones of the connected LLMs (tt-connections: llms.sh models);
-without that script, the Claude aliases above. The `session` role (and `args`) may also name a
-specific version (e.g. claude-sonnet-5-5); every other role takes the aliases only, because the
+A model is one string, provider:model-id, and the same id from two providers is two choices. `set` and
+`args` take only a model the runnable catalog of the connected LLMs (tt-connections: llms.sh models)
+has; there is no list of models in this script, so with no catalog they refuse. A bare id is taken
+when exactly one runnable model has it, and is saved qualified. Values saved before this (bare ids)
+are read the same way: one that matches none, or several, is shown as it is, unresolved, and `get`,
+`args` and `stage-note` refuse it until a new choice is made (`save` will not copy it).
+`get`, `args`, `stage-note` and `family env` give Claude's own id (sonnet, claude-sonnet-5-5) and
+refuse a choice of another provider. The `session` role (and `args`) may also name a specific
+version (e.g. claude:claude-sonnet-5-5); every other role takes the aliases only, because the
 Agent tool, which runs a subagent, takes no specific version. A subagent's alias means whatever
 ANTHROPIC_DEFAULT_<FAMILY>_MODEL says in the session's environment, so `family` is how a specific
 version is chosen for the aliases: a launcher exports `family env` when it starts claude.
@@ -46,7 +53,6 @@ REG="$common/model-roles.tsv"
 SHIPPED="$common/modes"
 CFG="${TT_CONFIG_DIR:-$HOME/.claude/tt-config}"
 USERMODES="$CFG/modes"
-MODELS="sonnet opus haiku fable -"
 EFFORTS="low medium high xhigh max -"
 DEFAULT_MODE=recommended
 
@@ -59,31 +65,83 @@ in_list() { case " $2 " in *" $1 "*) return 0 ;; esac; return 1; }
 LLMS=""
 if conn=$(tt_find tt-connections) && [ -f "$conn/scripts/llms.sh" ]; then LLMS="$conn/scripts/llms.sh"; fi
 
-# runnable_rows: provider, id, label, efforts, runnable[, scope], one per line
-runnable_rows() {
-	[ -n "$LLMS" ] && bash "$LLMS" models --runnable --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' 'NF >= 5' && return 0
-	return 1
+# The runnable models, read once (the call must not be inside $(...), which would lose the copy):
+# provider, id, label, efforts, runnable[, scope], one per line. Empty when there is no catalog.
+ROWS=""
+ROWS_READ=""
+catalog() {
+	[ -n "$ROWS_READ" ] && return 0
+	ROWS_READ=1
+	[ -n "$LLMS" ] && ROWS=$(bash "$LLMS" models --runnable --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' 'NF >= 5')
+	return 0
 }
 
-# model_ids [session]: the ids that may be set, "-" included. A specific version
+# qualify <value>: provider:model-id. "-" and an already qualified value come back as they are; a bare id
+# comes back qualified when exactly one catalog row has it, else as it is (unresolved).
+qualify() {
+	case $1 in
+	- | *:*) printf '%s' "$1"; return 0 ;;
+	esac
+	local hit
+	hit=$(printf '%s\n' "$ROWS" | awk -F'\t' -v m="$1" '$2 == m { n++; q = $1 ":" $2 } END { if (n == 1) printf "%s", q }')
+	if [ -n "$hit" ]; then printf '%s' "$hit"; else printf '%s' "$1"; fi
+}
+
+# qualify_column <column> <more awk>: the tab-separated rows on stdin with that column's bare ids qualified
+# the same way (needs the catalog read)
+qualify_columns() {
+	QROWS="$ROWS" awk -F'\t' -v OFS='\t' -v cols="$1" '
+		BEGIN {
+			n = split(ENVIRON["QROWS"], r, "\n")
+			for (i = 1; i <= n; i++) { split(r[i], c, "\t"); if (c[2] != "") { cnt[c[2]]++; q[c[2]] = c[1] ":" c[2] } }
+			nc = split(cols, cl, ",")
+		}
+		{
+			for (j = 1; j <= nc; j++) {
+				v = $(cl[j])
+				if (v != "-" && v !~ /:/ && cnt[v] == 1) $(cl[j]) = q[v]
+			}
+			print
+		}'
+}
+
+# model_ids [session]: the provider:model-ids that may be set, "-" included. A specific version
 # (scope "session") is a session model: `claude --model` takes it, but the Agent
 # tool, so a subagent role, takes aliases only. Without "session" they are left out.
 model_ids() {
-	local ids
-	ids=$(runnable_rows | awk -F'\t' -v s="${1:-}" 's == "session" || $6 != "session" { printf "%s ", $2 }') || ids=""
-	[ -n "$ids" ] && echo "$ids-" || echo "$MODELS"
+	printf '%s\n' "$ROWS" | awk -F'\t' -v s="${1:-}" 'NF && (s == "session" || $6 != "session") { printf "%s:%s ", $1, $2 } END { printf "-" }'
 }
 
-# effort_list <model>: the efforts that model accepts, "-" included
+# effort_list <provider:model-id>: the efforts that model accepts, "-" included
 effort_list() {
 	local e=""
-	[ "$1" != "-" ] && e=$(runnable_rows | awk -F'\t' -v m="$1" '$2 == m && $4 != "-" { gsub(/,/, " ", $4); print $4; exit }')
+	[ "$1" != "-" ] && e=$(printf '%s\n' "$ROWS" | awk -F'\t' -v m="$1" '$1 ":" $2 == m && $4 != "-" { gsub(/,/, " ", $4); print $4; exit }')
 	[ -n "$e" ] && echo "$e -" || echo "$EFFORTS"
 }
 
-# is_session_only <model>: a specific version, which only the session can use
+# is_session_only <provider:model-id>: a specific version, which only the session can use
 is_session_only() {
-	[ "$1" != "-" ] && runnable_rows | awk -F'\t' -v m="$1" '$2 == m && $6 == "session" { f = 1 } END { exit !f }'
+	[ "$1" != "-" ] && printf '%s\n' "$ROWS" | awk -F'\t' -v m="$1" '$1 ":" $2 == m && $6 == "session" { f = 1 } END { exit !f }'
+}
+
+# native_model <value> <role>: Claude's own id for a role's value, "-" for none. A value of another provider
+# can't run a skill; an unresolved bare value (matches none or several models) asks for a new choice.
+# Return 1 with the reason on stderr. A bare value with no catalog at all is taken as Claude's (as it always was).
+native_model() {
+	case $1 in
+	-) echo "-"; return 0 ;;
+	claude:*) echo "${1#claude:}"; return 0 ;;
+	*:*) echo "model-config: role '$2' is set to $1, which can't run a skill (only Claude's models can): choose one with: model-config.sh set $2 claude:<model> <effort>" >&2; return 1 ;;
+	esac
+	if [ -z "$ROWS" ]; then echo "$1"; return 0; fi
+	local q
+	q=$(qualify "$1")
+	case $q in
+	claude:*) echo "${q#claude:}"; return 0 ;;
+	*:*) echo "model-config: role '$2' is set to $q, which can't run a skill (only Claude's models can): choose one with: model-config.sh set $2 claude:<model> <effort>" >&2; return 1 ;;
+	esac
+	echo "model-config: role '$2' is set to '$1', which matches no model (or several): choose it again with: model-config.sh set $2 <provider:model> <effort>" >&2
+	return 1
 }
 
 [ -f "$REG" ] || die "role registry not found: $REG"
@@ -121,10 +179,13 @@ resolve() {
 
 cmd_get() {
 	[ $# -eq 1 ] || { usage; exit 2; }
-	local row
-	row=$(resolve "$(active_mode)" | awk -F'\t' -v r="$1" '$1 == r { print "model=" $6 " effort=" $7; found = 1 } END { exit !found }') ||
+	local row m e
+	row=$(resolve "$(active_mode)" | awk -F'\t' -v r="$1" '$1 == r { print $6 "\t" $7; found = 1 } END { exit !found }') ||
 		die "unknown role '$1' (see tt-common/model-roles.tsv)"
-	echo "$row"
+	m=${row%%$'\t'*}; e=${row##*$'\t'}
+	case $m in - | *:*) ;; *) catalog ;; esac # only a value saved bare needs the catalog: the shipped ones are qualified
+	m=$(native_model "$m" "$1") || exit 2
+	echo "model=$m effort=$e"
 }
 
 cmd_list() {
@@ -140,14 +201,17 @@ cmd_list() {
 	done
 	# --tsv: one row per role, tab-separated, for a program to read:
 	# role kind tier used-by label model effort default-model default-effort
-	[ $tsv -eq 1 ] && { resolve "$mode"; return 0; }
+	# (models as provider:model-id; a saved bare id matching none or several models stays bare: unresolved)
+	catalog
+	[ $tsv -eq 1 ] && { resolve "$mode" | qualify_columns 6,8; return 0; }
 	echo "Mode: $mode"
-	resolve "$mode" | awk -F'\t' '
-		BEGIN { printf "  %-4s %-20s %-9s %-8s %-7s %s\n", "Tier", "Role", "Kind", "Model", "Effort", "Used by" }
+	resolve "$mode" | qualify_columns 6,8 | awk -F'\t' '
+		BEGIN { printf "  %-4s %-20s %-9s %-18s %-7s %s\n", "Tier", "Role", "Kind", "Model", "Effort", "Used by" }
 		{
 			ch = ($6 != $8 || $7 != $9) ? "*" : " "
 			kind = ($2 == "main") ? "advisory" : "subagent"
-			printf "%s %-4s %-20s %-9s %-8s %-7s %s\n", ch, $3, $1, kind, $6, $7, $4
+			unres = ($6 != "-" && $6 !~ /:/) ? " (unresolved)" : ""
+			printf "%s %-4s %-20s %-9s %-18s %-7s %s\n", ch, $3, $1, kind, $6 unres, $7, $4
 		}
 		END { print "\n* = differs from the recommended defaults. advisory = runs in your session: set with /model and /effort." }'
 }
@@ -165,17 +229,26 @@ write_override() { # write_override <file> <role> <model> <effort>
 # check_pair <model> <effort> <role>: exit 2 unless both are allowed together for
 # that role. The session role (and `args`, which starts a session) may name a
 # specific version; every other role is a subagent or a stage and takes aliases.
+# Sets CHECKED to the provider:model-id to keep. There is no list of models here: with no catalog it refuses.
+CHECKED=""
 check_pair() {
-	local ids efforts scope=""
+	local ids efforts scope="" m=$1
 	[ "${3:-}" = session ] && scope=session
-	ids=$(model_ids "$scope"); efforts=$(effort_list "$1")
-	if ! in_list "$1" "$ids"; then
-		if [ -z "$scope" ] && is_session_only "$1"; then
+	catalog
+	[ -n "$ROWS" ] || die "there is no model catalog to check '$1' against (tt-connections: llms.sh models); update the core plugin"
+	m=$(qualify "$m")
+	ids=$(model_ids "$scope"); efforts=$(effort_list "$m")
+	if ! in_list "$m" "$ids"; then
+		if [ -z "$scope" ] && is_session_only "$m"; then
 			die "'$1' is a specific version, which only the session can use; '$3' takes one of: $ids"
 		fi
-		die "model must be one of: $ids"
+		case $m in
+		*:*) die "model must be one of: $ids" ;;
+		*) die "'$1' matches no runnable model, or several: name it as provider:model-id, one of: $ids" ;;
+		esac
 	fi
-	in_list "$2" "$efforts" || die "effort for '$1' must be one of: $efforts"
+	in_list "$2" "$efforts" || die "effort for '$m' must be one of: $efforts"
+	CHECKED=$m
 }
 
 # cmd_args [--model m] [--effort e]: the flags that start claude on a model and
@@ -196,6 +269,11 @@ cmd_args() {
 	done
 	[ -n "$m" ] || m="-"; [ -n "$e" ] || e="-"
 	check_pair "$m" "$e" session
+	m=$CHECKED
+	case $m in
+	- | claude:*) m=${m#claude:} ;;
+	*) die "args starts claude: '$m' is not a Claude model" ;;
+	esac
 	local out=""
 	[ "$m" = "-" ] || out="--model $m"
 	[ "$e" = "-" ] || out="${out:+$out }--effort $e"
@@ -207,6 +285,7 @@ cmd_set() {
 	local role=$1 model=$2 effort=$3 mode
 	awk -F'\t' -v r="$role" '$1 !~ /^#/ && $1 == r { f = 1 } END { exit !f }' "$REG" || die "unknown role '$role'"
 	check_pair "$model" "$effort" "$role"
+	model=$CHECKED
 	mode=$(active_mode)
 	write_override "$(user_file "$mode")" "$role" "$model" "$effort"
 	echo "set $role: model=$model effort=$effort (mode $mode)"
@@ -248,10 +327,14 @@ cmd_save() {
 	fi
 	[ -f "$(shipped_file "$name")" ] && die "'$name' is a shipped mode name; pick another"
 	src=$(active_mode)
+	catalog
+	local bad
+	bad=$(resolve "$src" | qualify_columns 6,8 | awk -F'\t' '$6 != "-" && $6 !~ /:/ { printf "%s%s", s, $1; s = ", " }')
+	[ -z "$bad" ] || die "roles with a model that matches none or several (unresolved): $bad; choose them again with set before saving"
 	mkdir -p "$USERMODES" || die "cannot create $USERMODES"
 	{
 		echo "# saved from $src. Overrides only: role, model, effort."
-		resolve "$src" | awk -F'\t' -v OFS='\t' '$6 != $8 || $7 != $9 { print $1, $6, $7 }'
+		resolve "$src" | qualify_columns 6,8 | awk -F'\t' -v OFS='\t' '$6 != $8 || $7 != $9 { print $1, $6, $7 }'
 	} >"$(user_file "$name")"
 	# A shipped mode stays as shipped: drop edits made to it, they now live in the new mode.
 	[ -f "$(shipped_file "$src")" ] && rm -f "$(user_file "$src")"
@@ -282,6 +365,8 @@ cmd_stage_note() {
 	row=$(resolve "$mode" | awk -F'\t' -v r="$1" '$1 == r && $2 == "main" { print $6 "\t" $7 }')
 	[ -n "$row" ] || exit 0
 	m=${row%%$'\t'*}; e=${row##*$'\t'}
+	case $m in - | *:*) ;; *) catalog ;; esac
+	m=$(native_model "$m" "$1") || exit 1
 	[ "$m" = "-" ] && [ "$e" = "-" ] && exit 0
 	[ "$m" != "-" ] && cmds="/model $m"
 	[ "$e" != "-" ] && cmds="${cmds:+$cmds and }/effort $e"
@@ -293,17 +378,18 @@ cmd_stage_note() {
 # ANTHROPIC_DEFAULT_<FAMILY>_MODEL says in the environment of the claude that spawns it. Where
 # nothing sets it (a session started by a launcher that is not itself a claude session) Claude
 # Code falls back to an older model. The choice is machine-wide, not part of a mode:
-# $CFG/family-versions.tsv holds `family TAB id` for the pinned ones.
+# $CFG/family-versions.tsv holds `family TAB claude:id` for the pinned ones (an older file's bare id is read as Claude's).
+# Families are Claude's: `family set` takes only a claude: version and `family env` prints bare ids.
 # Everything is worked out in one awk call over the files' contents (read with $(<file), which
 # forks nothing): a launcher asks for this at every start, and on Windows each process costs ~0.1s.
 FAMILIES="sonnet opus haiku fable"
 FAMFILE="$CFG/family-versions.tsv"
 
 # family_table <rows|env>: rows are `family chosen effective label source versions`, one per family:
-#   chosen    the pinned id, or "-" (none, or one this backend doesn't list)
+#   chosen    the pinned claude:id, or "-" (none, or one this backend doesn't list)
 #   source    chosen = pinned; own = the user's environment/settings.json already say; newest = the newest listed
 #   effective "-" when nothing is known (no version list and no choice)
-#   versions  `id=label;id=label`, newest first, the ids of the backend in use (Bedrock when
+#   versions  `claude:id=label;claude:id=label`, newest first, the ids of the backend in use (Bedrock when
 #             CLAUDE_CODE_USE_BEDROCK is 1 in the environment, else in settings.json)
 # env is the NAME=value lines to export: a pinned family always, any other only when the user's own
 # setup leaves the alias open.
@@ -329,13 +415,13 @@ family_table() {
 				f = c[1]
 				if (!(f in newest)) newest[f] = c[col]
 				label[f SUBSEP c[col]] = c[2]
-				vl[f] = vl[f] (vl[f] == "" ? "" : ";") c[col] "=" c[2]
+				vl[f] = vl[f] (vl[f] == "" ? "" : ";") "claude:" c[col] "=" c[2]
 			}
 			n = split(ENVIRON["FM_PINS"], pl, "\n")
 			for (i = 1; i <= n; i++) {
 				line = pl[i]; sub(/\r$/, "", line)
 				if (line == "" || line ~ /^#/) continue
-				split(line, c, "\t"); pin[c[1]] = c[2]
+				split(line, c, "\t"); sub(/^claude:/, "", c[2]); pin[c[1]] = c[2]
 			}
 			nf = split(ENVIRON["FM_FAMILIES"], fa, " ")
 			for (j = 1; j <= nf; j++) {
@@ -356,32 +442,51 @@ family_table() {
 				lb = ((f SUBSEP eff) in label) ? label[f SUBSEP eff] : "-"
 				if (ENVIRON["FM_MODE"] == "env") {
 					if (eff != "-" && (src == "chosen" || src == "newest")) printf "ANTHROPIC_DEFAULT_%s_MODEL=%s\n", toupper(f), eff
-				} else printf "%s\t%s\t%s\t%s\t%s\t%s\n", f, chosen, eff, lb, src, vl[f]
+				} else printf "%s\t%s\t%s\t%s\t%s\t%s\n", f, (chosen == "-" ? "-" : "claude:" chosen), (eff == "-" ? "-" : "claude:" eff), lb, src, vl[f]
 			}
 		}'
 }
 
+# claude_unavailable: succeed (printing why) when the toolbox says Claude's command is gone: a pin is kept then, but
+# nothing may be pinned and no launcher may export the family versions until it is installed again
+claude_unavailable() {
+	[ -n "$LLMS" ] || return 1
+	local st
+	st=$(bash "$LLMS" status --tsv 2>/dev/null | tr -d '\r' | awk -F'\t' '$1 == "claude" { print $2; exit }')
+	[ "$st" = missing ] || return 1
+	echo "Claude is connected, but its command isn't installed here: install it, then try again."
+}
+
 cmd_family() {
-	local sub=${1:-}
+	local sub=${1:-} why
 	[ $# -gt 0 ] && shift
 	case "$sub" in
 	list)
 		[ -n "${conn:-}" ] || die "family versions need the tt-connections skill; update the core plugin"
-		if [ "${1:-}" = "--tsv" ]; then family_table rows
+		# the seventh column says whether a pin can be changed now: ok, or unavailable (Claude's command is gone)
+		if why=$(claude_unavailable); then why=unavailable; else why=ok; fi
+		if [ "${1:-}" = "--tsv" ]; then family_table rows | awk -F'\t' -v OFS='\t' -v u="$why" '{ print $0, u }'
 		else
 			family_table rows | awk -F'\t' 'BEGIN { printf "%-7s %-14s %-9s %s\n", "Family", "Version", "From", "Id" }
 				{ printf "%-7s %-14s %-9s %s\n", $1, $4, $5, $3 }'
+			[ "$why" = unavailable ] && echo "Claude's command isn't installed here: pins are kept, but can't be changed until it is."
 		fi ;;
 	set)
 		[ $# -eq 2 ] || { usage; exit 2; }
 		[ -n "${conn:-}" ] || die "family versions need the tt-connections skill; update the core plugin"
 		in_list "$1" "$FAMILIES" || die "family must be one of: $FAMILIES"
-		local row vers ids tmp
+		local row vers ids tmp want="$2"
 		if [ "$2" != "-" ]; then
+			case $2 in
+			claude:*) ;;
+			*:*) die "only Claude's versions can be pinned: '$2' is another provider's" ;;
+			*) want="claude:$2" ;;
+			esac
+			why=$(claude_unavailable) && die "$why"
 			row=$(family_table rows | awk -F'\t' -v f="$1" '$1 == f')
 			vers=${row##*$'\t'}
 			case ";$vers" in
-			*";$2="*) ;;
+			*";$want="*) ;;
 			*) ids=""; while IFS= read -r row; do ids="$ids ${row%%=*}"; done <<<"${vers//;/$'
 '}"
 				die "'$2' is not a version of $1 here; one of:$ids" ;;
@@ -391,11 +496,12 @@ cmd_family() {
 		tmp=$(mktemp "$FAMFILE.XXXXXX") || die "cannot write $FAMFILE"
 		{
 			[ -f "$FAMFILE" ] && awk -F'\t' -v f="$1" '{ sub(/\r$/, "") } $1 != f' "$FAMFILE"
-			[ "$2" = "-" ] || printf '%s\t%s\n' "$1" "$2"
+			[ "$2" = "-" ] || printf '%s\t%s\n' "$1" "$want"
 		} >"$tmp" && mv "$tmp" "$FAMFILE"
-		if [ "$2" = "-" ]; then echo "family $1: back to the newest"; else echo "family $1: $2"; fi ;;
+		if [ "$2" = "-" ]; then echo "family $1: back to the newest"; else echo "family $1: $want"; fi ;;
 	env)
 		[ -n "${conn:-}" ] || exit 0
+		if why=$(claude_unavailable); then echo "model-config: $why" >&2; exit 1; fi
 		family_table env ;;
 	*) usage; exit 2 ;;
 	esac
@@ -410,7 +516,7 @@ cmd_status() {
 	changed=$(resolve "$mode" | awk -F'\t' '$6 != $8 || $7 != $9' | wc -l | tr -d ' ')
 	echo "active mode: $mode ($kind)"
 	echo "roles differing from the recommended defaults: $changed"
-	opus=$(resolve "$mode" | awk -F'\t' '$2 == "sub" && $6 == "opus" { printf "%s%s", s, $1; s = ", " }')
+	opus=$(resolve "$mode" | awk -F'\t' '$2 == "sub" && ($6 == "opus" || $6 == "claude:opus") { printf "%s%s", s, $1; s = ", " }')
 	[ -n "$opus" ] && echo "subagent roles on opus: $opus"
 	if [ -n "$opus" ]; then
 		[ "${CLAUDE_CODE_USE_BEDROCK:-}" = 1 ] && bedrock=1

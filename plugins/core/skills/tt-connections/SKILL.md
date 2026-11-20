@@ -53,6 +53,11 @@ bash "<skill folder>/scripts/llms.sh" <command>
   never ask for a token.
 - `disconnect <tool>` and `refresh [tool]` (generate the models again). `claude`
   can't be disconnected: it runs the skills.
+- `capabilities`: the versioned features this toolbox supports, one token a line
+  (`provider-model-config-v1`, `provider-actions-v1`). A program checks for the
+  exact tokens before it relies on them. `status --tsv` ends each row with the
+  actions that provider supports now (`install`, `sign-in`, `connect`,
+  `disconnect`, `refresh`, or `-`).
 
 Claude's models are its aliases (`sonnet`, `opus`, `haiku`, `fable`, which
 follow the latest model of each family, or whatever `ANTHROPIC_DEFAULT_<ALIAS>_MODEL`
