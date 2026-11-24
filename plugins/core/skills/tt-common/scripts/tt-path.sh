@@ -18,7 +18,7 @@ tt_plugins_home() { printf '%s\n' "${TT_PLUGINS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME
 # tt-common/scripts/tt-path.sh): where it really is, and where it was reached
 # through, which differ when the skill is a link. readlink -f follows Windows
 # junctions; cd -P does not.
-_tt_src=$(dirname "${BASH_SOURCE[0]}")
+case ${BASH_SOURCE[0]} in */*) _tt_src=${BASH_SOURCE[0]%/*} ;; *) _tt_src=. ;; esac
 TT_SKILLS_DIRS=()
 _tt_add() {
 	[ -n "$1" ] && [ -d "$1" ] || return 0
@@ -27,21 +27,39 @@ _tt_add() {
 	TT_SKILLS_DIRS+=("$1")
 }
 _tt_add "$(readlink -f "$_tt_src/../.." 2>/dev/null || (cd -P "$_tt_src/../.." && pwd -P))"
-_tt_add "$(cd "$_tt_src/../.." 2>/dev/null && pwd)"
+# _tt_abs <dir>: set _tt_b to the directory's path as cd reports it, or to
+# nothing; the sourcing shell's directory and OLDPWD are left as they were.
+_tt_abs() {
+	local pwd_=$PWD old_=${OLDPWD-} had_=${OLDPWD+x}
+	_tt_b=
+	cd "$1" >/dev/null 2>&1 && _tt_b=$PWD
+	cd "$pwd_" >/dev/null 2>&1
+	if [ -n "$had_" ]; then OLDPWD=$old_; else unset OLDPWD; fi
+}
+_tt_abs "$_tt_src/../.."
+_tt_add "$_tt_b"
 # The script that sourced this one, by the path it was started with: when it
 # resolved its own folder to the real one, this still has the linked folder.
-_tt_caller=$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)
+case $0 in */*) _tt_caller=${0%/*} ;; *) _tt_caller=. ;; esac
+_tt_abs "$_tt_caller/../.."
+_tt_caller=$_tt_b
 [ -d "$_tt_caller/tt-common" ] && _tt_add "$_tt_caller"
-unset _tt_src _tt_caller
+unset _tt_src _tt_caller _tt_b
+unset -f _tt_abs
 
 # tt_find <skill folder name>: print the folder, or return 1 if it isn't installed
-tt_find() {
+tt_find() { tt_find_reply "$1" && printf '%s\n' "$REPLY"; }
+
+# tt_find_reply <skill folder name>: the same search, but the folder is left in
+# REPLY (empty when not found) and nothing is printed, so no subshell is needed
+tt_find_reply() {
 	local d
+	REPLY=
 	for d in "${TT_SKILLS_DIRS[@]}"; do
-		[ -d "$d/$1" ] && { printf '%s\n' "$d/$1"; return 0; }
+		[ -d "$d/$1" ] && { REPLY=$d/$1; return 0; }
 	done
-	for d in "$(tt_plugins_home)"/*/skills/"$1"; do
-		[ -d "$d" ] && { printf '%s\n' "$d"; return 0; }
+	for d in "${TT_PLUGINS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-plugins}"/*/skills/"$1"; do
+		[ -d "$d" ] && { REPLY=$d; return 0; }
 	done
 	return 1
 }
@@ -51,8 +69,8 @@ tt_skills() {
 	local base d
 	{
 		for base in "${TT_SKILLS_DIRS[@]}"; do
-			for d in "$base"/tt-*; do [ -d "$d" ] && basename "$d"; done
+			for d in "$base"/tt-*; do [ -d "$d" ] && printf '%s\n' "${d##*/}"; done
 		done
-		for d in "$(tt_plugins_home)"/*/skills/tt-*; do [ -d "$d" ] && basename "$d"; done
+		for d in "${TT_PLUGINS_HOME:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tt-plugins}"/*/skills/tt-*; do [ -d "$d" ] && printf '%s\n' "${d##*/}"; done
 	} | sort -u
 }

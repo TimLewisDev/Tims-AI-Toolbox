@@ -47,8 +47,9 @@ Exit: 0 ok, 1 nothing to report / refused, 2 usage or environment error.
 EOF
 }
 
-here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
-common=$(dirname "$here")
+case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
+here=$(readlink -f "$here" 2>/dev/null) || here=$(cd -P "$here" && pwd -P)
+common=${here%/*}
 REG="$common/model-roles.tsv"
 SHIPPED="$common/modes"
 CFG="${TT_CONFIG_DIR:-$HOME/.claude/tt-config}"
@@ -63,7 +64,8 @@ in_list() { case " $2 " in *" $1 "*) return 0 ;; esac; return 1; }
 # llms.sh); when that script isn't there, the Claude aliases above stand in.
 . "$here/tt-path.sh"
 LLMS=""
-if conn=$(tt_find tt-connections) && [ -f "$conn/scripts/llms.sh" ]; then LLMS="$conn/scripts/llms.sh"; fi
+conn=""
+if tt_find_reply tt-connections; then conn=$REPLY; [ -f "$conn/scripts/llms.sh" ] && LLMS="$conn/scripts/llms.sh"; fi
 
 # The runnable models, read once (the call must not be inside $(...), which would lose the copy):
 # provider, id, label, efforts, runnable[, scope], one per line. Empty when there is no catalog.
@@ -146,41 +148,70 @@ native_model() {
 
 [ -f "$REG" ] || die "role registry not found: $REG"
 
-active_mode() {
+# active_mode_reply: the active mode, left in REPLY (no subshell)
+active_mode_reply() {
 	local m=""
-	[ -f "$CFG/active" ] && m=$(tr -d '\r\n' <"$CFG/active")
+	[ -f "$CFG/active" ] && m=$(<"$CFG/active")
+	m=${m//$'\r'/}
+	m=${m//$'\n'/}
 	[ -n "$m" ] && mode_exists "$m" || m=$DEFAULT_MODE
-	echo "$m"
+	REPLY=$m
 }
+active_mode() { active_mode_reply; echo "$REPLY"; }
 shipped_file() { echo "$SHIPPED/$1.tsv"; }
 user_file() { echo "$USERMODES/$1.tsv"; }
-mode_exists() { [ -f "$(shipped_file "$1")" ] || [ -f "$(user_file "$1")" ]; }
+mode_exists() { [ -f "$SHIPPED/$1.tsv" ] || [ -f "$USERMODES/$1.tsv" ]; }
 valid_name() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9_-]*$'; }
 
-# resolve <mode>: one row per role, ordered by tier:
+# resolve <mode> [role]: one row per role, ordered by tier (ties in registry order):
 #   role kind tier used-by label model effort default-model default-effort
+# With a role, only that role's `model=<m> effort=<e>` is printed, and the status is 1 when
+# the role is not in the registry. The files are read with $(<file) and handed to one awk.
 resolve() {
-	local mode=$1 sf uf
-	sf=$(shipped_file "$mode"); uf=$(user_file "$mode")
-	{
-		[ -f "$sf" ] && sed 's/\r$//; s/^/S\t/' "$sf"
-		[ -f "$uf" ] && sed 's/\r$//; s/^/S\t/' "$uf"
-		sed 's/\r$//; s/^/R\t/' "$REG"
-	} | awk -F'\t' -v OFS='\t' '
-		$2 ~ /^#/ || $2 == "" { next }
-		$1 == "S" { m[$2] = $3; e[$2] = $4; next }
-		$1 == "R" {
-			role = $2
-			mo = (role in m) ? m[role] : $7
-			ef = (role in e) ? e[role] : $8
-			print role, $3, $4, $5, $6, mo, ef, $7, $8
-		}' | sort -s -t "$(printf '\t')" -k3,3n
+	local sf="$SHIPPED/$1.tsv" uf="$USERMODES/$1.tsv" s="" u="" r
+	[ -f "$sf" ] && s=$(<"$sf")
+	[ -f "$uf" ] && u=$(<"$uf")
+	r=$(<"$REG")
+	RS_SHIPPED=$s RS_USER=$u RS_REG=$r RS_ROLE=${2-} awk -v OFS='\t' '
+		function load(text, isreg,    n, i, a, nl, f) {
+			nl = split(text, a, "\n")
+			for (i = 1; i <= nl; i++) {
+				sub(/\r$/, "", a[i])
+				split(a[i], f, "\t")
+				if (f[1] == "" || f[1] ~ /^#/) continue
+				if (isreg) { reg[++cnt] = a[i]; continue }
+				m[f[1]] = f[2]; e[f[1]] = f[3]
+			}
+		}
+		BEGIN {
+			role = ENVIRON["RS_ROLE"]; want = (role != "")
+			load(ENVIRON["RS_SHIPPED"], 0); load(ENVIRON["RS_USER"], 0); load(ENVIRON["RS_REG"], 1)
+			for (i = 1; i <= cnt; i++) {
+				split(reg[i], f, "\t")
+				mo = (f[1] in m) ? m[f[1]] : f[6]
+				ef = (f[1] in e) ? e[f[1]] : f[7]
+				if (want) {
+					if (f[1] == role) { print "model=" mo " effort=" ef; found = 1 }
+					continue
+				}
+				row[i] = f[1] OFS f[2] OFS f[3] OFS f[4] OFS f[5] OFS mo OFS ef OFS f[6] OFS f[7]
+				tier[i] = f[3] + 0
+			}
+			if (want) exit !found
+			# stable insertion order by numeric tier
+			for (i = 1; i <= cnt; i++) {
+				for (j = n; j >= 1 && tier[ord[j]] > tier[i]; j--) ord[j + 1] = ord[j]
+				ord[j + 1] = i; n++
+			}
+			for (i = 1; i <= n; i++) print row[ord[i]]
+		}'
 }
 
 cmd_get() {
 	[ $# -eq 1 ] || { usage; exit 2; }
 	local row m e
-	row=$(resolve "$(active_mode)" | awk -F'\t' -v r="$1" '$1 == r { print $6 "\t" $7; found = 1 } END { exit !found }') ||
+	active_mode_reply
+	row=$(resolve "$REPLY" | awk -F'\t' -v r="$1" '$1 == r { print $6 "\t" $7; found = 1 } END { exit !found }') ||
 		die "unknown role '$1' (see tt-common/model-roles.tsv)"
 	m=${row%%$'\t'*}; e=${row##*$'\t'}
 	case $m in - | *:*) ;; *) catalog ;; esac # only a value saved bare needs the catalog: the shipped ones are qualified

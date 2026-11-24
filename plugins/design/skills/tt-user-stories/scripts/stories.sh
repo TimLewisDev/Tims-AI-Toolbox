@@ -80,15 +80,34 @@ EOF
 }
 
 die() { echo "stories.sh: $*" >&2; exit 2; }
-here=$(cd "$(dirname "$0")" && pwd)
+here=""
+case $0 in */*) _d=${0%/*} ;; *) _d=. ;; esac
+[ -n "$_d" ] || _d=/
+_o=$PWD
+cd "$_d" 2>/dev/null && here=$PWD
+cd "$_o"
 tpl="$here/../templates"
 work=$(mktemp -d)
 lock=""
 cleanup() { [ -n "$lock" ] && rmdir "$lock" 2>/dev/null; rm -rf "$work"; }
 trap cleanup EXIT
 
-# The fenced block of a template file.
-fenced() { awk '/^```/ { if (in_) exit; in_ = 1; next } in_' "$1"; }
+# dir_of <path> / base_of <path>: dirname and basename without a program; the
+# answer is in REPLY
+dir_of() {
+	local x=$1
+	while [ "${#x}" -gt 1 ] && [ "${x%/}" != "$x" ]; do x=${x%/}; done
+	case $x in
+		*/*) x=${x%/*}; while [ "${#x}" -gt 1 ] && [ "${x%/}" != "$x" ]; do x=${x%/}; done; [ -n "$x" ] || x=/ ;;
+		*) x=. ;;
+	esac
+	REPLY=$x
+}
+base_of() {
+	local x=$1
+	while [ "${#x}" -gt 1 ] && [ "${x%/}" != "$x" ]; do x=${x%/}; done
+	REPLY=${x##*/}
+}
 
 LIB='
 BEGIN { for (i = 1; i < 256; i++) ORD[sprintf("%c", i)] = i }
@@ -417,6 +436,17 @@ function fill(s,   out, p, k, hit) {
 	return out s
 }
 function cell(s) { gsub(/\|/, "\\|", s); return s }
+# One output line at a time: blank runs collapse and leading blanks drop (the
+# same rules as the tidy pass), and CRLF ends the lines when it is set.
+function emit(s,   n, k, p, eol) {
+	eol = CRLF ? "\r\n" : "\n"
+	n = split(s, p, "\n"); if (s == "") { n = 1; p[1] = "" }
+	for (k = 1; k <= n; k++) {
+		if (p[k] ~ /^[ \t]*$/) { if (seen) blank = 1; continue }
+		if (blank) printf "%s", eol
+		blank = 0; seen = 1; printf "%s%s", p[k], eol
+	}
+}
 function story(i,   j, n, c, crit) {
 	split("", VAL)
 	VAL["id"] = S[i, 2]; VAL["title"] = S[i, 3]; VAL["group"] = S[i, 4]; VAL["status"] = S[i, 5]
@@ -428,7 +458,7 @@ function story(i,   j, n, c, crit) {
 	VAL["criteria"] = crit
 	for (j = 1; j <= nst; j++) {
 		if (index(st[j], "<altered>") && VAL["altered"] == "") continue
-		print fill(st[j])
+		emit(fill(st[j]))
 	}
 }
 BEGIN {
@@ -437,19 +467,19 @@ BEGIN {
 	for (he = 1; he <= nd; he++) if (dt[he] ~ /^## /) break
 }
 END {
-	if (HASHEAD) print HEAD
+	if (HASHEAD) emit(HEAD)
 	else {
 		split("", VAL); VAL["title"] = ENVIRON["ST_TITLE"]; VAL["source"] = ENVIRON["ST_SOURCE"]; VAL["status"] = ENVIRON["ST_STATUS"]
-		for (j = 1; j < he; j++) print fill(dt[j])
+		for (j = 1; j < he; j++) emit(fill(dt[j]))
 	}
-	print ""
+	emit("")
 	for (j = he; j <= nd; j++) {
-		if (dt[j] == "<group rows>") { for (i = 1; i <= ng; i++) print "| " cell(GN[i]) " | " cell(GD[i] == "" ? "—" : GD[i]) " |" }
-		else if (dt[j] == "<stories>") { for (i = 1; i <= ns; i++) { story(i); print "" } }
-		else if (dt[j] == "<retired rows>") { for (i = 1; i <= nr; i++) print "| " RID[i] " | " cell(RTI[i]) " | " cell(ROU[i]) " |" }
-		else print dt[j]
+		if (dt[j] == "<group rows>") { for (i = 1; i <= ng; i++) emit("| " cell(GN[i]) " | " cell(GD[i] == "" ? "—" : GD[i]) " |") }
+		else if (dt[j] == "<stories>") { for (i = 1; i <= ns; i++) { story(i); emit("") } }
+		else if (dt[j] == "<retired rows>") { for (i = 1; i <= nr; i++) emit("| " RID[i] " | " cell(RTI[i]) " | " cell(ROU[i]) " |") }
+		else emit(dt[j])
 	}
-	for (i = 1; i <= nx; i++) { print ""; print X[i] }
+	for (i = 1; i <= nx; i++) { emit(""); emit(X[i]) }
 }
 '
 
@@ -547,28 +577,34 @@ fail_problems() {
 
 templates() {
 	[ -f "$tpl/user-stories.md" ] && [ -f "$tpl/story.md" ] || die "templates missing: $tpl"
-	fenced "$tpl/user-stories.md" >"$work/doc.tpl"
-	fenced "$tpl/story.md" >"$work/story.tpl"
+	# the lines between the first pair of lines starting with three backticks, in each file
+	awk -v DOC="$work/doc.tpl" -v STORY="$work/story.tpl" '
+		FNR == 1 { in_ = 0; done_ = 0; out = (FILENAME ~ /user-stories\.md$/) ? DOC : STORY; printf "" >out }
+		done_ { next }
+		/^```/ { if (in_) done_ = 1; else in_ = 1; next }
+		in_ { print >out }
+	' "$tpl/user-stories.md" "$tpl/story.md"
 }
 
 # render <model> <out>: the document, CRLF when the file it replaces had it
 render() {
+	local tmp chunk="" crlf=0 bin=0
 	templates
-	awk -v DOCT="$work/doc.tpl" -v STORYT="$work/story.tpl" "$LIB$LOAD$RENDER" "$1" | awk "$TIDY" >"$work/out"
-	if [ -f "$2" ] && [ "$(head -c 4096 "$2" | tr -dc '\r' | wc -c)" -gt 0 ]; then
-		awk -v BINMODE=3 '{ printf "%s\r\n", $0 }' "$work/out" >"$work/out.crlf" && mv "$work/out.crlf" "$work/out"
-	fi
-	local tmp
-	tmp="$(dirname "$2")/.$(basename "$2").$$"
-	cp "$work/out" "$tmp" && mv -f "$tmp" "$2" || { rm -f "$tmp"; die "can't write $2"; }
+	[ -f "$2" ] && { LC_ALL=C IFS= read -r -d '' -N 4096 chunk <"$2"; true; }
+	[[ $chunk == *$'\r'* ]] && { crlf=1; bin=2; }
+	dir_of "$2"; tmp=$REPLY
+	base_of "$2"; tmp="$tmp/.$REPLY.$$"
+	awk -v BINMODE=$bin -v CRLF=$crlf -v DOCT="$work/doc.tpl" -v STORYT="$work/story.tpl" "$LIB$LOAD$RENDER" "$1" >"$tmp" \
+		&& mv -f "$tmp" "$2" || { rm -f "$tmp"; die "can't write $2"; }
 }
 
 # take_lock: one writer at a time (the skill and a viewer may both write); a
 # lock older than a minute was left by a writer that died
 take_lock() {
-	local l
-	l="$(dirname "$doc")/.$(basename "$doc").lock"
-	for _ in $(seq 1 100); do
+	local l i
+	dir_of "$doc"; l=$REPLY
+	base_of "$doc"; l="$l/.$REPLY.lock"
+	for ((i = 0; i < 100; i++)); do
 		mkdir "$l" 2>/dev/null && { lock=$l; return 0; }
 		[ -n "$(find "$l" -maxdepth 0 -mmin +1 2>/dev/null)" ] && rmdir "$l" 2>/dev/null && continue
 		sleep 0.1

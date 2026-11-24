@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tatty.sh: Tatty, the tt toolbox's robot. Draws the avatar with one quip.
-# Shared by tt-guide and tt-workflow. Needs bash and awk only. Writes nothing.
+# Shared by tt-guide and tt-workflow. Needs bash only. Writes nothing.
 set -u
 
 usage() {
@@ -14,16 +14,34 @@ Exit: 0 ok, 2 usage error.
 EOF
 }
 
-here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
-quips="$(dirname "$here")/quips.txt"
-cheers="$(dirname "$here")/celebrate-quips.txt"
+case $0 in */*) d=${0%/*} ;; *) d=. ;; esac
+if [ -f "$d/../quips.txt" ] && [ -r "$d/../quips.txt" ]; then
+	quips="$d/../quips.txt"
+	cheers="$d/../celebrate-quips.txt"
+else
+	here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
+	quips="$(dirname "$here")/quips.txt"
+	cheers="$(dirname "$here")/celebrate-quips.txt"
+fi
 
-# pick <file> <fallback>: one random line of the file, or the fallback if it has none
+# pick <file> <fallback>: sets REPLY to one random line of the file, or the fallback if it has none
 pick() {
-	local n
-	n=$(awk 'NF && !/^#/' "$1" 2>/dev/null | wc -l | tr -d ' ')
-	[ "${n:-0}" -gt 0 ] || { echo "$2"; return; }
-	awk -v k=$((RANDOM % n + 1)) '{ sub(/\r$/, "") } NF && !/^#/ && ++i == k { print; exit }' "$1"
+	local line
+	local -a lines=()
+	if [ -r "$1" ]; then
+		while IFS= read -r line || [ -n "$line" ]; do
+			line=${line%$'\r'}
+			case $line in
+			'#'*) continue ;;
+			*[![:blank:]]*) lines+=("$line") ;;
+			esac
+		done <"$1"
+	fi
+	if [ "${#lines[@]}" -gt 0 ]; then
+		REPLY=${lines[RANDOM % ${#lines[@]}]}
+	else
+		REPLY=$2
+	fi
 }
 
 quip() { pick "$quips" "Hello. I'd tell a joke, but my quips file is missing."; }
@@ -32,54 +50,50 @@ cheer() { pick "$cheers" "Finished! I'd congratulate you properly, but my cheers
 
 art() {
 	if [ "${TT_GUIDE_ASCII:-}" = 1 ]; then
-		cat <<EOF
-    [-o-]
-   +-----+
-   | o o |   Tatty
-   |  v  |   "$1"
-   +-+-+-+
-     | |
-EOF
+		printf '%s\n' \
+			'    [-o-]' \
+			'   +-----+' \
+			'   | o o |   Tatty' \
+			"   |  v  |   \"$1\"" \
+			'   +-+-+-+' \
+			'     | |'
 	else
-		cat <<EOF
-    [¬º-°]¬
-   ┌─────┐
-   │ ◉ ◉ │   Tatty
-   │  ▽  │   "$1"
-   └┬───┬┘
-    ╨   ╨
-EOF
+		printf '%s\n' \
+			'    [¬º-°]¬' \
+			'   ┌─────┐' \
+			'   │ ◉ ◉ │   Tatty' \
+			"   │  ▽  │   \"$1\"" \
+			'   └┬───┬┘' \
+			'    ╨   ╨'
 	fi
 }
 
 party() {
 	if [ "${TT_GUIDE_ASCII:-}" = 1 ]; then
-		cat <<EOF
-   * . * . * . * . *
-   \\[-o-]/
-   +-----+
-   | ^ ^ |   Tatty
-   |  v  |   "$1"
-   +-+-+-+
-     | |
-EOF
+		printf '%s\n' \
+			'   * . * . * . * . *' \
+			'   \[-o-]/' \
+			'   +-----+' \
+			'   | ^ ^ |   Tatty' \
+			"   |  v  |   \"$1\"" \
+			'   +-+-+-+' \
+			'     | |'
 	else
-		cat <<EOF
-   * . * . * . * . *
-   \\[¬º-°]/
-   ┌─────┐
-   │ ^ ^ │   Tatty
-   │  ▽  │   "$1"
-   └┬───┬┘
-    ╨   ╨
-EOF
+		printf '%s\n' \
+			'   * . * . * . * . *' \
+			'   \[¬º-°]/' \
+			'   ┌─────┐' \
+			'   │ ^ ^ │   Tatty' \
+			"   │  ▽  │   \"$1\"" \
+			'   └┬───┬┘' \
+			'    ╨   ╨'
 	fi
 }
 
 case ${1:-banner} in
-banner) art "$(quip)" ;;
-quip) quip ;;
-celebrate) party "$(cheer)" ;;
+banner) quip; art "$REPLY" ;;
+quip) quip; printf '%s\n' "$REPLY" ;;
+celebrate) cheer; party "$REPLY" ;;
 -h | --help) usage ;;
 *) usage; exit 2 ;;
 esac

@@ -34,9 +34,10 @@ EOT
 
 # This skill's folder, and the skills folder of the core plugin around it.
 # Git Bash's cd -P doesn't follow Windows junctions, but readlink -f does.
-here=$(readlink -f "$(dirname "$0")" 2>/dev/null) || here=$(cd -P "$(dirname "$0")" && pwd -P)
-skill=$(dirname "$here")
-core=$(dirname "$skill")
+case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
+here=$(readlink -f "$here" 2>/dev/null) || here=$(cd -P "$here" && pwd -P)
+skill=${here%/*}
+core=${skill%/*}
 common="$core/tt-common"
 . "$common/scripts/tt-path.sh"
 readme="$skill/toolbox.md"
@@ -65,7 +66,7 @@ plugin_hint() {
 where() {
 	local dir=${1:-.}
 	[ -d "$dir" ] || { echo "guide.sh: no such folder: $dir" >&2; exit 2; }
-	if ! tt_find tt-workflow >/dev/null; then
+	if ! tt_find_reply tt-workflow; then
 		echo "  The planning and build commands come from engineering, which isn't installed here."
 		echo "  Install it with /plugin install engineering@tims-ai-toolbox, then restart Claude Code."
 	fi
@@ -110,17 +111,20 @@ topics() { sections contains "" | awk -F'\t' '$4 !~ /^\[`tt-/ { print "  " $4 }'
 
 # show <index lines>: print each section
 show() {
-	local line ln end
+	local line ln end i
 	while IFS=$'\t' read -r ln _ end _; do
-		sed -n "${ln},${end}p" "$readme" | tr -d '\r'
+		for ((i = ln; i <= end && i <= ${#lines[@]}; i++)); do
+			line=${lines[i - 1]}
+			printf '%s\n' "${line//$'\r'/}"
+		done
 		echo
 	done <<<"$1"
 }
 
 about() {
 	need_readme || return 0
-	local q hits row
-	q=$(printf '%s' "$*" | tr '[:upper:]' '[:lower:]')
+	local q hits row line
+	q="$*"; q=${q,,}
 	if [ -z "$q" ]; then
 		echo "Ask me about any tt-* skill, or one of these:"
 		topics
@@ -129,8 +133,12 @@ about() {
 	case $q in docs | doc) q=documents ;; id | revisions) q=ids ;; units | wu | tasks) q="work units" ;;
 		metrics | tokens) q="token log" ;; stages) q="planning stages" ;; esac
 	local name=${q#tt-} dir
-	dir=$(tt_find "tt-$name") || dir=""
-	row=$(grep -F "| [\`tt-$name\`]" "$readme" | head -1 | tr -d '\r')
+	tt_find_reply "tt-$name"; dir=$REPLY
+	mapfile -t lines <"$readme"
+	row=
+	for line in "${lines[@]}"; do
+		if [[ $line == *"| [\`tt-$name\`]"* ]]; then row=${line//$'\r'/}; break; fi
+	done
 	if [ -n "$dir" ] || [ -n "$row" ]; then
 		[ -n "$row" ] && printf '%s\n\n' "$row"
 		hits=$(sections starts "[\`tt-$name\`]")
