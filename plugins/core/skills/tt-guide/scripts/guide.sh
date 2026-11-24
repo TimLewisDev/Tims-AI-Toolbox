@@ -56,7 +56,7 @@ field() { awk -v re="$2" '{ sub(/\r$/, "") } $0 ~ re { print; exit }' "$1"; }
 plugin_hint() {
 	case $1 in
 	tt-guide | tt-common | tt-config | tt-connections | tt-metrics) echo "It is part of core: /plugin install core@tims-ai-toolbox" ;;
-	tt-user-stories) echo "It is part of design: /plugin install design@tims-ai-toolbox, then restart Claude Code" ;;
+	tt-user-stories | tt-design-review) echo "It is part of design: /plugin install design@tims-ai-toolbox, then restart Claude Code" ;;
 	tt-qa-bug | tt-qa-test-plan | tt-qa-test-run) echo "It is part of qa: /plugin install qa@tims-ai-toolbox, then restart Claude Code" ;;
 	*) echo "It is part of engineering: /plugin install engineering@tims-ai-toolbox, then restart Claude Code" ;;
 	esac
@@ -92,6 +92,7 @@ need_readme() {
   build a lite brief ...... /tt-execute-lite <lite brief>
   review a branch ......... /tt-branch-review [branch]
   user stories from a design /tt-user-stories <design doc>
+  find what a design misses ... /tt-design-review <design doc>
 EOF
 	return 1
 }

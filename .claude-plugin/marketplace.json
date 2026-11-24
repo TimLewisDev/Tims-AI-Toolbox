@@ -18,7 +18,7 @@
     {
       "name": "design",
       "source": "./plugins/design",
-      "description": "The design discipline's skills: user stories from a design document. Needs core."
+      "description": "The design discipline's skills: user stories from a design document, and a review of one for what it is missing. Needs core."
     },
     {
       "name": "qa",

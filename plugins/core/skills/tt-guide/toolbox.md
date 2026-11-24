@@ -7,7 +7,7 @@ top-level `README.md`.
 
 Skills come in four plugins today: **core** (`tt-guide`, `tt-config`,
 `tt-connections`, `tt-metrics`, and the shared `tt-common`), **design**
-(`tt-user-stories`), **qa** (`tt-qa-bug`, `tt-qa-test-plan`, `tt-qa-test-run`)
+(`tt-user-stories`, `tt-design-review`), **qa** (`tt-qa-bug`, `tt-qa-test-plan`, `tt-qa-test-run`)
 and **engineering** (everything else). Core is needed by every discipline; the
 design, qa and engineering skills need it to run.
 
@@ -40,6 +40,7 @@ design, qa and engineering skills need it to run.
 | [`tt-debug-doc`](../../../engineering/skills/tt-debug-doc/SKILL.md) | Renders the debugging session into a short Debug Report, by script. |
 | [`tt-branch-review`](../../../engineering/skills/tt-branch-review/SKILL.md) | Reviews a git branch locally, in any repository, and writes the findings to a report. Posts nothing. |
 | [`tt-user-stories`](../../../design/skills/tt-user-stories/SKILL.md) | Design: turns a design document into grouped user stories, proposes merges and missed stories for you to accept, reject or alter, and writes every story from one template by script. |
+| [`tt-design-review`](../../../design/skills/tt-design-review/SKILL.md) | Design: reviews a design document for what it may be missing, proposes each gap as a suggestion with the reason, the section it belongs in and draft wording, and adds the ones you accept (reworded if you like) to the document, by script. |
 | [`tt-qa-bug`](../../../qa/skills/tt-qa-bug/SKILL.md) | QA: turns a plain-English description of a bug into a formatted bug (title, severity, steps to reproduce, expected and actual), asking only for what is missing, and writes it from one template by script. |
 | [`tt-qa-test-plan`](../../../qa/skills/tt-qa-test-plan/SKILL.md) | QA: breaks a feature into areas to validate, each with test items (how to test, what a pass looks like), and writes the Test Plan by script. |
 | [`tt-qa-test-run`](../../../qa/skills/tt-qa-test-run/SKILL.md) | QA: works through a Test Plan one area at a time, records each item's pass, fail, blocked or skip by script, turns failures into bugs and reports what is tested. |
@@ -197,6 +198,7 @@ change of more than about six tasks.
 | tidy a proposals doc, or create one for an existing plan | `/tt-tech-proposals <proposals doc or comprehensive tech plan>` |
 | review a git branch | `/tt-branch-review [branch] [against <base>]` |
 | write user stories from a design document, or review the proposed ones | `/tt-user-stories <design doc> [stories doc]` or `/tt-user-stories resume <stories doc>` |
+| find what a design document is missing | `/tt-design-review <design doc>` or `/tt-design-review resume <review doc> <design doc>` |
 | write up a bug from a description | `/tt-qa-bug <bug folder> [description]` |
 | plan the testing of a feature | `/tt-qa-test-plan <plan.md> <feature documents...>` |
 | test a feature against its plan | `/tt-qa-test-run <plan.md> [bug folder]` |
@@ -255,6 +257,7 @@ elsewhere.
 | Task Status | `<Prefix> - Task Status.md` | `tt-task-status` | Progress, logs, decisions and validation results. A new session reads this first. |
 | Lite Brief | `<Prefix> - Lite Brief.md` | `tt-lite-brief` | The lite route's plan and task breakdown in one: goal, acceptance, decisions, one work unit with its checks, and the task cards. `tt-execute-lite` builds from it; its Task Status sits beside it. |
 | Debug Report | `<Prefix> - Debug Report.md` | `tt-debug-doc`, from the Debug Log in `.tt/<Prefix> - Debug/` | What was wrong, how the root cause was found, what was ruled out and why, and the fix direction. |
+| Design Review | `<Doc> - Design Review.md` | `tt-design-review`, only through its `design-review.sh` | The areas a design document may be missing: each suggestion with its reason, where it goes and the draft wording, Open, Accepted, Rejected or Added (with the exact text that was added to the design document). |
 | User Stories | `<Prefix> - User Stories.md` | `tt-user-stories`, only through its `stories.sh` | A design's user stories, in groups: each with its story line, details and acceptance criteria, Accepted or Proposed, and the Retired (rejected or merged) ones. |
 
 ### IDs and revisions
@@ -836,6 +839,28 @@ Part of the **design** plugin.
   it out again).
 - **Won't:** invent rules or numbers the design doesn't give, accept or reject
   a proposal for you, or touch git.
+
+### [`tt-design-review`](../../../design/skills/tt-design-review/SKILL.md): what a design document is missing
+
+Part of the **design** plugin.
+
+- **Run it:** `/tt-design-review <design doc>`. It reads the design and finds
+  areas it leaves out or leaves open (who uses it, failure and edge cases,
+  data, platform limits, rollout, open questions ...), then proposes each as a
+  suggestion: why it matters, the section it belongs in and draft wording in the
+  document's own voice. You take them one at a time: **accept**, **reword**,
+  **reject** or **later**; an accepted one is added to the design document under
+  its section. `resume <review doc> <design doc>` carries on.
+- **Unattended:** `review <design doc> <review doc> [<comments file>]` proposes
+  the suggestions and asks nothing, for tools that show them elsewhere. The
+  comments file is the designer's own notes on passages of the document, used as
+  hints.
+- **Key rules:** `design-review.sh` (in the skill's `scripts/`) is the only
+  writer of the review and the only thing that adds to the design document;
+  confirming records exactly what was added. IDs (`DR01`...) are never reused,
+  and a rejected suggestion is not proposed again.
+- **Won't:** invent decisions the document doesn't contain, edit the design
+  document any other way, or touch git.
 
 
 ### Stage-completion events

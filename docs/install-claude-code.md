@@ -48,7 +48,7 @@ to the repository. More in [Requirements](requirements.md).
 | You are | Install | What you get |
 |---|---|---|
 | An engineer | `core` + `engineering` | Everything: explore, plan, break down, build, debug, review MRs. |
-| A designer | `core` + `design` | The shared base. `design` adds `tt-user-stories` (user stories from a design document). |
+| A designer | `core` + `design` | The shared base. `design` adds `tt-user-stories` (user stories from a design document) and `tt-design-review` (what a design document is missing). |
 | A tester | `core` + `qa` | The shared base. `qa` adds `tt-qa-bug` (a bug from a plain-English description), `tt-qa-test-plan` (a feature broken into areas to test) and `tt-qa-test-run` (work through the plan, record results, raise bugs). |
 | A producer | `core` + `production` | The shared base. `production` has no skills yet; it is the place to build them. |
 | Anyone | `core` alone | Tatty (`tt-guide`), `tt-config` (models and effort), `tt-connections` (MCP servers and logins), `tt-metrics` (token log). |

@@ -5,6 +5,7 @@ The design discipline's skills. Needs **core**.
 | Skill | What it does |
 |---|---|
 | [`tt-user-stories`](skills/tt-user-stories/SKILL.md) | Turns a design document into a `<Prefix> - User Stories.md` of grouped user stories; proposes merges and missed stories for the designer to accept, reject or alter; writes every story from one template by script (`scripts/stories.sh`). |
+| [`tt-design-review`](skills/tt-design-review/SKILL.md) | Reviews a design document for what it may be missing (users, failure cases, data, platform, rollout, open questions ...); each gap is a suggestion with the reason, the section it belongs in and draft wording, written to a `<Doc> - Design Review.md` for the designer to accept, reject or reword, and confirming adds it to the design document; every write goes through `scripts/design-review.sh`. |
 
 Install it next to the shared base:
 

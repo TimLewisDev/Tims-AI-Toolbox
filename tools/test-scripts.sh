@@ -1870,6 +1870,170 @@ expect "write with a section of its own" 0 us status "$SD/notes.md" Ready
 has "the section is kept" "$SD/notes.md" "Keep this."
 ls -a "$SD" | grep -qE '^\..*(lock|[0-9]+)$' && bad "no lock or temp files left" || ok "no lock or temp files left"
 
+echo "# design-review.sh"
+DR="$root/plugins/design/skills/tt-design-review/scripts/design-review.sh"
+DD="$T/designreview"; mkdir -p "$DD"
+dr() { bash "$DR" "$@"; }
+cat >"$DD/Bag.md" <<'EOF'
+# Bag
+
+## Overview
+
+The bag holds items.
+
+## Pickup
+
+Walk over an item to pick it up.
+
+### Slots
+
+Ten slots.
+
+## Sorting
+
+By rarity.
+EOF
+RV="$DD/Bag - Design Review.md"
+expect "init" 0 dr init "$DD/Bag.md" "$RV"
+has "init: title" "$RV" "# Bag - Design Review"
+has "init: wiki link to a design doc beside it" "$RV" "- **Source:** [[Bag]]"
+has "init: no suggestions yet" "$RV" "| - | No suggestions yet | - |"
+expect "init refuses an existing review" 2 dr init "$DD/Bag.md" "$RV"
+expect "init needs the design doc" 2 dr init "$DD/None.md" "$DD/x.md"
+cat >"$DD/spec.txt" <<'EOF'
+area: Full bag behaviour
+where: Pickup
+why: The doc never says what happens when the bag is full.
+wording:
+  When the bag is full the item stays on the ground.
+
+  - Never drops an item automatically.
+  - Path C:\temp\x stays literal.
+---
+area: Rollout
+why: No plan for shipping.
+wording: Ship behind a flag.
+---
+area: Sorting ties
+where: sorting
+why: Two items of one rarity.
+wording:
+  Ties are broken by name.
+EOF
+expect "add" 0 dr add "$RV" "$DD/spec.txt"
+has "add prints the IDs" "$T/out" "DR03"
+has "a suggestion is Open" "$RV" "- **Status:** Open"
+has "the table lists it" "$RV" "| DR01 | Full bag behaviour | Open |"
+has "where defaults to end" "$RV" "- **Where:** end"
+has "wording keeps a backslash" "$RV" "  - Path C:\\temp\\x stays literal."
+expect "check a written review" 0 dr check "$RV"
+printf 'area: A\nwhy: x\nwording: y\n' >"$DD/one.txt"
+expect "add: the next ID is never reused" 0 dr add "$RV" "$DD/one.txt"; has "DR04" "$T/out" "DR04"
+printf 'area: a|b\nwhy: x\nwording: y\n' >"$DD/pipe.txt"
+expect "add: no pipe in an area" 1 dr add "$RV" "$DD/pipe.txt"
+printf 'area: A\nwhy: x\nwording:\n  # Title\n' >"$DD/h1.txt"
+printf '## A heading\n' >"$DD/h2.txt"
+expect "add: no level 1 heading in the wording" 1 dr add "$RV" "$DD/h1.txt"
+printf 'area: A\nwhy: x\nwording:\n  ```\n  code\n' >"$DD/fence.txt"
+expect "add: a code fence must close" 1 dr add "$RV" "$DD/fence.txt"
+printf 'area: A\nwording: y\n' >"$DD/nowhy.txt"
+expect "add: needs a why" 1 dr add "$RV" "$DD/nowhy.txt"
+expect "add: text that is not under a key" 1 dr add "$RV" "$DD/Bag.md"
+: >"$DD/empty.txt"
+expect "add: an empty spec" 1 dr add "$RV" "$DD/empty.txt"
+expect "decide: accept" 0 dr decide "$RV" DR01 accept
+has "accepted" "$RV" "| DR01 | Full bag behaviour | Accepted |"
+expect "decide: accept twice" 1 dr decide "$RV" DR01 accept
+expect "decide: reject with a reason" 0 dr decide "$RV" DR04 reject "out of scope | for now"
+has "the reason" "$RV" "- **Reason:** out of scope | for now"
+expect "decide: reopen" 0 dr decide "$RV" DR04 reopen
+hasnt "reopening drops the reason" "$RV" "- **Reason:**"
+expect "decide: no such suggestion" 1 dr decide "$RV" DR99 accept
+expect "decide: not an ID" 1 dr decide "$RV" US-01 accept
+expect "decide: an unknown action" 1 dr decide "$RV" DR04 maybe
+printf 'Edited wording with \\ backslash.\n\nSecond paragraph.\n' >"$DD/new-wording.txt"
+expect "wording" 0 dr wording "$RV" DR01 "$DD/new-wording.txt"
+has "the edit is kept" "$RV" "  Edited wording with \\ backslash."
+has "marked Edited" "$RV" "- **Edited:** yes"
+expect "wording: an Open suggestion can be edited too" 0 dr wording "$RV" DR02 "$DD/new-wording.txt" --where "Overview"
+has "where changed" "$RV" "- **Where:** Overview"
+expect "wording: from stdin" 0 dr wording "$RV" DR03 - <<<"Ties are broken by name."
+expect "wording: no level 2 heading" 1 dr wording "$RV" DR03 "$DD/h2.txt"
+# list and show
+expect "list" 0 dr list "$RV" --tsv --doc "$DD/Bag.md"
+has "list: the doc hash" "$T/out" $'meta	doc	'
+has "list: a record" "$T/out" $'dr	DR01	Full bag behaviour	Accepted'
+expect "show" 0 dr show "$RV" DR01 --tsv
+has "show: the record" "$T/out" $'dr	DR01'
+hasnt "show: only that record" "$T/out" "DR02"
+expect "show: no such suggestion" 1 dr show "$RV" DR99 --tsv
+H=$(bash "$DR" show "$RV" DR04 --tsv | awk -F'\t' '{ print $NF }')
+expect "decide --if with the record's hash" 0 dr decide "$RV" DR04 reject --if "$H"
+expect "decide --if after it changed" 3 dr decide "$RV" DR04 accept --if "$H"
+# confirm
+cp "$DD/Bag.md" "$DD/Bag.orig"
+expect "confirm refuses an Open suggestion" 1 dr confirm "$RV" DR03 --doc "$DD/Bag.md"
+expect "confirm refuses a Rejected suggestion" 1 dr confirm "$RV" DR04 --doc "$DD/Bag.md"
+cmp -s "$DD/Bag.md" "$DD/Bag.orig" && ok "a refused confirm leaves the doc alone" || bad "a refused confirm leaves the doc alone"
+expect "confirm under a heading" 0 dr confirm "$RV" DR01 --doc "$DD/Bag.md"
+has "says where" "$T/out" "under: Pickup"
+has "added to the doc" "$DD/Bag.md" "Edited wording with \\ backslash."
+awk '/^### Slots/ { s = NR } /^Edited wording/ { e = NR } /^## Sorting/ { n = NR } END { exit !(s < e && e < n) }' "$DD/Bag.md" && ok "after the section's sub-sections, before the next section" || bad "after the section's sub-sections, before the next section"
+has "recorded as Added" "$RV" "- **Status:** Added"
+has "records the heading" "$RV" "- **Added under:** Pickup"
+has "records the text" "$RV" "- **Added text:**"
+expect "an Added suggestion can't change" 1 dr decide "$RV" DR01 reject
+expect "an Added suggestion's wording can't change" 1 dr wording "$RV" DR01 "$DD/new-wording.txt"
+expect "confirm twice" 1 dr confirm "$RV" DR01 --doc "$DD/Bag.md"
+expect "check after a confirm" 0 dr check "$RV"
+# a heading that isn't there, and a stale doc
+HASH=$(bash "$DR" hash "$DD/Bag.md")
+expect "accept for a missing heading" 0 dr decide "$RV" DR03 accept
+expect "confirm refuses a doc that changed" 3 dr confirm "$RV" DR03 --doc "$DD/Bag.md" --doc-if 1
+hasnt "and writes nothing" "$DD/Bag.md" "Ties are broken by name."
+expect "confirm into a heading found ignoring case" 0 dr confirm "$RV" DR03 --doc "$DD/Bag.md" --doc-if "$HASH"
+has "case-insensitive heading" "$T/out" "under: Sorting"
+expect "accept the rollout" 0 dr decide "$RV" DR02 accept
+printf 'area: Gone\nwhere: No such heading\nwhy: x\nwording: Text.\n' >"$DD/gone.txt"
+G=$(bash "$DR" add "$RV" "$DD/gone.txt" | head -1)
+bash "$DR" decide "$RV" "$G" accept >/dev/null
+expect "confirm into a heading that isn't there" 0 dr confirm "$RV" "$G" --doc "$DD/Bag.md"
+has "a new section" "$T/out" "new section: Gone"
+has "the new section is in the doc" "$DD/Bag.md" "## Gone"
+has "recorded as a new section" "$RV" "- **Added under:** (new section) Gone"
+# line endings
+sed 's/$/\r/' "$DD/Bag.orig" >"$DD/Bagc.md"
+sed 's/$/\r/' "$RV" >"$DD/Rc.md"
+expect "a CRLF review can be changed" 0 dr decide "$DD/Rc.md" DR02 reject
+[ "$(tr -dc '\r' <"$DD/Rc.md" | wc -c)" = "$(wc -l <"$DD/Rc.md" | tr -d ' ')" ] && ok "a CRLF review stays CRLF" || bad "a CRLF review stays CRLF"
+bash "$DR" decide "$DD/Rc.md" DR02 reopen >/dev/null; bash "$DR" decide "$DD/Rc.md" DR02 accept >/dev/null
+expect "confirm into a CRLF doc" 0 dr confirm "$DD/Rc.md" DR02 --doc "$DD/Bagc.md"
+[ "$(tr -dc '\r' <"$DD/Bagc.md" | wc -c)" = "$(wc -l <"$DD/Bagc.md" | tr -d ' ')" ] && ok "a CRLF doc stays CRLF" || bad "a CRLF doc stays CRLF"
+[ "$(bash "$DR" hash "$DD/Bag.orig")" = "$(sed 's/$/\r/' "$DD/Bag.orig" | bash -c 'tr -d "\r" | cksum | awk "{print \$1}"')" ] && ok "hash is the same with CRLF" || bad "hash is the same with CRLF"
+# the layout is checked
+sed 's/^- \*\*Status:\*\* Open/- **Status:** Bogus/' "$RV" >"$DD/bad.md"
+printf '\n## DR07: Hand written\n\n- **Status:** Bogus\n' >>"$DD/bad.md"
+expect "check: problems" 1 dr check "$DD/bad.md"
+has "check: names the problem" "$T/out" "problem: DR07 has the status Bogus"
+expect "a review with problems refuses a write" 1 dr decide "$DD/bad.md" DR01 reject
+# a doc with no trailing newline, and a section right before a heading with no blank line
+printf '# Tight\n## One\ntext\n## Two\ntail' >"$DD/Tight.md"
+RT="$DD/Tight - Design Review.md"; bash "$DR" init "$DD/Tight.md" "$RT" >/dev/null
+printf 'area: Into one\nwhere: One\nwhy: x\nwording: Added to one.\n---\narea: Into two\nwhere: Two\nwhy: x\nwording: Added to two.\n' | bash "$DR" add "$RT" - >/dev/null
+bash "$DR" decide "$RT" DR01 accept >/dev/null; bash "$DR" decide "$RT" DR02 accept >/dev/null
+expect "confirm before a heading with no blank line" 0 dr confirm "$RT" DR01 --doc "$DD/Tight.md"
+expect "confirm at the end of a doc with no final newline" 0 dr confirm "$RT" DR02 --doc "$DD/Tight.md"
+printf '# Tight\n## One\ntext\n\nAdded to one.\n\n## Two\ntail\n\nAdded to two.\n' >"$DD/Tight.want"
+cmp -s "$DD/Tight.md" "$DD/Tight.want" && ok "tight docs come out well laid out" || bad "tight docs come out well laid out" "$(diff "$DD/Tight.want" "$DD/Tight.md" | head -6)"
+# headings in a code fence are not headings
+printf '# Fence\n## Real\ntext\n\n```\n## Real\n```\n\n## After\nx\n' >"$DD/Fence.md"
+RF="$DD/Fence - Design Review.md"; bash "$DR" init "$DD/Fence.md" "$RF" >/dev/null
+printf 'area: F\nwhere: Real\nwhy: x\nwording: Placed.\n' | bash "$DR" add "$RF" - >/dev/null
+bash "$DR" decide "$RF" DR01 accept >/dev/null; bash "$DR" confirm "$RF" DR01 --doc "$DD/Fence.md" >/dev/null
+awk '/^Placed\./ { p = NR } /^## After/ { a = NR } END { exit !(p && a && p < a) }' "$DD/Fence.md" && grep -c '^## Real' "$DD/Fence.md" | grep -q 2 && ok "a heading inside a code fence is skipped" || bad "a heading inside a code fence is skipped"
+expect "no command" 2 dr
+expect "an unknown command" 2 dr frobnicate
+
 echo "# resolve-branch.sh"
 RB="$eng/tt-branch-review/scripts/resolve-branch.sh"
 BR="$T/branches"; mkdir -p "$BR"
