@@ -40,7 +40,7 @@ _tt_abs "$_tt_src/../.."
 _tt_add "$_tt_b"
 # The script that sourced this one, by the path it was started with: when it
 # resolved its own folder to the real one, this still has the linked folder.
-case $0 in */*) _tt_caller=${0%/*} ;; *) _tt_caller=. ;; esac
+_tt_s=${0//\\//}; case $_tt_s in */*) _tt_caller=${_tt_s%/*} ;; *) _tt_caller=. ;; esac
 _tt_abs "$_tt_caller/../.."
 _tt_caller=$_tt_b
 [ -d "$_tt_caller/tt-common" ] && _tt_add "$_tt_caller"

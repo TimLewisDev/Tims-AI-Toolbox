@@ -1,7 +1,7 @@
 {
   "name": "design",
   "displayName": "TT Design",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "The design discipline's skills: user stories from a design document (tt-user-stories) and a review of a design document for what it is missing (tt-design-review).",
   "author": { "name": "Tim Lewis" },
   "license": "MIT",

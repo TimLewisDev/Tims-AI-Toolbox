@@ -81,7 +81,7 @@ EOF
 
 die() { echo "stories.sh: $*" >&2; exit 2; }
 here=""
-case $0 in */*) _d=${0%/*} ;; *) _d=. ;; esac
+_s=${0//\\//}; case $_s in */*) _d=${_s%/*} ;; *) _d=. ;; esac
 [ -n "$_d" ] || _d=/
 _o=$PWD
 cd "$_d" 2>/dev/null && here=$PWD

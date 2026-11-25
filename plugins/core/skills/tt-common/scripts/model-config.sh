@@ -47,7 +47,7 @@ Exit: 0 ok, 1 nothing to report / refused, 2 usage or environment error.
 EOF
 }
 
-case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
+_s=${0//\\//}; case $_s in */*) here=${_s%/*} ;; *) here=. ;; esac
 here=$(readlink -f "$here" 2>/dev/null) || here=$(cd -P "$here" && pwd -P)
 common=${here%/*}
 REG="$common/model-roles.tsv"

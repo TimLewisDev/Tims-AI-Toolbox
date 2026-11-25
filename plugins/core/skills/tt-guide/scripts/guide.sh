@@ -34,7 +34,7 @@ EOT
 
 # This skill's folder, and the skills folder of the core plugin around it.
 # Git Bash's cd -P doesn't follow Windows junctions, but readlink -f does.
-case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
+_s=${0//\\//}; case $_s in */*) here=${_s%/*} ;; *) here=. ;; esac
 here=$(readlink -f "$here" 2>/dev/null) || here=$(cd -P "$here" && pwd -P)
 skill=${here%/*}
 core=${skill%/*}

@@ -14,7 +14,7 @@ Exit: 0 ok, 2 usage error.
 EOF
 }
 
-case $0 in */*) d=${0%/*} ;; *) d=. ;; esac
+_s=${0//\\//}; case $_s in */*) d=${_s%/*} ;; *) d=. ;; esac
 if [ -f "$d/../quips.txt" ] && [ -r "$d/../quips.txt" ]; then
 	quips="$d/../quips.txt"
 	cheers="$d/../celebrate-quips.txt"

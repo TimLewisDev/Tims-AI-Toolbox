@@ -1248,6 +1248,12 @@ has "adversary is opus/high" "$T/out" "model=opus effort=high"
 expect "coder is sonnet" 0 MC get coder
 has "coder default" "$T/out" "model=sonnet effort=-"
 expect "unknown role" 2 MC get nope
+if command -v cygpath >/dev/null 2>&1; then
+	# A Windows caller (Tatty's Python) starts the script by its backslash path, from any folder.
+	WINMC() { (cd "$T" && bash "$(cygpath -w "$S/model-config.sh")" "$@"); }
+	expect "a script started by its Windows backslash path finds its own folder" 0 WINMC get adversary
+	has "backslash path: same answer" "$T/out" "model=opus effort=high"
+fi
 expect "set rejects a bad model" 2 MC set coder gpt high
 expect "set rejects a bad effort" 2 MC set coder opus loud
 expect "set rejects a bad role" 2 MC set nope opus high
